@@ -399,7 +399,13 @@ class LogNormal(LightCone): # pragma: no cover
         # Done
         return pos
 
-    def get_halo_masses(self, z, N, mmin=1e11, mmax=np.inf, seed=None,
+    @property
+    def _cache_subhalo_cdf(self):
+        if not hasattr(self, '_cache_subhalo_cdf_'):
+            self._cache_subhalo_cdf_ = {}
+        return self._cache_subhalo_cdf_
+
+    def get_halo_masses(self, z, N, logmlim=(11, 15), seed=None,
         subhalos=False, Mc=None):
         """
         Draw halos from a model halo mass function.
@@ -422,40 +428,50 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
         # Grab dn/dm and construct CDF to randomly sampled HMF.
-
-        # Don't bother with m << mmin halos
-        ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
-                            self.sim.pops[0].halos.tab_M <  mmax)
-
-        m = self.sim.pops[0].halos.tab_M
-        iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
-        immin = np.argmin(np.abs(self.sim.pops[0].halos.tab_M - mmin))
-        immax = np.argmin(np.abs(self.sim.pops[0].halos.tab_M - mmax))
-
         if subhalos:
-            assert Mc is not None, "Must provide `Mc` if subhalos=True!"
+            iz = None
             iM = np.argmin(np.abs(Mc - self.sim.pops[0].halos.tab_M))
-            # We only keep dn/dlnM for some reason, convert to dn/dm
-            dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,ok==1] / m[ok==1]
+        else:
+            iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
+            iM = None
 
-            #ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
-            #    initial=0)[-1::-1]
-
-            ngtm = self.sim.pops[0].halos.tab_ngtm_sub[iM,ok==1] #\
-                 #- self.sim.pops[0].halos.tab_ngtm_sub[iM,immax]
-            #nltm = ngtm[0]
-
+        if (iz, iM, logmlim, subhalos) in self._cache_subhalo_cdf.keys():
+            cdf = self._cache_subhalo_cdf[(iz, iM, logmlim, seed)]
         else:
 
-            dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
+            # Don't bother with m << mmin halos
+            mmin = 10**logmlim[0]
+            mmax = 10**logmlim[1]
+            ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
+                                self.sim.pops[0].halos.tab_M <  mmax)
 
-            ngtm = self.sim.pops[0].halos.tab_ngtm[iz,ok==1]
+            m = self.sim.pops[0].halos.tab_M
 
-        # Compute CDF
-        ntot = np.trapz(dndm * m[ok==1], x=np.log(m[ok==1]))
-        nltm = ntot - ngtm
+            if subhalos:
+                assert Mc is not None, "Must provide `Mc` if subhalos=True!"
 
-        cdf = nltm / ntot
+                # We only keep dn/dlnM for some reason, convert to dn/dm
+                dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,ok==1] / m[ok==1]
+
+                #ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
+                #    initial=0)[-1::-1]
+
+                ngtm = self.sim.pops[0].halos.tab_ngtm_sub[iM,ok==1] #\
+                     #- self.sim.pops[0].halos.tab_ngtm_sub[iM,immax]
+                #nltm = ngtm[0]
+
+            else:
+
+                dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
+                ngtm = self.sim.pops[0].halos.tab_ngtm[iz,ok==1]
+
+            # Compute CDF
+            ntot = np.trapz(dndm * m[ok==1], x=np.log(m[ok==1]))
+            nltm = ntot - ngtm
+
+            cdf = nltm / ntot
+
+            self._cache_subhalo_cdf[(iz, iM, logmlim, seed)] = cdf
 
         # Assign halo masses according to HMF.
         np.random.seed(seed)
@@ -854,7 +870,7 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Outsources sampling over sub-halo MF
             _m = self.get_halo_masses(red_c[i], Nsat_act,
-                mmin=10**logmlim[0], mmax=10**logmlim[1], seed=seeds_mass[i],
+                logmlim=logmlim, seed=seeds_mass[i],
                 subhalos=True, Mc=mass_c[i])
 
             mass.extend(list(_m))
@@ -991,7 +1007,8 @@ class LogNormal(LightCone): # pragma: no cover
             Nact = pos.shape[0]
 
             # Draw halo masses from HMF
-            mass = self.get_halo_masses(z, Nact, mmin=mmin, mmax=mmax,
+            mass = self.get_halo_masses(z, Nact,
+                logmlim=tuple(np.log10([mmin, mmax])),
                 seed=seed)
 
         # In this case, we need to know the masses of halos before we generate
@@ -1003,7 +1020,8 @@ class LogNormal(LightCone): # pragma: no cover
             Nact = np.random.poisson(Nexp)
 
             # Draw halo masses from HMF
-            mass = self.get_halo_masses(z, Nact, mmin=mmin, mmax=mmax,
+            mass = self.get_halo_masses(z, Nact,
+                logmlim=tuple(np.log10([mmin, mmax])),
                 seed=seed)
 
             pos = self.get_halo_positions(z, Nact, pb.delta_x(), m=mass,
