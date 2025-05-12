@@ -1703,6 +1703,13 @@ class GalaxyCohort(GalaxyAggregate):
 
             norm += np.trapz(integrand[i,:], x=log10M)
 
+        ##
+        # Rare, but we do occasionally request very low or very high mass
+        # bins, for which there may not actually be any galaxies. Need to
+        # check to avoid divide by zero error.
+        if norm == 0:
+            return 0.
+
         return mainseq / norm
 
     def get_sfr_mean(self, z, Mh):
