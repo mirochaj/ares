@@ -595,18 +595,62 @@ class LightCone(object): # pragma: no cover
         return R_sec, nsers, ellip, pa
 
     def _get_postage_stamp_pix(self, R, psize):
+        """
+        Determine the pixel indices for a postage stamp image.
+
+        Parameters
+        ----------
+        R : int, float
+            Size of object in pixels.
+        psize : int, float
+            Size of postage stamp in units of `R`, which is probably a
+            half-light radius or virial radius.
+
+        Returns
+        -------
+        Essentially the results of a meshgrid call, with a third quantity
+        that indicates the radius of the postage stamp in number of pixels.
+        """
+
+        if not hasattr(self, '_cache_pstamp_pix_'):
+            self._cache_pstamp_pix_ = {}
+
         # Determine how big of a postage stamp image to make in
-        # number of pixels (just scale R_eff by `postage_stamp`)
+        # number of pixels (just scale R_eff by `psize`)
         # (Force to be odd)
         _r_ = np.ceil(psize * R)
         if _r_ % 2 == 0:
             _r_ += 1
 
+        # Load from cache if possible. numpy's `meshgrid` can be slow.
+        if _r_ in self._cache_pstamp_pix_:
+            return self._cache_pstamp_pix_[_r_]
+
         # Pixel coordinates
         xy = np.arange(-_r_, _r_ + 1, 1, dtype=int)
         xx, yy = np.meshgrid(xy, xy, indexing='ij')
 
-        return xx, yy
+        self._cache_pstamp_pix_[_r_] = xx, yy, _r_
+
+        return xx, yy, _r_
+
+    def _get_ihl_postage_stamp(self, _r_, Rarr, Rtab, Stab, iM):
+        """
+        Because the projected NFW profile is tabulated, we use this simple
+        wrapper to first check if we've already interpolated to a postage
+        stamp of size `_r_`
+        """
+        if not hasattr(self, '_cache_ihl_pstamp_'):
+            self._cache_ihl_pstamp_ = {}
+
+        if (_r_, iM) in self._cache_ihl_pstamp_:
+            return self._cache_ihl_pstamp_[(_r_, iM)]
+
+        I = np.interp(np.log10(Rarr), np.log10(Rtab), Stab[iM,:])
+
+        self._cache_ihl_pstamp_[(_r_, iM)] = I
+
+        return I
 
     def _get_postage_stamp_slices(self, pstamp, buffer, i, j):
         nx, ny = pstamp.shape
@@ -649,6 +693,37 @@ class LightCone(object): # pragma: no cover
         slcy2 = slice(ylo, yhi)
 
         return slcx, slcy, slcx2, slcy2
+
+    def get_pix_mesh(self, fov, pix, in_mpc=0):
+        """
+        Get
+        """
+        if not hasattr(self, '_cache_pix_mesh_'):
+            self._cache_pix_mesh_ = {}
+
+        if not in_mpc:
+            if (fov, pix, in_mpc) in self._cache_pix_mesh_.keys():
+                return self._cache_pix_mesh_[(fov, pix, in_mpc)]
+
+            ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
+            pix_deg = pix / 3600.
+
+
+            rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
+                indexing='ij')
+
+            self._cache_pix_mesh_[(fov, pix, in_mpc)] = rr, dd
+            return rr, dd
+
+        ##
+        # Slightly harder case
+
+            mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
+                pix / 60.)
+
+            rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
+                                dec_c * 60 * mpc_per_arcmin,
+                                indexing='ij')
 
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, null_beyond_size=np.inf, size_cut=0.5, dlam=20.,
@@ -826,9 +901,7 @@ class LightCone(object): # pragma: no cover
             # Remaining dimensions (Mh, R)
             Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
             Mall = self.sim.pops[pid].halos.tab_M
-
-
-
+            
             R_pix = R_X = Rvir * 60 / mpc_per_arcmin / pix
 
             # Pixel coordinates in RA and DEC
@@ -928,14 +1001,14 @@ class LightCone(object): # pragma: no cover
                 iM = np.argmin(np.abs(Mh[h] - Mall))
 
                 if postage_stamp is not None:
-                    xx, yy = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
+                    xx, yy, _r_ = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
 
                     # This is in pixels, need to convert to cMpc before
                     # interpolating
                     Rarr = np.sqrt(xx**2 + yy**2) * (pix / 60.) \
                         * mpc_per_arcmin
 
-                    I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+                    I = self._get_ihl_postage_stamp(_r_, Rarr, Rall, Sall, iM)
 
                     # OK, now need to drop into full image
                     slcx, slcy, slcx2, slcy2 = \
@@ -967,7 +1040,7 @@ class LightCone(object): # pragma: no cover
 
                 if postage_stamp is not None:
 
-                    xx, yy = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
+                    xx, yy, _r_ = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
 
                     # This is in pixels, need to convert to cMpc before
                     # interpolating
