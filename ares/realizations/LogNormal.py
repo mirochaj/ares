@@ -405,8 +405,14 @@ class LogNormal(LightCone): # pragma: no cover
             self._cache_subhalo_cdf_ = {}
         return self._cache_subhalo_cdf_
 
+    @property
+    def _cache_mgtm(self):
+        if not hasattr(self, '_cache_mgtm_'):
+            self._cache_mgtm_ = {}
+        return self._cache_mgtm_
+
     def get_halo_masses(self, z, N, logmlim=(11, 15), seed=None,
-        subhalos=False, Mc=None):
+        subhalos=False, Mc=None, iz=None, iM=None):
         """
         Draw halos from a model halo mass function.
 
@@ -425,15 +431,20 @@ class LogNormal(LightCone): # pragma: no cover
             also provide central halo mass via `Mc`.
         Mc : float
             Central halo mass [Msun]. Only applicable if `subhalos`=True.
+        iz : int
+            Index in redshift array.
+        iM : int
+            Index in halo mass array.
 
         """
         # Grab dn/dm and construct CDF to randomly sampled HMF.
-        if subhalos:
-            iz = None
-            iM = np.argmin(np.abs(Mc - self.sim.pops[0].halos.tab_M))
-        else:
-            iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
-            iM = None
+        if (iz is None) and (iM is None):
+            if subhalos:
+                iz = None
+                iM = np.argmin(np.abs(Mc - self.sim.pops[0].halos.tab_M))
+            else:
+                iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
+                iM = None
 
         if (iz, iM, logmlim, subhalos) in self._cache_subhalo_cdf.keys():
             cdf = self._cache_subhalo_cdf[(iz, iM, logmlim, seed)]
@@ -442,33 +453,37 @@ class LogNormal(LightCone): # pragma: no cover
             # Don't bother with m << mmin halos
             mmin = 10**logmlim[0]
             mmax = 10**logmlim[1]
-            ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
-                                self.sim.pops[0].halos.tab_M <  mmax)
-
-            m = self.sim.pops[0].halos.tab_M
-
-            if subhalos:
-                assert Mc is not None, "Must provide `Mc` if subhalos=True!"
-
-                # We only keep dn/dlnM for some reason, convert to dn/dm
-                dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,ok==1] / m[ok==1]
-
-                #ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
-                #    initial=0)[-1::-1]
-
-                ngtm = self.sim.pops[0].halos.tab_ngtm_sub[iM,ok==1] #\
-                     #- self.sim.pops[0].halos.tab_ngtm_sub[iM,immax]
-                #nltm = ngtm[0]
-
-            else:
-
-                dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
-                ngtm = self.sim.pops[0].halos.tab_ngtm[iz,ok==1]
 
             # Compute CDF
-            ntot = np.trapz(dndm * m[ok==1], x=np.log(m[ok==1]))
-            nltm = ntot - ngtm
+            if (iz, iM, logmlim) in self._cache_mgtm:
+                m, dndm, ngtm, ntot = self._cache_mgtm[(iz, iM, logmlim)]
+            else:
+                ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
+                                    self.sim.pops[0].halos.tab_M <  mmax)
 
+                m = self.sim.pops[0].halos.tab_M[ok==1]
+
+                if subhalos:
+                    assert Mc is not None, "Must provide `Mc` if subhalos=True!"
+
+                    # We only keep dn/dlnM for some reason, convert to dn/dm
+                    dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,ok==1] / m
+
+                    #ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
+                    #    initial=0)[-1::-1]
+
+                    ngtm = self.sim.pops[0].halos.tab_ngtm_sub[iM,ok==1] #\
+                         #- self.sim.pops[0].halos.tab_ngtm_sub[iM,immax]
+                    #nltm = ngtm[0]
+
+                else:
+                    dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
+                    ngtm = self.sim.pops[0].halos.tab_ngtm[iz,ok==1]
+
+                ntot = np.trapz(dndm * m, x=np.log(m))
+                self._cache_mgtm[(iz, iM, logmlim)] = m, dndm, ngtm, ntot
+
+            nltm = ntot - ngtm
             cdf = nltm / ntot
 
             self._cache_subhalo_cdf[(iz, iM, logmlim, seed)] = cdf
@@ -477,7 +492,7 @@ class LogNormal(LightCone): # pragma: no cover
         np.random.seed(seed)
         r = np.random.rand(N)
 
-        mass = np.exp(np.interp(r, cdf, np.log(m[ok==1])))
+        mass = np.exp(np.interp(r, cdf, np.log(m)))
 
         return mass
 
@@ -871,7 +886,7 @@ class LogNormal(LightCone): # pragma: no cover
             # Outsources sampling over sub-halo MF
             _m = self.get_halo_masses(red_c[i], Nsat_act,
                 logmlim=logmlim, seed=seeds_mass[i],
-                subhalos=True, Mc=mass_c[i])
+                subhalos=True, Mc=mass_c[i], iz=iz[i], iM=iM[i])
 
             mass.extend(list(_m))
 
