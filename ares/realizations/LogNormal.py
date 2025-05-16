@@ -498,7 +498,9 @@ class LogNormal(LightCone): # pragma: no cover
             self._cache_subhalo_cdf[(iz, iM, logmlim, seed)] = cdf
 
         # Assign halo masses according to HMF.
-        np.random.seed(seed)
+        if seed is not None:
+            np.random.seed(seed)
+
         r = np.random.rand(N)
 
         mass = np.exp(np.interp(r, cdf, np.log(m)))
@@ -863,6 +865,9 @@ class LogNormal(LightCone): # pragma: no cover
         seeds_pos = np.random.randint(0, high=2**30, size=Nc)
         seeds_mass = np.random.randint(0, high=2**30, size=Nc)
 
+        # Do we really need a new seed for each central?
+        # It is surprisingly expensive to call np.seed on each iteration
+
         # Determine closest mass and redshift bins for projected density profile
         iM = np.searchsorted(self.halos.tab_M_e, mass_c,
             side='right') - 1
@@ -870,7 +875,7 @@ class LogNormal(LightCone): # pragma: no cover
             side='right') - 1
 
         mpc_per_deg = \
-            self.sim.cosm.get_length_comoving_from_angle(red_c, 60.)    
+            self.sim.cosm.get_length_comoving_from_angle(red_c, 60.)
 
         ra = []
         dec = []
@@ -892,16 +897,15 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Poisson random draw to determine actual number of subhalos,
             # given expected number.
-            np.random.seed(seeds_num[i])
+            #np.random.seed(seeds_num[i])
             Nsat_act = np.random.poisson(Nsat_exp)
 
             # Outsources sampling over sub-halo MF
             _m = self.get_halo_masses(red_c[i], Nsat_act,
-                logmlim=logmlim, seed=seeds_mass[i],
+                logmlim=logmlim, seed=None,#,seeds_mass[i],
                 subhalos=True, Mc=mass_c[i], iz=iz[i], iM=iM[i])
 
             mass.extend(list(_m))
-
 
             ##
             # Now, do positions. Do in 2-D or 3-D?
@@ -909,7 +913,7 @@ class LogNormal(LightCone): # pragma: no cover
 
                 cdf = self.halos.tab_Sigma_nfw_cdf[iz[i],iM[i],:]
 
-                np.random.seed(seeds_pos[i])
+                #np.random.seed(seeds_pos[i])
                 r = np.random.rand(Nsat_act)
 
                 # Radial displacement of all satellites in cMpc
@@ -919,7 +923,7 @@ class LogNormal(LightCone): # pragma: no cover
 
                 # Need to turn into RA and DEC
                 # Randomly choose an angle
-                np.random.seed(seeds_pos[i] * 2)
+                #np.random.seed(seeds_pos[i] * 2)
                 theta = np.random.rand(Nsat_act) * 2 * np.pi
 
                 # Then convert to x and y displacements
