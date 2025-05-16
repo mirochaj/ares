@@ -1665,6 +1665,9 @@ class GalaxyCohort(GalaxyAggregate):
         sigma_m = self.pf['pop_scatter_smhm']
         sigma_sfr = self.pf['pop_scatter_sfr']
 
+        if sigma_m == sigma_sfr == 0:
+            return np.interp(float(binc), log10M, sfr)
+
         log10Mmin = np.log10(self.get_Mmin(z))
 
         # 2-D PDF: (<Mstell(Mh)>, Mstell)

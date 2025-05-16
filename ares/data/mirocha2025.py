@@ -459,6 +459,41 @@ dust_dpl = \
  'pq_func_par20[4]{0}': 0.0,           # high
 }
 
+dust_dplx = \
+{
+ 'pq_func[4]{0}': 'dplx_evolB13',
+ 'pq_func_var[4]{0}': 'Mh',
+ 'pq_func_var2[4]{0}': '1+z',
+ 'pq_func_par0[4]{0}': 0.0,
+ 'pq_func_par1[4]{0}': 1e12,
+ 'pq_func_par2[4]{0}': 0.2,
+ 'pq_func_par3[4]{0}': 0.,
+ 'pq_func_par4[4]{0}': 1e10,           # normalization pinned to this Mh
+ 'pq_func_par5[4]{0}': 0,              # norm
+ 'pq_func_par6[4]{0}': 0,              # peak
+ 'pq_func_par7[4]{0}': 0,              # low
+ 'pq_func_par8[4]{0}': 0,              # high
+ 'pq_func_par9[4]{0}': 0.0,            # norm
+ 'pq_func_par10[4]{0}': 0.0,           # peak
+ 'pq_func_par11[4]{0}': 0.0,           # low
+ 'pq_func_par12[4]{0}': 0.0,           # high
+ 'pq_func_par13[4]{0}': 0.0,           # norm
+ 'pq_func_par14[4]{0}': 0.0,           # peak
+ 'pq_func_par15[4]{0}': 0.0,           # low
+ 'pq_func_par16[4]{0}': 0.0,           # high
+ 'pq_func_par17[4]{0}': 0.0,           # norm
+ 'pq_func_par18[4]{0}': 0.0,           # peak
+ 'pq_func_par19[4]{0}': 0.0,           # low
+ 'pq_func_par20[4]{0}': 0.0,           # high
+  # Extension!
+ 'pq_func_par21[4]{0}': 5.0, # evolution done in log10(Mturn), hence default > 0
+ 'pq_func_par22[4]{0}': 0.0,
+ 'pq_func_par23[4]{0}': 0.0,
+ 'pq_func_par24[4]{0}': 0.0,
+ 'pq_func_par25[4]{0}': 0.0,
+ 'pq_func_par26[4]{0}': 0.0,
+}
+
 dust_linlog = \
 {
  'pq_func[4]{0}': 'linlog_evolB13',
