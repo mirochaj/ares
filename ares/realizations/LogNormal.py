@@ -15,6 +15,7 @@ import numpy as np
 from ..util import ProgressBar
 from .LightCone import LightCone
 from ..util.Misc import get_pop_info
+from functools import cached_property
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
@@ -101,6 +102,11 @@ class LogNormal(LightCone): # pragma: no cover
             print(f"# New zlim=({self.zlim[0]:.3f},{self.zlim[1]:.3f})")
             print(f"# Number of co-eval layers: {zmid.size}")
 
+        ##
+        # Initialize caches here to avoid repeated hasattr calls
+        self._cache_subhalo_cdf_ = {}
+        self._cache_mgtm_ = {}
+
     def get_fov_from_L(self, z, Lbox):
         """
         Return FOV in degrees (single dimension) given redshift and Lbox in
@@ -150,12 +156,12 @@ class LogNormal(LightCone): # pragma: no cover
         mem_z = [] # Memory for each redshift separately
         mem_c = [] # Cumulative
         for i, z in enumerate(zmid):
-            iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
-            ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
-                                self.sim.pops[0].halos.tab_M < mmax)
+            iz = np.argmin(np.abs(self.halos.tab_z - z))
+            ok = np.logical_and(self.halos.tab_M >= mmin,
+                                self.halos.tab_M < mmax)
 
-            m = self.sim.pops[0].halos.tab_M[ok==1]
-            dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
+            m = self.halos.tab_M[ok==1]
+            dndm = self.halos.tab_dndm[iz,ok==1]
 
             nall = cumulative_trapezoid(dndm * m, x=np.log(m), initial=0.0)
             nbar = np.trapz(dndm * m, x=np.log(m)) \
@@ -200,12 +206,12 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
-        iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
-        ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
-                            self.sim.pops[0].halos.tab_M < mmax)
+        iz = np.argmin(np.abs(self.halos.tab_z - z))
+        ok = np.logical_and(self.halos.tab_M >= mmin,
+                            self.halos.tab_M < mmax)
 
-        m = self.sim.pops[0].halos.tab_M[ok==1]
-        dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
+        m = self.halos.tab_M[ok==1]
+        dndm = self.halos.tab_dndm[iz,ok==1]
 
         nall = cumulative_trapezoid(dndm * m, x=np.log(m), initial=0.0)
         nbar = np.trapz(dndm * m, x=np.log(m)) \
@@ -238,10 +244,10 @@ class LogNormal(LightCone): # pragma: no cover
         if z in self._cache_ps:
             return self._cache_ps[z](k)
 
-        iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
+        iz = np.argmin(np.abs(self.halos.tab_z - z))
 
-        power = interp1d(self.sim.pops[0].halos.tab_k_lin,
-            self.sim.pops[0].halos.tab_ps_lin[iz,:], kind='cubic')
+        power = interp1d(self.halos.tab_k_lin,
+            self.halos.tab_ps_lin[iz,:], kind='cubic')
 
         self._cache_ps[z] = power
 
@@ -401,15 +407,18 @@ class LogNormal(LightCone): # pragma: no cover
 
     @property
     def _cache_subhalo_cdf(self):
-        if not hasattr(self, '_cache_subhalo_cdf_'):
-            self._cache_subhalo_cdf_ = {}
         return self._cache_subhalo_cdf_
 
     @property
     def _cache_mgtm(self):
-        if not hasattr(self, '_cache_mgtm_'):
-            self._cache_mgtm_ = {}
         return self._cache_mgtm_
+
+    @cached_property
+    def halos(self):
+        pop0 = self.sim.pops[0]
+        halos = pop0.halos
+        # Returning the hidden attribute here means we'll skip hasattr's
+        return pop0._halos
 
     def get_halo_masses(self, z, N, logmlim=(11, 15), seed=None,
         subhalos=False, Mc=None, iz=None, iM=None):
@@ -441,9 +450,9 @@ class LogNormal(LightCone): # pragma: no cover
         if (iz is None) and (iM is None):
             if subhalos:
                 iz = None
-                iM = np.argmin(np.abs(Mc - self.sim.pops[0].halos.tab_M))
+                iM = np.argmin(np.abs(Mc - self.halos.tab_M))
             else:
-                iz = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - z))
+                iz = np.argmin(np.abs(self.halos.tab_z - z))
                 iM = None
 
         if (iz, iM, logmlim, subhalos) in self._cache_subhalo_cdf.keys():
@@ -458,27 +467,27 @@ class LogNormal(LightCone): # pragma: no cover
             if (iz, iM, logmlim) in self._cache_mgtm:
                 m, dndm, ngtm, ntot = self._cache_mgtm[(iz, iM, logmlim)]
             else:
-                ok = np.logical_and(self.sim.pops[0].halos.tab_M >= mmin,
-                                    self.sim.pops[0].halos.tab_M <  mmax)
+                ok = np.logical_and(self.halos.tab_M >= mmin,
+                                    self.halos.tab_M <  mmax)
 
-                m = self.sim.pops[0].halos.tab_M[ok==1]
+                m = self.halos.tab_M[ok==1]
 
                 if subhalos:
                     assert Mc is not None, "Must provide `Mc` if subhalos=True!"
 
                     # We only keep dn/dlnM for some reason, convert to dn/dm
-                    dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,ok==1] / m
+                    dndm = self.halos.tab_dndlnm_sub[iM,ok==1] / m
 
                     #ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
                     #    initial=0)[-1::-1]
 
-                    ngtm = self.sim.pops[0].halos.tab_ngtm_sub[iM,ok==1] #\
+                    ngtm = self.halos.tab_ngtm_sub[iM,ok==1] #\
                          #- self.sim.pops[0].halos.tab_ngtm_sub[iM,immax]
                     #nltm = ngtm[0]
 
                 else:
-                    dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
-                    ngtm = self.sim.pops[0].halos.tab_ngtm[iz,ok==1]
+                    dndm = self.halos.tab_dndm[iz,ok==1]
+                    ngtm = self.halos.tab_ngtm[iz,ok==1]
 
                 ntot = np.trapz(dndm * m, x=np.log(m))
                 self._cache_mgtm[(iz, iM, logmlim)] = m, dndm, ngtm, ntot
@@ -822,18 +831,18 @@ class LogNormal(LightCone): # pragma: no cover
         # using an NFW profile.
 
         # First, grab a few things we need. This is 2-D (Mc, Msat)
-        hmf_sub = self.sim.pops[0].halos.tab_dndlnm_sub
+        hmf_sub = self.halos.tab_dndlnm_sub
 
-        ok_sub = np.logical_and(self.sim.pops[0].halos.tab_M >= 10**logmlim[0],
-                                self.sim.pops[0].halos.tab_M <  10**logmlim[1])
+        ok_sub = np.logical_and(self.halos.tab_M >= 10**logmlim[0],
+                                self.halos.tab_M <  10**logmlim[1])
 
         # Expected number of subhalos vs. central halo mass.
         # Just need to do this once per `logmlim`.
         Nexp = np.trapz(hmf_sub[:,ok_sub==1],
-            x=np.log(self.sim.pops[0].halos.tab_M[ok_sub==1]), axis=1)
+            x=np.log(self.halos.tab_M[ok_sub==1]), axis=1)
 
         # Array of radial separations [cMpc]
-        d = self.sim.pops[0].halos.tab_R_nfw
+        d = self.sim.halos.tab_R_nfw
 
         ##
         # Just loop to start. Could truncate based on where expected
@@ -855,10 +864,13 @@ class LogNormal(LightCone): # pragma: no cover
         seeds_mass = np.random.randint(0, high=2**30, size=Nc)
 
         # Determine closest mass and redshift bins for projected density profile
-        iM = np.searchsorted(self.sim.pops[0].halos.tab_M_e, mass_c,
+        iM = np.searchsorted(self.halos.tab_M_e, mass_c,
             side='right') - 1
-        iz = np.searchsorted(self.sim.pops[0].halos.tab_z, red_c,
+        iz = np.searchsorted(self.halos.tab_z, red_c,
             side='right') - 1
+
+        mpc_per_deg = \
+            self.sim.cosm.get_length_comoving_from_angle(red_c, 60.)    
 
         ra = []
         dec = []
@@ -868,7 +880,7 @@ class LogNormal(LightCone): # pragma: no cover
         for i in range(Nc):
 
             # Remaining dimension: halos.tab_R_nfw
-            Sigma = self.sim.pops[0].halos.tab_Sigma_nfw[iz[i],iM[i],:]
+            Sigma = self.halos.tab_Sigma_nfw[iz[i],iM[i],:]
 
             Nsat_exp = int(Nexp[iM[i]])
 
@@ -890,11 +902,12 @@ class LogNormal(LightCone): # pragma: no cover
 
             mass.extend(list(_m))
 
+
             ##
             # Now, do positions. Do in 2-D or 3-D?
             if distribute_in_space:
 
-                cdf = self.sim.pops[0].halos.tab_Sigma_nfw_cdf[iz[i],iM[i],:]
+                cdf = self.halos.tab_Sigma_nfw_cdf[iz[i],iM[i],:]
 
                 np.random.seed(seeds_pos[i])
                 r = np.random.rand(Nsat_act)
@@ -902,10 +915,7 @@ class LogNormal(LightCone): # pragma: no cover
                 # Radial displacement of all satellites in cMpc
                 r_proj_mpc = np.exp(np.interp(r, cdf, np.log(d)))
 
-                mpc_per_deg = \
-                    self.sim.cosm.get_length_comoving_from_angle(red_c[i], 60.)
-
-                r_proj_deg = r_proj_mpc / mpc_per_deg
+                r_proj_deg = r_proj_mpc / mpc_per_deg[i]
 
                 # Need to turn into RA and DEC
                 # Randomly choose an angle
