@@ -26,6 +26,20 @@ try:
 except ImportError:
     pass
 
+#try:
+#    from numba import njit, prange
+#
+#    @njit
+#    def _interp_linear(xx, x, y):
+#        return np.interp(xx, x, y)
+#
+#    @njit
+#    def _trapz(x, y):
+#        return np.trapz(y, x=x)
+#except ImportError:
+#    pass
+
+
 class LogNormal(LightCone): # pragma: no cover
     def __init__(self, model_name, Lbox=256, dims=128, zmin=0.05, zmax=2, verbose=True,
         seed_rho=None, seed_halo_mass=None, seed_halo_pos=None, seed_halo_occ=None,
@@ -504,6 +518,7 @@ class LogNormal(LightCone): # pragma: no cover
         r = np.random.rand(N)
 
         mass = np.exp(np.interp(r, cdf, np.log(m)))
+        #mass = np.exp(_interp_linear(r, cdf, np.log(m)))
 
         return mass
 
@@ -619,6 +634,9 @@ class LogNormal(LightCone): # pragma: no cover
         ct = 0
         # Track max_sources
         _hit_max_sources = False
+
+        # Track parent halos of satellites
+        parents = None
 
         zlo = zmin * 1.
         for i, Rlo in enumerate(Re[0:-1]):
@@ -775,11 +793,18 @@ class LogNormal(LightCone): # pragma: no cover
                 dec = _de.copy()
                 red = _red.copy()
                 mass = _m.copy()
+
+                if satellites:
+                    parents = par_id.copy()
+
             else:
                 ra = np.hstack((ra, _ra))
                 dec = np.hstack((dec, _de))
                 red = np.hstack((red, _red))
                 mass = np.hstack((mass, _m))
+
+                if satellites:
+                    parents = np.hstack((parents, par_id))
 
             ct += 1
 
@@ -800,7 +825,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
 
-        return ra, dec, red, mass
+        return ra, dec, red, parents
 
     def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, pid_c,
         logmlim=(11,15), seed=None, distribute_in_space=True):
@@ -918,6 +943,7 @@ class LogNormal(LightCone): # pragma: no cover
 
                 # Radial displacement of all satellites in cMpc
                 r_proj_mpc = np.exp(np.interp(r, cdf, np.log(d)))
+                #r_proj_mpc = np.exp(_interp_linear(r, cdf, np.log(d)))
 
                 r_proj_deg = r_proj_mpc / mpc_per_deg[i]
 
