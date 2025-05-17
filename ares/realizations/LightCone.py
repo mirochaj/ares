@@ -37,6 +37,11 @@ try:
 except ImportError:
     pass
 
+#try:
+#    from numba import njit, prange
+#except ImportError:
+#    pass
+
 angles_90 = 90 * np.arange(4)
 
 class LightCone(object): # pragma: no cover
@@ -725,6 +730,7 @@ class LightCone(object): # pragma: no cover
                                 dec_c * 60 * mpc_per_arcmin,
                                 indexing='ij')
 
+    #@njit(parallel=True)
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, null_beyond_size=np.inf, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False,
@@ -830,7 +836,7 @@ class LightCone(object): # pragma: no cover
         else:
 
             # Run fresh if we didn't find anything
-            ra, dec, red, Mh = self.get_catalog_halos(zlim=(zlo, zhi),
+            ra, dec, red, Mh, parents = self.get_catalog_halos(zlim=(zlo, zhi),
                 logmlim=logmlim, popid=popid, verbose=verbose,
                 satellites=self.sim.pops[pid].is_satellite_pop,
                 logmlim_sats=logmlim_sats)
@@ -901,7 +907,7 @@ class LightCone(object): # pragma: no cover
             # Remaining dimensions (Mh, R)
             Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
             Mall = self.sim.pops[pid].halos.tab_M
-            
+
             R_pix = R_X = Rvir * 60 / mpc_per_arcmin / pix
 
             # Pixel coordinates in RA and DEC
@@ -1479,7 +1485,8 @@ class LightCone(object): # pragma: no cover
 
                 # Get basic halo properties
                 #print('entering get_catalog', zlayer, mlayer)
-                _ra, _dec, _red, _Mh = self.get_catalog_halos(zlim=zlayer,
+                _ra, _dec, _red, _Mh, _parents = \
+                    self.get_catalog_halos(zlim=zlayer,
                     logmlim=mlayer, popid=popid, verbose=verbose,
                     satellites=self.sim.pops[pid].is_satellite_pop,
                     logmlim_sats=logmlim_sats)
