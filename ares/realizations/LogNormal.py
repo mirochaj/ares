@@ -785,7 +785,11 @@ class LogNormal(LightCone): # pragma: no cover
                         seed=seed_kwargs['seed_sats'],
                         distribute_in_space=self.distribute_sats_spatially)
 
+                # Replace info about central with satellite info
                 _ra, _de, _red, _m = ra_s, dec_s, red_s, mass_s
+
+                # Need to hack off satellites that end up outside the FoV
+
 
             # Save results
             if ct == 0:
@@ -824,8 +828,7 @@ class LogNormal(LightCone): # pragma: no cover
         pbar.finish()
 
         #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
-
-        return ra, dec, red, parents
+        return ra, dec, red, mass, parents
 
     def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, pid_c,
         logmlim=(11,15), seed=None, distribute_in_space=True):

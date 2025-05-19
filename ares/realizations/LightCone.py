@@ -886,6 +886,13 @@ class LightCone(object): # pragma: no cover
             ra_ind = ra_ind[ok==1]
             de_ind = de_ind[ok==1]
 
+            # Need to filter `parents` also
+            if self.sim.pops[pid].is_satellite_pop:
+                parents = parents[ok==1]
+            else:
+                # parents is None in this case
+                pass
+
             # Shape of (ra, dec, red) is just (Ngalaxies)
 
             # Get flux from each object. Units = erg/s/cm^2/Ang.
@@ -1442,6 +1449,7 @@ class LightCone(object): # pragma: no cover
         dec = []
         red = []
         dat = []
+        parh = []
         for h, layer in enumerate(all_layers):
 
             # Unpack info about this layer
@@ -1516,11 +1524,17 @@ class LightCone(object): # pragma: no cover
                     _red = _red[ok==1]
                     _Mh = _Mh[ok==1]
 
+                    if self.sim.pops[pid].is_satellite_pop:
+                        _parents = _parents[ok==1]
+
                     ct += ok.sum()
 
                     ra.extend(list(_ra))
                     dec.extend(list(_dec))
                     red.extend(list(_red))
+
+                    if self.sim.pops[pid].is_satellite_pop:
+                        parh.extend(list(_parents))
 
                     ##
                     # Unpack channel info
@@ -1541,6 +1555,8 @@ class LightCone(object): # pragma: no cover
                         _dat *= self.get_map_norm(cat_units) / dnu
                     elif channel in ['Mh']:
                         _dat = _Mh
+                    elif channel in ['parents']:
+                        _dat = _parents
                     elif channel.lower().startswith('ew'):
                         raise NotImplemented('help')
                     elif channel.lower() == 'sfr':
