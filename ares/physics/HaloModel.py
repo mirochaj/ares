@@ -1467,6 +1467,10 @@ class HaloModel(HaloMassFunction):
             nothing = MPI.COMM_WORLD.Allreduce(self._tab_sigma_nfw, tmp)
             self._tab_sigma_nfw = tmp
 
+            tmp = np.zeros(shape)
+            nothing = MPI.COMM_WORLD.Allreduce(self._tab_sigma_nfw_cdf, tmp)
+            self._tab_sigma_nfw_cdf = tmp
+
             # So only root processor writes to disk
             if rank > 0:
                 return

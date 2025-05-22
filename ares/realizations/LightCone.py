@@ -836,8 +836,8 @@ class LightCone(object): # pragma: no cover
         else:
 
             # Run fresh if we didn't find anything
-            ra, dec, red, Mh, parents = self.get_catalog_halos(zlim=(zlo, zhi),
-                logmlim=logmlim, popid=popid, verbose=verbose,
+            ra, dec, red, Mh, parents = self.get_catalog_halos(
+                zlim=(zlo, zhi), logmlim=logmlim, popid=popid, verbose=verbose,
                 satellites=self.sim.pops[pid].is_satellite_pop,
                 logmlim_sats=logmlim_sats)
 
@@ -1378,6 +1378,62 @@ class LightCone(object): # pragma: no cover
         """
         pass
 
+    def _filter_by_fov(self, ok):
+        """
+
+        """
+
+        ids_in = np.arange(ok.size, dtype=int)
+        ids_out = []
+
+        ct = 0
+        for id in ids_in:
+            if ok[id]:
+                ids_out.append((id, ct))
+            else:
+                continue
+
+            ct += 1
+
+        ids_out = np.array(ids_out, dtype=int)
+
+        return ids_out
+
+    def _refresh_sat_ids(self, ids_in, ids_out, parents_in):
+        """
+        Initially we record the parent ID of satellites as the index of the
+        parent in a particular layer BEFORE any FoV filtering. After filtering,
+        we must adjust the indices accordingly. This routine figures out the
+        mapping between indices before and after FoV filtering.
+
+        Parameters
+        ----------
+        ids_in : np.ndarray
+            Indices of central halos BEFORE filtering on FoV.
+        ids_out : np.ndarray
+            Final indices of central halos.
+        parents_in : np.ndarray
+            Indices corresponding to parent ID of each satellite BEFORE
+            the FoV filter.
+
+
+        """
+
+        p_out = []
+        cen_ok = []
+        for i, p_in in enumerate(parents_in):
+            # Means that the parent of this satellite ended up outside the FoV
+            if p_in not in ids_in:
+                cen_ok.append(0)
+                continue
+
+            i_out = np.argwhere(p_in == ids_in).squeeze()
+            new_id = ids_out[i_out]
+            p_out.append(new_id)
+            cen_ok.append(1)
+
+        return np.array(p_out, dtype=int), np.array(cen_ok)
+
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
         suffix=None, fmt='fits', hdr={},
@@ -1444,6 +1500,13 @@ class LightCone(object): # pragma: no cover
         ##
         # Start doing work.
         ct = 0
+        tracker = {0: np.zeros((len(zlayers), len(mlayers)), dtype=int),
+                   1: np.zeros((len(zlayers), len(mlayers)), dtype=int)}
+
+        Nlayers = len(zlayers) * len(mlayers)
+        tracker_flat = {0: [None] * Nlayers, 1: [None] * Nlayers}
+        tracker_flat[0][0] = 0
+        tracker_flat[1][0] = 0
 
         ra = []
         dec = []
@@ -1467,6 +1530,11 @@ class LightCone(object): # pragma: no cover
 
             # Get number of z layer
             iz = np.digitize(zlayer.mean(), bins=zlayers[:,0]) - 1
+
+            # Get number of M layer
+            im = np.argmin(np.abs(mlayer[0] - mlayers[:,0]))
+
+            izm = iz * len(mlayers) + im
 
             # See if we already finished this map.
             # Note that if this file exists, it's guaranteed that the
@@ -1499,6 +1567,10 @@ class LightCone(object): # pragma: no cover
                     satellites=self.sim.pops[pid].is_satellite_pop,
                     logmlim_sats=logmlim_sats)
 
+                # Should be able to cache this, no? Just until we get
+                # to the next redshift and/or mass bin?
+                # Or, read from catalog? I/O can be slow...
+
                 # Could be empty layers for very massive halos and/or early times.
                 if (_ra is None) or (len(_ra) == 0):
                     # You might think: let's `continue` to the next iteration!
@@ -1506,7 +1578,12 @@ class LightCone(object): # pragma: no cover
                     # happens on the last layer of work for a given channel,
                     # then no checkpoint will be written below :/
                     # Hence the use of `pass` here intead.
-                    pass
+                    if (izm < Nlayers - 1):
+                        tracker_flat[pid_par][izm+1] = tracker_flat[pid_par][izm]
+
+                    tracker[pid_par][iz,im] = 0
+
+                    _parents = []
                 else:
 
                     # Correct for field position. Always (0,0) for log-normal boxes,
@@ -1524,110 +1601,181 @@ class LightCone(object): # pragma: no cover
                     _red = _red[ok==1]
                     _Mh = _Mh[ok==1]
 
+                    # Handle satellites
                     if self.sim.pops[pid].is_satellite_pop:
-                        _parents = _parents[ok==1]
+                        if ok.sum():
+                            _parents = _parents[ok==1]
+
+                            _ra_c, _dec_c, _red_c, _Mh_c, _parents_c = \
+                                self.get_catalog_halos(zlim=zlayer,
+                                logmlim=mlayer, popid=pid_par, verbose=verbose)
+
+                            # Problem: `_parents` are indices generated within
+                            # each layer, need to be incremented so that
+                            # elements point to the right central in the
+                            # FINAL halo catalog. So, we need to increment by
+                            # the number of halos up to but NOT including
+                            # this layer.
+
+                            ok_c = np.logical_and(np.abs(_ra_c)  < fov / 2.,
+                                                  np.abs(_dec_c) < fov / 2.)
+
+                            tracker[pid_par][iz,im] = ok_c.sum()
+
+                            if izm == 0:
+                                Ncen = 0
+                            else:
+                                Ncen = tracker_flat[pid_par][izm]
+
+                            # Prep for next iteration
+                            if (izm < Nlayers - 1) and (tracker_flat[pid_par][izm+1] is None):
+                                tracker_flat[pid_par][izm+1] = ok_c.sum() \
+                                    + tracker_flat[pid_par][izm]
+
+                            if ok_c.sum():
+                                ids_in, ids_out = self._filter_by_fov(ok_c).T
+
+                                # Need to worry about satellites being ok
+                                # but their centrals being not OK.
+                                _parents, cen_ok = \
+                                    self._refresh_sat_ids(ids_in, ids_out, _parents)
+
+                                if not np.all(cen_ok):
+                                    _ra = _ra[cen_ok==1]
+                                    _dec = _dec[cen_ok==1]
+                                    _red = _red[cen_ok==1]
+                                    _Mh = _Mh[cen_ok==1]
+
+                                if ok_c.sum() > 0:
+                                    _parents += Ncen
+                            else:
+                                _parents = _ra = _dec = _red = _Mh = []
+
+                            # Done dealing with scenario in which >0 satellites
+                            # are (at least initially) `ok`.
+                        else:
+                            # This means there aren't any satellites
+                            # in the FoV.
+                            _parents = _ra = _dec = _red = _Mh = []
+                            if (izm < Nlayers - 1):
+                                tracker_flat[pid_par][izm+1] = \
+                                    tracker_flat[pid_par][izm]
+                            tracker[pid_par][iz,im] = 0
+
+                        ##
+                        # Done with satellites
 
                     ct += ok.sum()
 
-                    ra.extend(list(_ra))
-                    dec.extend(list(_dec))
-                    red.extend(list(_red))
+                    if len(_ra) > 0:
+                        ra.extend(list(_ra))
+                        dec.extend(list(_dec))
+                        red.extend(list(_red))
 
-                    if self.sim.pops[pid].is_satellite_pop:
-                        parh.extend(list(_parents))
-
-                    ##
-                    # Unpack channel info
-                    # Could be name of field, e.g., 'Mh', 'SFR', 'Mstell',
-                    # photometric info, e.g., ('roman', 'F087'),
-                    # or special quantities like Ly-a EW or luminosity.
-                    # Note: if pops[popid] is a GalaxyEnsemble object
-                    if type(channel) in [tuple, list, np.ndarray]:
-                        # Internally, these fluxes are always in
-                        # erg/s/cm^2/Ang, but then integrated over channel.
-                        # Will need channel width in Hz to recover specific
-                        # intensities averaged over band.
-                        nu = c * 1e4 / np.mean(channel)
-                        dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
-
-                        _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
-                            channel, pid)
-                        _dat *= self.get_map_norm(cat_units) / dnu
-                    elif channel in ['Mh']:
-                        _dat = _Mh
-                    elif channel in ['parents']:
-                        _dat = _parents
-                    elif channel.lower().startswith('ew'):
-                        raise NotImplemented('help')
-                    elif channel.lower() == 'sfr':
-                        _dat = self.sim.pops[pid].get_sfr(z=_red, Mh=_Mh)
-                    elif channel.lower() in ['ms', 'mstell']:
-                        raise NotImplemented('help')
-                    elif channel.lower() in ['ellip', 'nsers', 'pa', 'r50']:
-                        R_sec, nsers, ellip, pa = self._get_size_catalog(zlim,
-                            logmlim, _red, _Mh, pid)
-
-                        _dat_dict = {'r50': R_sec, 'nsers': nsers,
-                            'ellip': ellip, 'pa': pa}
-
-                        _dat = _dat_dict[channel.lower()]
-                    else:
-                        cam, filt = channel.split('_')
+                        if self.sim.pops[pid].is_satellite_pop:
+                            parh.extend(list(_parents))
 
                         ##
-                        # Once again, in general need to sub-cycle through z
-                        # to preserve accuracy.
-                        zsub_lo = 1 * zlo
+                        # Unpack channel info
+                        # Could be name of field, e.g., 'Mh', 'SFR', 'Mstell',
+                        # photometric info, e.g., ('roman', 'F087'),
+                        # or special quantities like Ly-a EW or luminosity.
+                        # Note: if pops[popid] is a GalaxyEnsemble object
+                        if type(channel) in [tuple, list, np.ndarray]:
+                            # Internally, these fluxes are always in
+                            # erg/s/cm^2/Ang, but then integrated over channel.
+                            # Will need channel width in Hz to recover specific
+                            # intensities averaged over band.
+                            nu = c * 1e4 / np.mean(channel)
+                            dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
 
-                        mags = np.inf * np.ones(_Mh.size)
-                        while zsub_lo < zhi:
+                            _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
+                                channel, pid)
+                            _dat *= self.get_map_norm(cat_units) / dnu
+                        elif channel in ['Mh']:
+                            _dat = _Mh
+                        elif channel in ['parents']:
+                            _dat = _parents
+                        elif channel.lower().startswith('ew'):
+                            raise NotImplemented('help')
+                        elif channel.lower() == 'sfr':
+                            _dat = self.sim.pops[pid].get_sfr(z=_red, Mh=_Mh)
+                        elif channel.lower() in ['ms', 'mstell']:
+                            raise NotImplemented('help')
+                        elif channel.lower() in ['ellip', 'nsers', 'pa', 'r50']:
+                            R_sec, nsers, ellip, pa = self._get_size_catalog(zlim,
+                                logmlim, _red, _Mh, pid)
 
-                            zsub_hi = min(zsub_lo + self.dz_max, zhi)
+                            _dat_dict = {'r50': R_sec, 'nsers': nsers,
+                                'ellip': ellip, 'pa': pa}
 
-                            zsub_mid = np.mean([zsub_lo, zsub_hi])
-
-                            okzsub = np.logical_and(_red >= zsub_lo,
-                                                    _red < zsub_hi)
-
-                            _filt, out = \
-                                self.sim.pops[pid].get_mags(zsub_mid,
-                                absolute=False, cam=cam, filters=[filt],
-                                Mh=_Mh[okzsub==1])
-
-                            # There's a meaningless second dimension here
-                            # because get_mags can report mags for multiple
-                            # filters at once, we're just not doing that here.
-                            mags[okzsub==1] = out[:,0]
-                            zsub_lo += self.dz_max
-
-                        if cat_units == 'mags':
-                            _dat = np.atleast_1d(mags.squeeze())
-                        elif 'jy' in cat_units.lower():
-                            flux = 3631. * 10**(mags / -2.5)
-
-                            if cat_units.lower() == 'jy':
-                                _dat = np.atleast_1d(flux.squeeze())
-                            elif cat_units.lower() in ['microjy', 'ujy']:
-                                _dat = np.atleast_1d(1e6 * flux.squeeze())
-                            else:
-                                raise NotImplemented('help')
+                            _dat = _dat_dict[channel.lower()]
                         else:
-                            raise NotImplemented('Unrecognized `cat_units`.')
+                            cam, filt = channel.split('_')
 
+                            ##
+                            # Once again, in general need to sub-cycle through z
+                            # to preserve accuracy.
+                            zsub_lo = 1 * zlo
+
+                            mags = np.inf * np.ones(_Mh.size)
+                            while zsub_lo < zhi:
+
+                                zsub_hi = min(zsub_lo + self.dz_max, zhi)
+
+                                zsub_mid = np.mean([zsub_lo, zsub_hi])
+
+                                okzsub = np.logical_and(_red >= zsub_lo,
+                                                        _red < zsub_hi)
+
+                                _filt, out = \
+                                    self.sim.pops[pid].get_mags(zsub_mid,
+                                    absolute=False, cam=cam, filters=[filt],
+                                    Mh=_Mh[okzsub==1])
+
+                                # There's a meaningless second dimension here
+                                # because get_mags can report mags for multiple
+                                # filters at once, we're just not doing that here.
+                                mags[okzsub==1] = out[:,0]
+                                zsub_lo += self.dz_max
+
+                            if cat_units == 'mags':
+                                _dat = np.atleast_1d(mags.squeeze())
+                            elif 'jy' in cat_units.lower():
+                                flux = 3631. * 10**(mags / -2.5)
+
+                                if cat_units.lower() == 'jy':
+                                    _dat = np.atleast_1d(flux.squeeze())
+                                elif cat_units.lower() in ['microjy', 'ujy']:
+                                    _dat = np.atleast_1d(1e6 * flux.squeeze())
+                                else:
+                                    raise NotImplemented('help')
+                            else:
+                                raise NotImplemented('Unrecognized `cat_units`.')
+
+                        ##
+                        # Save
+                        if keep_layers:
+
+                            for ff, field in enumerate([_ra, _dec, _red, _dat]):
+                                # e.g., `parents` field for centrals is None
+                                if field in [[], None]:
+                                    continue
+
+                                fn_ff = self.get_cat_fn(fov, pix, field_names[ff],
+                                    popid, logmlim=mlayer, zlim=zlayer)
+                                self.save_cat(fn_ff, field, field_names[ff],
+                                    zlayer, mlayer, fov, pix=pix, fmt=fmt, hdr=hdr,
+                                    cat_units=field_units[ff],
+                                    clobber=clobber, verbose=verbose)
+
+
+                        if (type(_dat) == np.ndarray):
+                            dat.extend(list(_dat))
+                        else:
+                            pass
                     ##
-                    # Save
-                    if keep_layers:
-
-                        for ff, field in enumerate([_ra, _dec, _red, _dat]):
-                            fn_ff = self.get_cat_fn(fov, pix, field_names[ff],
-                                popid, logmlim=mlayer, zlim=zlayer)
-                            self.save_cat(fn_ff, field, field_names[ff],
-                                zlayer, mlayer, fov, pix=pix, fmt=fmt, hdr=hdr,
-                                cat_units=field_units[ff],
-                                clobber=clobber, verbose=verbose)
-
-
-                    dat.extend(list(_dat))
+                    #
 
                 # End of else block that generates new catalog if one isn't found.
 
@@ -1636,20 +1784,26 @@ class LightCone(object): # pragma: no cover
             ##
             # Figure out if we're done with all the layers
             if h == len(all_layers) - 1:
-                done_w_chan = True
+                done_w_chan_or_pop = True
             else:
-                done_w_chan = channel != all_layers[h+1][1]
+                done_w_chan_or_pop = np.logical_or(
+                    channel != all_layers[h+1][1],
+                    popid != all_layers[h+1][0])
 
             # If we're done with this channel, save file containing
             # full redshift and mass range.
             # Only reason we do np.all here is because a spectral channel will
             # be a 2-element tuple.
-            if np.all(done_w_chan):
+            if np.all(done_w_chan_or_pop):
                 #_fn = self.get_cat_fn(fov, pix, channel, popid,
                 #    logmlim=logmlim, zlim=self.zlim, fmt=fmt)
 
 
                 for ff, field in enumerate([ra, dec, red, dat]):
+                    # e.g., `parents` field for centrals is None
+                    if field in [[], None]:
+                        continue
+
                     _fn_ff = self.get_cat_fn(fov, pix, field_names[ff], popid,
                         logmlim=logmlim, zlim=self.zlim, fmt=fmt)
 
@@ -1658,11 +1812,12 @@ class LightCone(object): # pragma: no cover
                         fov, pix=pix, fmt=fmt, hdr=hdr, cat_units=field_units[ff],
                         clobber=clobber, verbose=verbose)
 
-                del ra, dec, red, dat
+                del ra, dec, red, dat, parh
                 dat = []
                 ra = []
                 dec = []
                 red = []
+                parh = []
 
         pb.finish()
 
@@ -1702,7 +1857,6 @@ class LightCone(object): # pragma: no cover
 
         if channel_names is None:
             channel_names = [None] * len(channels)
-
 
         all_layers = []
         for h, popid in enumerate(players):

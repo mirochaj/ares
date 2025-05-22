@@ -687,7 +687,7 @@ class HaloMassFunction(object):
     @cached_property
     def tab_log10M_e(self):
         return np.log10(self.tab_M_e)
-        
+
     @cached_property
     def tab_log10M(self):
         return np.log10(self.tab_M)
@@ -1376,6 +1376,11 @@ class HaloMassFunction(object):
         and collapse redshift.
 
         Equation 24 in Barkana & Loeb (2001).
+
+        Returns
+        -------
+        Virial radius in kpc (we eliminate little h here).
+
         """
 
         return (

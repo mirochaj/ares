@@ -1605,6 +1605,14 @@ class GalaxyCohort(GalaxyAggregate):
 
         return pdf
 
+    def _get_x_sequence(self, z, bin, x='mstell', use_tabs=True):
+        """
+        Analogous to `get_main_sequence` but more general. Basically, do the
+        annoying work of averaging some field `x` taking into account the
+        potential for scatter in SFR, stellar mass, etc.
+        """
+        pass
+
     def get_main_sequence(self, z, bin, use_tabs=True):
         """
         Return mean SFR of galaxies in provided log10(stellar mass / msun) `bin`.

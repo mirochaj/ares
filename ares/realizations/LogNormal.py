@@ -469,8 +469,13 @@ class LogNormal(LightCone): # pragma: no cover
                 iz = np.argmin(np.abs(self.halos.tab_z - z))
                 iM = None
 
-        if (iz, iM, logmlim, subhalos) in self._cache_subhalo_cdf.keys():
-            cdf = self._cache_subhalo_cdf[(iz, iM, logmlim, seed)]
+        if subhalos:
+            key_id = (iz, iM, logmlim, subhalos)
+        else:
+            key_id = (iM, logmlim, subhalos)
+
+        if key_id in self._cache_subhalo_cdf.keys():
+            m, cdf = self._cache_subhalo_cdf[key_id]
         else:
 
             # Don't bother with m << mmin halos
@@ -478,8 +483,8 @@ class LogNormal(LightCone): # pragma: no cover
             mmax = 10**logmlim[1]
 
             # Compute CDF
-            if (iz, iM, logmlim) in self._cache_mgtm:
-                m, dndm, ngtm, ntot = self._cache_mgtm[(iz, iM, logmlim)]
+            if key_id in self._cache_mgtm:
+                m, dndm, ngtm, ntot = self._cache_mgtm[key_id]
             else:
                 ok = np.logical_and(self.halos.tab_M >= mmin,
                                     self.halos.tab_M <  mmax)
@@ -504,12 +509,12 @@ class LogNormal(LightCone): # pragma: no cover
                     ngtm = self.halos.tab_ngtm[iz,ok==1]
 
                 ntot = np.trapz(dndm * m, x=np.log(m))
-                self._cache_mgtm[(iz, iM, logmlim)] = m, dndm, ngtm, ntot
+                self._cache_mgtm[key_id] = m, dndm, ngtm, ntot
 
             nltm = ntot - ngtm
             cdf = nltm / ntot
 
-            self._cache_subhalo_cdf[(iz, iM, logmlim, seed)] = cdf
+            self._cache_subhalo_cdf[key_id] = m, cdf
 
         # Assign halo masses according to HMF.
         if seed is not None:
@@ -763,11 +768,14 @@ class LogNormal(LightCone): # pragma: no cover
             _ra, _de, _red = self._get_catalog_from_coeval(halos, zlo=zlo)
             _m = halos[-1]
 
-            okr = np.logical_and(_ra <  0.5 * theta_zmin,
-                                 _ra > -0.5 * theta_zmin)
-            okd = np.logical_and(_de <  0.5 * theta_zmin,
-                                 _de > -0.5 * theta_zmin)
-            ok = np.logical_and(okr, okd)
+            # Note that halos outside the specific FoV and redshift
+            # range are filtered out at a higher level in LightCone.get_catalog
+
+            #okr = np.logical_and(_ra <  0.5 * theta_zmin,
+            #                     _ra > -0.5 * theta_zmin)
+            #okd = np.logical_and(_de <  0.5 * theta_zmin,
+            #                     _de > -0.5 * theta_zmin)
+            #ok = np.logical_and(okr, okd)
 
                 # Cache intermediate outputs too!
                 #self._cache_cats[(zlo, zhi, mmin)] = \
@@ -812,7 +820,7 @@ class LogNormal(LightCone): # pragma: no cover
 
             ct += 1
 
-            del _ra, _de, _red, halos, okr, okd, ok, _m
+            del _ra, _de, _red, halos, _m
             if self.apply_rotations or self.apply_translations:
                 del _x, _x_, _y, _y_, _z, _z_, _m_
 
@@ -826,6 +834,10 @@ class LogNormal(LightCone): # pragma: no cover
             # Done with this co-eval layer
 
         pbar.finish()
+
+        if satellites and (not isinstance(ra, type(None))):
+            if len(ra) != len(parents):
+                print('in LogNormal getting mismatch')
 
         #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
         return ra, dec, red, mass, parents
@@ -886,7 +898,7 @@ class LogNormal(LightCone): # pragma: no cover
         # Instead of providing seeds for everything by hand, we use one seed
         # to deterministically create seeds for the masses and positions
         # of all subhalos for each central.
-        np.random.seed(seed)
+        #np.random.seed(seed)
         # Recall that max allowed seed value is 2**32 - 1
         # Providing some margin here since we scale below.
         seeds_num = np.random.randint(0, high=2**30, size=Nc)
@@ -928,6 +940,9 @@ class LogNormal(LightCone): # pragma: no cover
             #np.random.seed(seeds_num[i])
             Nsat_act = np.random.poisson(Nsat_exp)
 
+            if Nsat_act == 0:
+                continue
+
             # Outsources sampling over sub-halo MF
             _m = self.get_halo_masses(red_c[i], Nsat_act,
                 logmlim=logmlim, seed=None,#,seeds_mass[i],
@@ -959,6 +974,9 @@ class LogNormal(LightCone): # pragma: no cover
                 x_deg = np.cos(theta) * r_proj_deg
                 y_deg = np.sin(theta) * r_proj_deg
 
+                #if Nsat_act < 20:
+                #    print('hi', i, Nsat_act, red_c[i], ra_c[i], dec_c[i], x_deg, y_deg)
+                    #input('<enter>')
             else:
                 x_deg = y_deg = 0
 
@@ -978,7 +996,7 @@ class LogNormal(LightCone): # pragma: no cover
         #pbar.finish()
 
         return np.array(ra), np.array(dec), np.array(red), np.array(mass), \
-            np.array(par_id)
+            np.array(par_id, dtype=int)
 
     def _get_catalog_from_coeval(self, halos, zlo):
         """
@@ -1103,7 +1121,7 @@ class LogNormal(LightCone): # pragma: no cover
         # do a quick check that the number smaller than 2x sqrt(mean). Note
         # that occassionally we might get a bigger difference here, hence the
         # warning instead of raising an exception.
-        if (Nerr > 2 * np.sqrt(Nexp)) and (err > 0.2):
+        if (Nerr > 2 * np.sqrt(Nexp)) and (err > 0.2) and self.verbose:
             print(f"# WARNING: Error in halo density is {err*100:.0f}% for m in [{np.log10(mmin):.1f},{np.log10(mmax):.1f}]")
             print(f"# (expected {Nexp:.2f} halos, got {Nact:.0f})")
             print("# Might be small box issue, but could be OK for massive halos.")
