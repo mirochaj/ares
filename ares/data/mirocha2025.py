@@ -413,20 +413,20 @@ dust['pq_val_floor[4]'] = 0
 
 dust_x = {}
 dust_x['pop_dust_template_extension{0}'] = 'pq[40]'
-dust_x['pq_func{0}[40]'] = 'pl_evolB13'
-dust_x['pq_func_var{0}[40]'] = 'wave'
-dust_x['pq_func_var2{0}[40]'] = '1+z'
-dust_x['pq_func_par0{0}[40]'] = 1
-dust_x['pq_func_par1{0}[40]'] = 5500
-dust_x['pq_func_par2{0}[40]'] = 0.0
-dust_x['pq_func_par3{0}[40]'] = 0     # norm
-dust_x['pq_func_par4{0}[40]'] = 0     # slope
-dust_x['pq_func_par5{0}[40]'] = 0     # norm
-dust_x['pq_func_par6{0}[40]'] = 0     # slope
-dust_x['pq_func_par7{0}[40]'] = 0     # norm
-dust_x['pq_func_par8{0}[40]'] = 0     # slope
-dust_x['pq_func_par9{0}[40]'] = 0     # slope
-dust_x['pq_func_par10{0}[40]'] = 0     # slope
+dust_x['pq_func[40]{0}'] = 'pl_evolB13'
+dust_x['pq_func_var[40]{0}'] = 'wave'
+dust_x['pq_func_var2[40]{0}'] = '1+z'
+dust_x['pq_func_par0[40]{0}'] = 1
+dust_x['pq_func_par1[40]{0}'] = 5500
+dust_x['pq_func_par2[40]{0}'] = 0.0
+dust_x['pq_func_par3[40]{0}'] = 0     # norm
+dust_x['pq_func_par4[40]{0}'] = 0     # slope
+dust_x['pq_func_par5[40]{0}'] = 0     # norm
+dust_x['pq_func_par6[40]{0}'] = 0     # slope
+dust_x['pq_func_par7[40]{0}'] = 0     # norm
+dust_x['pq_func_par8[40]{0}'] = 0     # slope
+dust_x['pq_func_par9[40]{0}'] = 0     # slope
+dust_x['pq_func_par10[40]{0}'] = 0     # slope
 
 for par in dust.keys():
     setup[par + '{0}'] = dust[par]

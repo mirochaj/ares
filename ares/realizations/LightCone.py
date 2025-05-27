@@ -1608,7 +1608,7 @@ class LightCone(object): # pragma: no cover
 
                             _ra_c, _dec_c, _red_c, _Mh_c, _parents_c = \
                                 self.get_catalog_halos(zlim=zlayer,
-                                logmlim=mlayer, popid=pid_par, verbose=verbose)
+                                logmlim=mlayer, popid=popid, verbose=verbose)
 
                             # Problem: `_parents` are indices generated within
                             # each layer, need to be incremented so that
@@ -1664,6 +1664,9 @@ class LightCone(object): # pragma: no cover
 
                         ##
                         # Done with satellites
+                        if len(_parents) != len(_ra):
+                            print('wtf', popid, izm, len(_parents), len(_ra))
+                            input('<enter>')
 
                     ct += ok.sum()
 
@@ -1674,6 +1677,10 @@ class LightCone(object): # pragma: no cover
 
                         if self.sim.pops[pid].is_satellite_pop:
                             parh.extend(list(_parents))
+
+                            if len(_parents) != len(_ra):
+                                print('wtf 2', popid, izm, len(_parents), len(_ra))
+                                input('<enter>')
 
                         ##
                         # Unpack channel info
@@ -1775,7 +1782,9 @@ class LightCone(object): # pragma: no cover
                         else:
                             pass
                     ##
-                    #
+                    # len(_ra) == 0, i.e., no halos to do anything with
+                    else:
+                        pass
 
                 # End of else block that generates new catalog if one isn't found.
 

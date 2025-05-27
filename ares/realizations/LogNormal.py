@@ -771,25 +771,13 @@ class LogNormal(LightCone): # pragma: no cover
             # Note that halos outside the specific FoV and redshift
             # range are filtered out at a higher level in LightCone.get_catalog
 
-            #okr = np.logical_and(_ra <  0.5 * theta_zmin,
-            #                     _ra > -0.5 * theta_zmin)
-            #okd = np.logical_and(_de <  0.5 * theta_zmin,
-            #                     _de > -0.5 * theta_zmin)
-            #ok = np.logical_and(okr, okd)
-
-                # Cache intermediate outputs too!
-                #self._cache_cats[(zlo, zhi, mmin)] = \
-                #    _ra[ok==1], _de[ok==1], _red[ok==1], _m[ok==1]
-
-                #_ra, _de, _red, _m = self._cache_cats[(zlo, zhi, mmin)]
-
             ##
             # For satellites: one more step before moving to next layer.
             if satellites:
 
                 ra_s, dec_s, red_s, mass_s, par_id = \
                     self.get_catalog_subhalos(_ra, _de, _red, _m,
-                        pid_c=pid_par, logmlim=logmlim_sats,
+                        popid=popid, logmlim=logmlim_sats,
                         seed=seed_kwargs['seed_sats'],
                         distribute_in_space=self.distribute_sats_spatially)
 
@@ -835,14 +823,10 @@ class LogNormal(LightCone): # pragma: no cover
 
         pbar.finish()
 
-        if satellites and (not isinstance(ra, type(None))):
-            if len(ra) != len(parents):
-                print('in LogNormal getting mismatch')
-
         #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
         return ra, dec, red, mass, parents
 
-    def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, pid_c,
+    def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, popid,
         logmlim=(11,15), seed=None, distribute_in_space=True):
         """
         Get a catalog of satellite galaxies for input central catalog.
@@ -866,6 +850,8 @@ class LogNormal(LightCone): # pragma: no cover
             implemented for sanity checks.
 
         """
+
+        pid, pid_par, pid_str = get_pop_info(popid)
 
         ##
         # All we're going to do is randomly distribute satellites in
@@ -898,12 +884,13 @@ class LogNormal(LightCone): # pragma: no cover
         # Instead of providing seeds for everything by hand, we use one seed
         # to deterministically create seeds for the masses and positions
         # of all subhalos for each central.
-        #np.random.seed(seed)
+        np.random.seed(seed)
         # Recall that max allowed seed value is 2**32 - 1
         # Providing some margin here since we scale below.
         seeds_num = np.random.randint(0, high=2**30, size=Nc)
         seeds_pos = np.random.randint(0, high=2**30, size=Nc)
         seeds_mass = np.random.randint(0, high=2**30, size=Nc)
+        seeds_occ = np.random.randint(0, high=2**30, size=Nc)
 
         # Do we really need a new seed for each central?
         # It is surprisingly expensive to call np.seed on each iteration
@@ -937,16 +924,26 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Poisson random draw to determine actual number of subhalos,
             # given expected number.
-            #np.random.seed(seeds_num[i])
-            Nsat_act = np.random.poisson(Nsat_exp)
+            np.random.seed(seeds_num[i])
+            Nsat_act_tot = np.random.poisson(Nsat_exp)
 
-            if Nsat_act == 0:
+            if Nsat_act_tot == 0:
                 continue
 
             # Outsources sampling over sub-halo MF
-            _m = self.get_halo_masses(red_c[i], Nsat_act,
-                logmlim=logmlim, seed=None,#,seeds_mass[i],
+            _m = self.get_halo_masses(red_c[i], Nsat_act_tot,
+                logmlim=logmlim, seed=seeds_occ[i],#,seeds_mass[i],
                 subhalos=True, Mc=mass_c[i], iz=iz[i], iM=iM[i])
+
+            ##
+            # Apply occupation fraction
+            _x, _y, _z, _m = self._filter_by_focc((None, None, None, _m),
+                red_c[i], seeds_occ[i], popid)
+
+            if _m is None:
+                continue
+
+            Nsat_act = len(_m)
 
             mass.extend(list(_m))
 
@@ -956,7 +953,7 @@ class LogNormal(LightCone): # pragma: no cover
 
                 cdf = self.halos.tab_Sigma_nfw_cdf[iz[i],iM[i],:]
 
-                #np.random.seed(seeds_pos[i])
+                np.random.seed(seeds_pos[i])
                 r = np.random.rand(Nsat_act)
 
                 # Radial displacement of all satellites in cMpc
@@ -967,7 +964,7 @@ class LogNormal(LightCone): # pragma: no cover
 
                 # Need to turn into RA and DEC
                 # Randomly choose an angle
-                #np.random.seed(seeds_pos[i] * 2)
+                np.random.seed(seeds_pos[i] * 2)
                 theta = np.random.rand(Nsat_act) * 2 * np.pi
 
                 # Then convert to x and y displacements
@@ -1036,9 +1033,67 @@ class LogNormal(LightCone): # pragma: no cover
 
         return ra, dec, red
 
+    def _filter_by_focc(self, cat, z, seed_occ, popid):
+        """
+        Take a raw catalog of halos and thin according to occupation fraction.
+
+        Parameters
+        ----------
+        cat : tuple
+            Contains (x, y, redshift, mass), where x and y can be co-eval box
+            coordinates or RA and DEC.
+        z : int, float
+            Redshift
+        N :
+        """
+
+        _x, _y, _z, mass = cat
+        N = len(mass)
+
+        # ARES ID, parent ID [if applicable], ID str (user supplied; just -> str)
+        pid, pid_par, pid_str = get_pop_info(popid)
+
+        ##
+        # Apply occupation fraction here?
+        if self.sim.pops[pid].pf['pop_focc'] != 1:
+
+            np.random.seed(seed_occ)
+
+            r = np.random.rand(N)
+            focc = self.sim.pops[pid].get_focc(z=z, Mh=mass)
+
+            ok = np.ones(N)
+            ok[r > focc] = 0
+
+            # For satellites, positions are determined after this step
+            if _x is None:
+                pass
+            else:
+                _x = _x[ok==1]
+                _y = _y[ok==1]
+                _z = _z[ok==1]
+
+            mass = mass[ok==1]
+
+            # Don't really need to see this anymore.
+            #if verbose:
+            #    print(f"# Applied occupation fraction cut for pop #{popid} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
+            #    print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
+
+            if ok.sum() == 0:
+                return None, None, None, None
+        else:
+            focc = r = ok = None
+
+        del focc, ok, r
+        if self.mem_concious:
+            gc.collect()
+
+        return _x, _y, _z, mass
+
     def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
         seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, popid=0,
-        verbose=True, call_gc=False, **_kw_):
+        verbose=True, **_kw_):
         """
         Get a realization of a halo population.
 
@@ -1130,39 +1185,11 @@ class LogNormal(LightCone): # pragma: no cover
             raise ValueError("help")
 
         ##
-        # Apply occupation fraction here?
-        if self.sim.pops[pid_par].pf['pop_focc'] != 1:
-
-            np.random.seed(seed_occ)
-
-            r = np.random.rand(N)
-            focc = self.sim.pops[pid_par].get_focc(z=z, Mh=mass)
-
-            ok = np.ones(N)
-            ok[r > focc] = 0
-
-            _x = _x[ok==1]
-            _y = _y[ok==1]
-            _z = _z[ok==1]
-            mass = mass[ok==1]
-
-            # Don't really need to see this anymore.
-            #if verbose:
-            #    print(f"# Applied occupation fraction cut for pop #{popid} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
-            #    print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
-
-            if ok.sum() == 0:
-                return None, None, None, None
-        else:
-            focc = r = ok = None
-
-        del focc, ok, r, pos
-        if self.mem_concious:
-            gc.collect()
+        # Apply occupation fraction cut
+        _x, _y, _z, mass = self._filter_by_focc((_x, _y, _z, mass),
+            z, seed_occ, popid)
 
         ##
         # Sort by mass? Otherwise will essentially be in order of pixels as
-        # determined by np.ravel.
-        #sorter = np.argsort(mass)[-1::-1]
+        # determined by np.ravel. That's what we're going with.
         return _x, _y, _z, mass
-        #return _x[sorter], _y[sorter], _z[sorter], mass[sorter]
