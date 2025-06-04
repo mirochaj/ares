@@ -2670,6 +2670,8 @@ class GalaxyCohort(GalaxyAggregate):
                 Lh_c = self._get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
                 Lh = Lh_c + Lh_l
 
+            print('hi lum from tab 1', z, x, band, np.all(Lh_c == 0))
+
             if (not self.is_central_pop) and total_sat:
                 Lh = self.get_lum_sat_tot(z, Lh, use_tabs=use_tabs)
 
@@ -2689,6 +2691,8 @@ class GalaxyCohort(GalaxyAggregate):
             #    ok *= self.halos.tab_M < self.get_Mmax(z)
 
             Lh[~ok] = 0
+
+            print('hi lum from tab 2', z, x, band, np.all(Lh == 0))
 
             if Mh is None:
                 return Lh
@@ -2956,6 +2960,7 @@ class GalaxyCohort(GalaxyAggregate):
             cached_result = self._cache_L(*kwtup)
 
             if (cached_result is not None):
+                print('using cache')
                 return cached_result
 
         ##
@@ -3473,10 +3478,6 @@ class GalaxyCohort(GalaxyAggregate):
                     tmp_mask[i,np.logical_and(Lh>0, Lh<llim),h] = 0
                     continue
 
-                if z == 6:
-                    print('hey!', z, mask, llim)
-
-
                 # Construct array of luminosity vs. halo mass (log10 it)
                 mu = np.log10(Lh)
 
@@ -3488,6 +3489,11 @@ class GalaxyCohort(GalaxyAggregate):
                     # This just means Lh == 0, which usually just means
                     # "unmodeled".
                     if mu[j] < 0:
+                        # Could `continue` but then fmask will be one,
+                        # which is a little confusing when debugging because
+                        # it looks like some chunk of mass space is not masked
+                        # out but really it's that their luminosity is zero.
+                        tmp_mask[i,j,h] = 0
                         continue
 
                     # Just do things via brute-force
@@ -6478,6 +6484,9 @@ class GalaxyCohort(GalaxyAggregate):
                         scale_units=scale_units, raw=raw,
                         nebular_only=nebular_only, prof=prof,
                         cross_pop=cross_pop)
+
+                    if z > 6:
+                        print('z>6 integrand', integrand[i])
 
                 self._ps_obs_integrand[h,:] = integrand.copy()
 

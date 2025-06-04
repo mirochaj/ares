@@ -413,9 +413,14 @@ class LightCone(object): # pragma: no cover
         occupation, orientation, Sersic index....
 
         """
-        fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
+
 
         if not hasattr(self, '_seeds'):
+            # ARES ID, ARES parent ID, str representation of popid (e.g., '2a')
+            pid, pid_par, pid_str = get_pop_info(popid)
+
+            fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
+
             ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
 
             seed_rho = self.seed_rho \
@@ -1416,7 +1421,12 @@ class LightCone(object): # pragma: no cover
             Indices corresponding to parent ID of each satellite BEFORE
             the FoV filter.
 
-
+        Returns
+        -------
+        Tuple containing: (new parent IDs AFTER FoV filter, mask indicating which
+        centrals in original catalog were filtered out by FoV cut). Note that
+        the length of these two arrays will be different anytime some > 0
+        number of halos are filtered out by the FoV cut.
         """
 
         p_out = []
@@ -1522,7 +1532,8 @@ class LightCone(object): # pragma: no cover
             field_names = ['ra', 'dec', 'z', channel]
             field_units = ['deg', 'deg', '', cat_units]
 
-            # Retrieve info about population
+            # Retrieve info about population:
+            # ARES ID, parent ID (in ARES), `popid` as string
             pid, pid_par, pid_str = get_pop_info(popid)
 
             # Short-hand needed below
@@ -1560,7 +1571,6 @@ class LightCone(object): # pragma: no cover
             else:
 
                 # Get basic halo properties
-                #print('entering get_catalog', zlayer, mlayer)
                 _ra, _dec, _red, _Mh, _parents = \
                     self.get_catalog_halos(zlim=zlayer,
                     logmlim=mlayer, popid=popid, verbose=verbose,
@@ -1776,7 +1786,12 @@ class LightCone(object): # pragma: no cover
                                     cat_units=field_units[ff],
                                     clobber=clobber, verbose=verbose)
 
-
+                        ##
+                        # This is just because all datasets will be arrays if
+                        # they contain entries. If there are no entries, _dat
+                        # will be either an empty list or None. The latter
+                        # case is what we're trying to avoid here since
+                        # len(None) = error.
                         if (type(_dat) == np.ndarray):
                             dat.extend(list(_dat))
                         else:
@@ -1812,6 +1827,11 @@ class LightCone(object): # pragma: no cover
                     # e.g., `parents` field for centrals is None
                     if field in [[], None]:
                         continue
+
+                    if field_names[ff] == 'parents':
+                        if len(parents) != len(ra):
+                            print('wtf 3', popid, logmlim, len(parents), len(ra))
+                            input('<enter>')
 
                     _fn_ff = self.get_cat_fn(fov, pix, field_names[ff], popid,
                         logmlim=logmlim, zlim=self.zlim, fmt=fmt)

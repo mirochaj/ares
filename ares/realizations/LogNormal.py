@@ -778,7 +778,7 @@ class LogNormal(LightCone): # pragma: no cover
                 ra_s, dec_s, red_s, mass_s, par_id = \
                     self.get_catalog_subhalos(_ra, _de, _red, _m,
                         popid=popid, logmlim=logmlim_sats,
-                        seed=seed_kwargs['seed_sats'],
+                        seed=seed_kwargs['seed_sats'] + pid_par,
                         distribute_in_space=self.distribute_sats_spatially)
 
                 # Replace info about central with satellite info
@@ -924,7 +924,7 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Poisson random draw to determine actual number of subhalos,
             # given expected number.
-            np.random.seed(seeds_num[i])
+            #np.random.seed(seeds_num[i])
             Nsat_act_tot = np.random.poisson(Nsat_exp)
 
             if Nsat_act_tot == 0:
@@ -932,13 +932,13 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Outsources sampling over sub-halo MF
             _m = self.get_halo_masses(red_c[i], Nsat_act_tot,
-                logmlim=logmlim, seed=seeds_occ[i],#,seeds_mass[i],
+                logmlim=logmlim, #seed=seeds_mass[i],
                 subhalos=True, Mc=mass_c[i], iz=iz[i], iM=iM[i])
 
             ##
             # Apply occupation fraction
             _x, _y, _z, _m = self._filter_by_focc((None, None, None, _m),
-                red_c[i], seeds_occ[i], popid)
+                red_c[i], None, popid)
 
             if _m is None:
                 continue
@@ -953,7 +953,7 @@ class LogNormal(LightCone): # pragma: no cover
 
                 cdf = self.halos.tab_Sigma_nfw_cdf[iz[i],iM[i],:]
 
-                np.random.seed(seeds_pos[i])
+                #np.random.seed(seeds_pos[i])
                 r = np.random.rand(Nsat_act)
 
                 # Radial displacement of all satellites in cMpc
@@ -964,16 +964,13 @@ class LogNormal(LightCone): # pragma: no cover
 
                 # Need to turn into RA and DEC
                 # Randomly choose an angle
-                np.random.seed(seeds_pos[i] * 2)
+                #np.random.seed(seeds_pos[i] * 2)
                 theta = np.random.rand(Nsat_act) * 2 * np.pi
 
                 # Then convert to x and y displacements
                 x_deg = np.cos(theta) * r_proj_deg
                 y_deg = np.sin(theta) * r_proj_deg
 
-                #if Nsat_act < 20:
-                #    print('hi', i, Nsat_act, red_c[i], ra_c[i], dec_c[i], x_deg, y_deg)
-                    #input('<enter>')
             else:
                 x_deg = y_deg = 0
 
