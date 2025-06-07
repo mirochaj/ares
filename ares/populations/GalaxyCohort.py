@@ -2670,8 +2670,6 @@ class GalaxyCohort(GalaxyAggregate):
                 Lh_c = self._get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
                 Lh = Lh_c + Lh_l
 
-            print('hi lum from tab 1', z, x, band, np.all(Lh_c == 0))
-
             if (not self.is_central_pop) and total_sat:
                 Lh = self.get_lum_sat_tot(z, Lh, use_tabs=use_tabs)
 
@@ -2691,8 +2689,6 @@ class GalaxyCohort(GalaxyAggregate):
             #    ok *= self.halos.tab_M < self.get_Mmax(z)
 
             Lh[~ok] = 0
-
-            print('hi lum from tab 2', z, x, band, np.all(Lh == 0))
 
             if Mh is None:
                 return Lh

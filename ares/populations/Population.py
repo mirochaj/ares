@@ -311,8 +311,7 @@ class Population(object):
 
     @property
     def is_diffuse(self):
-        return (self.pf['pop_ihl'] is not None) or \
-            (self.pf['pop_include_1h'] and not self.pf['pop_include_shot'])
+        return self.pf['pop_ihl'] is not None
 
     @property
     def is_src_radio(self):

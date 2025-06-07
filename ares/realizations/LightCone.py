@@ -68,12 +68,12 @@ class LightCone(object): # pragma: no cover
             os.mkdir(f"{self.base_dir}/fov_{fov:.1f}")
 
         # pixel scale
-        if dryrun:
-            print(f"# Creating {self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}")
-        elif not os.path.exists(f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}"):
-            os.mkdir(f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}")
+        #if dryrun:
+        #    print(f"# Creating {self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}")
+        #elif not os.path.exists(f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}"):
+        #    os.mkdir(f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}")
 
-        sofar = f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}"
+        sofar = f"{self.base_dir}/fov_{fov:.1f}"#/pix_{pix:.1f}"
 
         # Co-eval box size and grid zones
         if dryrun:
@@ -738,7 +738,7 @@ class LightCone(object): # pragma: no cover
     #@njit(parallel=True)
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, null_beyond_size=np.inf, size_cut=0.5, dlam=20.,
-        use_pbar=True, verbose=False,
+        use_pbar=True, verbose=False, wave_units='um',
         logmlim_sats=(11,15), buffer=None, nthreads=None, batch_size=10,
         postage_stamp=5, **kwargs):
         """
@@ -816,7 +816,7 @@ class LightCone(object): # pragma: no cover
         ##
         # First, check for a pre-existing catalog in this channel.
         fn_cat_ch = self.get_cat_fn(fov, pix, channel, popid,
-            logmlim=logmlim, zlim=(zlo, zhi))
+            logmlim=logmlim, zlim=(zlo, zhi), wave_units=wave_units)
 
         if os.path.exists(fn_cat_ch):
 
@@ -1266,7 +1266,7 @@ class LightCone(object): # pragma: no cover
             gc.collect()
 
     def get_output_dir(self, fov, pix, zlim, logmlim=None, force_chunk=False):
-        fn = f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}"
+        fn = f"{self.base_dir}/fov_{fov:.1f}"#/pix_{pix:.1f}"
         fn += f"/box_{self.Lbox:.0f}/dim_{self.dims:.0f}"
         fn += f"/{self.model_name}"
         fn += f"/zmin_{self.zmin:.3f}"
@@ -1304,7 +1304,8 @@ class LightCone(object): # pragma: no cover
         return fn
 
     def get_map_fn(self, fov, pix, channel, popid, logmlim=None, zlim=None,
-        fmt='fits', force_chunk=False, include_galaxy_sizes=False):
+        fmt='fits', wave_units='um', force_chunk=False,
+        include_galaxy_sizes=False):
         """
         Return filename expected for map with given properties.
         """
@@ -1314,7 +1315,7 @@ class LightCone(object): # pragma: no cover
 
         pid, pid_parent, pid_str = get_pop_info(popid)
 
-        fn = f'{save_dir}/map_{channel[0]:.3f}_{channel[1]:.3f}_pop_{pid_str}'
+        fn = f'{save_dir}/map_{channel[0]:.3f}_{channel[1]:.3f}_{wave_units}_pop_{pid_str}'
 
         if include_galaxy_sizes:
             if popid in [4, '4']:
@@ -1327,7 +1328,7 @@ class LightCone(object): # pragma: no cover
         return fn + '.' + fmt
 
     def get_cat_fn(self, fov, pix, channel, popid, logmlim=None, zlim=None,
-        fmt='fits'):
+        fmt='fits', wave_units='um'):
         """
         Return filename expected for catalog with given properties.
         """
@@ -1338,7 +1339,7 @@ class LightCone(object): # pragma: no cover
         pid, pid_parent, pid_str = get_pop_info(popid)
 
         if type(channel) in [tuple, list, np.ndarray]:
-            fn = f'{save_dir}/cat_{channel[0]:.3f}_{channel[1]:.3f}_pop_{pid_str}'
+            fn = f'{save_dir}/cat_{channel[0]:.3f}_{channel[1]:.3f}_{wave_units}_pop_{pid_str}'
         else:
             fn = f'{save_dir}/cat_{channel}_pop_{pid_str}'
 
@@ -1551,7 +1552,7 @@ class LightCone(object): # pragma: no cover
             # Note that if this file exists, it's guaranteed that the
             # corresponding ra, dec, and redshift catalogs are done too.
             fn = self.get_cat_fn(fov, pix, channel, popid,
-                logmlim=mlayer, zlim=zlayer)
+                logmlim=mlayer, zlim=zlayer, wave_units=wave_units)
 
             pb.update(h)
 
@@ -1780,7 +1781,8 @@ class LightCone(object): # pragma: no cover
                                     continue
 
                                 fn_ff = self.get_cat_fn(fov, pix, field_names[ff],
-                                    popid, logmlim=mlayer, zlim=zlayer)
+                                    popid, logmlim=mlayer, zlim=zlayer,
+                                    wave_units=wave_units)
                                 self.save_cat(fn_ff, field, field_names[ff],
                                     zlayer, mlayer, fov, pix=pix, fmt=fmt, hdr=hdr,
                                     cat_units=field_units[ff],
@@ -1834,7 +1836,7 @@ class LightCone(object): # pragma: no cover
                             input('<enter>')
 
                     _fn_ff = self.get_cat_fn(fov, pix, field_names[ff], popid,
-                        logmlim=logmlim, zlim=self.zlim, fmt=fmt)
+                        logmlim=logmlim, zlim=self.zlim, fmt=fmt, wave_units=wave_units)
 
                     self.save_cat(_fn_ff, field,
                         field_names[ff], self.zlim, logmlim,
@@ -2055,10 +2057,21 @@ class LightCone(object): # pragma: no cover
 
         return chunks_edges, chunks_edges_ids, list(np.sort(zlayers_minimal))
 
+    def convert_chan_to_micron(self, channel, wave_units='um'):
+        """
+
+        """
+
+        if wave_units == 'um':
+            return channel
+        elif wave_units == 'ghz':
+            lam_obs = c * 1e4 / np.array(channel) / 1e9
+            return tuple(lam_obs[-1::-1])
+
     def generate_maps(self, fov, pix, channels, logmlim, dlogm=1,
         include_galaxy_sizes=False, null_beyond_size=np.inf, size_cut=0.5, dlam=20,
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
-        include_pops=[0], clobber=False,
+        include_pops=[0], clobber=False, wave_units='um',
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
         keep_chunks=None, use_pbar=False, verbose=False, dryrun=False,
         logmlim_sats=(11,15),
@@ -2230,6 +2243,7 @@ class LightCone(object): # pragma: no cover
             # Check first for final map.
             fn = self.get_map_fn(fov, pix, channel, popid,
                 logmlim=logmlim, zlim=self.zlim,
+                wave_units=wave_units,
                 include_galaxy_sizes=include_galaxy_sizes)
 
             if os.path.exists(fn) and (not clobber):
@@ -2239,7 +2253,7 @@ class LightCone(object): # pragma: no cover
 
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
-                logmlim=mlayer, zlim=zlayer,
+                logmlim=mlayer, zlim=zlayer, wave_units=wave_units,
                 include_galaxy_sizes=include_galaxy_sizes)
 
             if os.path.exists(fn) and (not clobber):
@@ -2293,7 +2307,7 @@ class LightCone(object): # pragma: no cover
 
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
-                logmlim=mlayer, zlim=zlayer,
+                logmlim=mlayer, zlim=zlayer, wave_units=wave_units,
                 include_galaxy_sizes=include_galaxy_sizes)
 
             pb.update(h)
@@ -2302,10 +2316,12 @@ class LightCone(object): # pragma: no cover
                 print(f"# Dry run: would run map {fn}")
                 continue
 
+            chan_mic = self.convert_chan_to_micron(channel, wave_units)
+
             # Will need channel width in Hz to recover specific intensities
             # averaged over band.
-            nu = c * 1e4 / np.mean(channel)
-            dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
+            nu = c * 1e4 / np.mean(chan_mic)
+            dnu = c * 1e4 * (chan_mic[1] - chan_mic[0]) / np.mean(chan_mic)**2
 
             # What buffer should we increment?
             if (not keep_layers):
@@ -2349,8 +2365,9 @@ class LightCone(object): # pragma: no cover
                 # Generate map -> buffer
                 # Internal flux units are cgs [erg/s/cm^2/Hz/sr]
                 # but get_map returns a channel-integrated flux, erg/s/cm^2/sr
-                self.get_map(fov, pix, channel,
+                self.get_map(fov, pix, chan_mic,
                     logmlim=mlayer, zlim=zlayer, popid=popid,
+                    wave_units=wave_units,
                     include_galaxy_sizes=include_galaxy_sizes,
                     null_beyond_size=null_beyond_size,
                     size_cut=size_cut,
@@ -2368,7 +2385,7 @@ class LightCone(object): # pragma: no cover
 
                 if iz in _keep_layers_custom:
                     _fn = self.get_map_fn(fov, pix, channel, popid,
-                        logmlim=mlayer, zlim=zlayer,
+                        logmlim=mlayer, zlim=zlayer, wave_units=wave_units,
                         fmt=fmt, include_galaxy_sizes=include_galaxy_sizes)
                     self.save_map(_fn, buffer * f_norm / dnu,
                         channel, zlayer, logmlim, fov,
@@ -2414,7 +2431,7 @@ class LightCone(object): # pragma: no cover
             # Filename for the final channel map
             # (note use of self.zlim, not zlayer, and logmlim, not mlayer)
             _fn = self.get_map_fn(fov, pix, channel, popid,
-                logmlim=logmlim, zlim=self.zlim, fmt=fmt,
+                logmlim=logmlim, zlim=self.zlim, fmt=fmt, wave_units=wave_units,
                 include_galaxy_sizes=include_galaxy_sizes)
 
             _fn_exists = os.path.exists(_fn)
@@ -2546,6 +2563,7 @@ class LightCone(object): # pragma: no cover
                         # See if we already finished this map.
                         fn = self.get_map_fn(fov, pix, channel, popid,
                             logmlim=mlayer, zlim=all_zlayers[iz],
+                            wave_units=wave_units,
                             include_galaxy_sizes=include_galaxy_sizes)
 
                         _buffer, _hdr = self._load_map(fn)
@@ -2563,6 +2581,7 @@ class LightCone(object): # pragma: no cover
                     # Done with mass slices. Save redshift slice.
                     _fn = self.get_map_fn(fov, pix, channel, popid,
                         logmlim=logmlim, zlim=all_zlayers[iz],
+                        wave_units=wave_units,
                         include_galaxy_sizes=include_galaxy_sizes)
 
                     self.save_map(_fn, cimg * f_norm / dnu,
@@ -2582,7 +2601,7 @@ class LightCone(object): # pragma: no cover
                     for iz in range(chunk_edge_id[0], chunk_edge_id[1]+1):
                         # Load z layer summed over mass (`logmlim` is whole range)
                         fn = self.get_map_fn(fov, pix, channel, popid,
-                            logmlim=logmlim,
+                            logmlim=logmlim, wave_units=wave_units,
                             zlim=all_zlayers[iz],
                             include_galaxy_sizes=include_galaxy_sizes)
 
@@ -2601,6 +2620,7 @@ class LightCone(object): # pragma: no cover
                     # Done with mass slices. Save redshift slice.
                     _fn = self.get_map_fn(fov, pix, channel, popid,
                         logmlim=logmlim, zlim=chunks_edges_z[k],
+                        wave_units=wave_units,
                         force_chunk=True, include_galaxy_sizes=include_galaxy_sizes)
 
                     self.save_map(_fn, cimg * f_norm / dnu,
