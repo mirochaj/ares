@@ -465,7 +465,8 @@ class LightCone(object): # pragma: no cover
         Parameters
         ----------
         zlim : tuple
-            Redshift range in which to sum fluxes.
+            Redshift range in which to sum fluxes. This is probably the
+            boundaries of a co-eval chunk.
         red : np.ndarray
             Redshifts of galaxies in catalog.
         Mh : np.ndarray
