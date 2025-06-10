@@ -277,7 +277,7 @@ class LogNormal(LightCone): # pragma: no cover
         Returns
         -------
         powerbox.powerbox.LogNormalPowerBox object, attribute `delta_x()` can
-        be used to retrieve the box itself.
+        be used to retrieve the box itself (in little delta).
         """
 
         if not hasattr(self, '_cache_box'):
@@ -303,7 +303,8 @@ class LogNormal(LightCone): # pragma: no cover
 
         return pb
 
-    def get_halo_positions(self, z, N, delta_x, m=None, seed=None):
+    def get_halo_positions(self, z, N, delta_x, m=None, seed=None,
+        bias_model=None):
         """
         Generate a set of halo positions.
 
@@ -316,7 +317,10 @@ class LogNormal(LightCone): # pragma: no cover
             volume.
             If bias_model == 1, this is the actual number, i.e., assumes we
             have already done a Poisson draw given <N>.
-
+        delta_x : np.ndarray
+            Halo (over-)density on a 3-D grid.
+        m : np.ndarray
+            Array of halo masses [Msun]
 
         Returns
         -------
@@ -332,14 +336,22 @@ class LogNormal(LightCone): # pragma: no cover
         # Will modify this in subsequent steps.
         pvox = np.array([x.ravel() for x in X]).T
 
+        # This is sneaky don't worry about it
+        if bias_model is not None:
+            _bias_model_ = bias_model
+        else:
+            _bias_model_ = self.bias_model
+
+
         # This is the same thing that powerbox is doing in
         # `create_discrete_sample`, just trying to have a unified call
         # sequence for other options here.
-        if self.bias_model == 0:
+        if _bias_model_ == 0:
 
             n = N / (self.Lbox / self.sim.cosm.h70)**3
 
-            # Expected number of halos in each cell
+            # Expected number of halos in each cell, just scaling mean number
+            # (over whole box) by 1+delta and voxel volume
             n_exp = n * (1. + delta_x) * (self.dx / self.sim.cosm.h70)**3
 
             # Actual number after Poisson draw
@@ -352,12 +364,12 @@ class LogNormal(LightCone): # pragma: no cover
 
         # In this case, we're increasing the probability that halos are drawn
         # from overdensities in a potentially halo mass dependent way.
-        elif self.bias_model == 1:
+        elif _bias_model_ == 1:
 
             n_act = m.size
 
             ivox = np.arange(pvox.shape[0])
-            rho_flat = delta_x.ravel()
+            delta_flat = delta_x.ravel()
 
             # Right now, alpha(m) = p0 * (m / 1e12)**p1
             p0, p1 = self.bias_params
@@ -370,7 +382,7 @@ class LogNormal(LightCone): # pragma: no cover
 
                 pos = np.zeros((m.size, 3))
                 for h, _m_ in enumerate(m):
-                    P_of_rho = (1+rho_flat)**alpha[h]
+                    P_of_rho = (1+delta_flat)**alpha[h]
                     P_of_rho /= np.sum(P_of_rho)
 
                     # replace=True means a given voxel can house multiple halos.
@@ -394,12 +406,17 @@ class LogNormal(LightCone): # pragma: no cover
                 # Compute "biasing probability" for entire mass bin.
                 lo, hi = m.min(), m.max()
                 mbin = 10**np.mean(np.log10([lo, hi]))
+
+                # This is the HALOGEN approach
                 alpha = p0 * (mbin / 1e12)**p1
 
-                P_of_rho = (1. + rho_flat)**alpha
+                P_of_rho = (1. + delta_flat)**alpha
                 P_of_rho /= np.sum(P_of_rho)
 
                 # Take a random draw with probability set by density.
+                # `ivox` contains the flattened coordinates of each pixel
+                # as does `P_of_rho`. Passing in `m.size` sets number of
+                # draws.
                 i = np.random.choice(ivox, p=P_of_rho,
                     replace=self.bias_replacement, size=m.size)
 
@@ -1118,6 +1135,7 @@ class LogNormal(LightCone): # pragma: no cover
         # (id number in ARES, parent ID number [if satellite], name as str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
+        # This is the overdensity box (i.e., little delta)
         pb = self.get_box(z=z, seed=seed_box)
 
         # Get mean halo abundance in #/cMpc^3 [note: this is *not* (cMpc/h)^-3]
@@ -1144,8 +1162,12 @@ class LogNormal(LightCone): # pragma: no cover
         # number of halos in the box, *then* generate their masses, *then*
         # generate their positions (which are effectivley mass-dependent).
         elif self.bias_model == 1:
+            # First generate positions the easy way just to force this method
+            # to have the same number of halos
+            pos = self.get_halo_positions(z, Nexp, pb.delta_x(), seed=seed_pos,
+                bias_model=0)
             # Actual number is a Poisson draw
-            Nact = np.random.poisson(Nexp)
+            Nact = pos.shape[0]#np.random.poisson(Nexp)
 
             # Draw halo masses from HMF
             mass = self.get_halo_masses(z, Nact,

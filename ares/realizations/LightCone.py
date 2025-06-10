@@ -1448,7 +1448,7 @@ class LightCone(object): # pragma: no cover
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
-        suffix=None, fmt='fits', hdr={},
+        suffix=None, fmt='fits', hdr={}, wave_units='um',
         cat_units='uJy', keep_layers=False, logmlim_sats=(11,15),
         include_pops=[0], clobber=False, verbose=False, dryrun=False,
         use_pbar=True, **kwargs):
@@ -1832,7 +1832,7 @@ class LightCone(object): # pragma: no cover
                         continue
 
                     if field_names[ff] == 'parents':
-                        if len(parents) != len(ra):
+                        if len(field) != len(ra):
                             print('wtf 3', popid, logmlim, len(parents), len(ra))
                             input('<enter>')
 
