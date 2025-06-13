@@ -224,12 +224,9 @@ class LogNormal(LightCone): # pragma: no cover
         ok = np.logical_and(self.halos.tab_M >= mmin,
                             self.halos.tab_M < mmax)
 
-        m = self.halos.tab_M[ok==1]
-        dndm = self.halos.tab_dndm[iz,ok==1]
-
-        nall = cumulative_trapezoid(dndm * m, x=np.log(m), initial=0.0)
-        nbar = np.trapz(dndm * m, x=np.log(m)) \
-             - np.exp(np.interp(np.log(mmin), np.log(m), np.log(nall)))
+        m = self.halos.tab_M
+        dndlnm = self.halos.tab_dndlnm[iz,:]
+        nbar = np.trapz(dndlnm[ok==1], x=np.log(m[ok==1]))
 
         # Correct for FOV
         if (fov is not None) and (dz is not None):
@@ -341,7 +338,6 @@ class LogNormal(LightCone): # pragma: no cover
             _bias_model_ = bias_model
         else:
             _bias_model_ = self.bias_model
-
 
         # This is the same thing that powerbox is doing in
         # `create_discrete_sample`, just trying to have a unified call
@@ -1106,8 +1102,8 @@ class LogNormal(LightCone): # pragma: no cover
         return _x, _y, _z, mass
 
     def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
-        seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, popid=0,
-        verbose=True, **_kw_):
+        seed_occ=None, mmin=1e11, mmax=np.inf, popid=0, verbose=True,
+        apply_focc=True, **_kw_):
         """
         Get a realization of a halo population.
 
@@ -1180,7 +1176,7 @@ class LogNormal(LightCone): # pragma: no cover
             raise NotImplemented('help')
 
         # `pos` is in [0, Lbox / h] domain in each dimension
-        _x, _y, _z = pos.T#(pos.T / h) #- 0.5 * (self.Lbox / h)
+        _x, _y, _z = pos.T
         N = _x.size
 
         if N == 0:
@@ -1205,8 +1201,9 @@ class LogNormal(LightCone): # pragma: no cover
 
         ##
         # Apply occupation fraction cut
-        _x, _y, _z, mass = self._filter_by_focc((_x, _y, _z, mass),
-            z, seed_occ, popid)
+        if apply_focc:
+            _x, _y, _z, mass = self._filter_by_focc((_x, _y, _z, mass),
+                z, seed_occ, popid)
 
         ##
         # Sort by mass? Otherwise will essentially be in order of pixels as

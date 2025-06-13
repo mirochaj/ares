@@ -1641,6 +1641,16 @@ class GalaxyCohort(GalaxyAggregate):
         logMh = self.halos.tab_log10M
         logMh_e = self.halos.tab_log10M_e
 
+        # Get mean relations
+        sfr = self.get_sfr_obs(z=z, Mh=Mh)
+        Ms = self.get_mstell_obs(z=z, Mh=Mh)
+
+        if self.pf['pop_scatter_sfh'] > 0:
+            assert self.pf['pop_scatter_sfr'] == self.pf['pop_scatter_smhm'] == 0,\
+                "SFH scatter OR (SFR and SMHM scatter) allowed, not both!"
+
+            return np.interp(binc, np.log10(Ms), sfr).squeeze()
+
         # SFR, SMHM, fQ
         if use_tabs:
             fstar = self.tab_fstar[iz,:]
@@ -1649,9 +1659,6 @@ class GalaxyCohort(GalaxyAggregate):
             fstar = self.get_sfe(z=z, Mh=Mh)
             focc = self.get_focc(z=z, Mh=Mh)
 
-        # Get mean relations
-        sfr = self.get_sfr_obs(z=z, Mh=Mh)
-        Ms = self.get_mstell_obs(z=z, Mh=Mh)
 
         # Need log10 of each
         log10M = np.log10(Ms)

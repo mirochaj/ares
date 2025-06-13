@@ -14,7 +14,7 @@ from functools import cached_property
 from ..data import ARES
 from ..util.ProgressBar import ProgressBar
 from .HaloMassFunction import HaloMassFunction
-from .Constants import rho_cgs, c, cm_per_mpc
+from .Constants import c, cm_per_mpc
 from scipy.integrate import cumulative_trapezoid
 from ..util.Math import get_cf_from_ps_tab, get_cf_from_ps_func
 
@@ -274,7 +274,7 @@ class HaloModel(HaloMassFunction):
         return ans
 
     def _get_ps_integrals(self, k, iz, prof1, prof2, lum1, lum2, mmin1, mmin2,
-        focc1, focc2, term):
+        focc1, focc2, term, mmax1=np.inf, mmax2=np.inf, weight_by_mass=True):
         """
         Compute integrals over profile, weighted by bias, dndm, etc.,
         needed for halo model.
@@ -288,7 +288,8 @@ class HaloModel(HaloMassFunction):
             integ1 = []; integ2 = []
             for _k in k:
                 _integ1, _integ2 = self._integrate_over_prof(_k, iz,
-                    prof1, prof2, lum1, lum2, mmin1, mmin2, focc1, focc2, term)
+                    prof1, prof2, lum1, lum2, mmin1, mmin2, focc1, focc2, term,
+                    mmax1, mmax2, weight_by_mass=weight_by_mass)
                 integ1.append(_integ1)
                 integ2.append(_integ2)
 
@@ -296,12 +297,13 @@ class HaloModel(HaloMassFunction):
             integ2 = np.array(integ2)
         else:
             integ1, integ2 = self._integrate_over_prof(k, iz,
-                prof1, prof2, lum1, lum2, mmin1, mmin2, focc1, focc2, term)
+                prof1, prof2, lum1, lum2, mmin1, mmin2, focc1, focc2, term,
+                    mmax1, mmax2, weight_by_mass=weight_by_mass)
 
         return integ1, integ2
 
     def _integrate_over_prof(self, k, iz, prof1, prof2, lum1, lum2, mmin1,
-        mmin2, focc1, focc2, term):
+        mmin2, focc1, focc2, term, mmax1, mmax2, weight_by_mass=True):
         """
         Compute integrals over profile, weighted by bias, dndm, etc.,
         needed for halo model.
@@ -320,69 +322,90 @@ class HaloModel(HaloMassFunction):
                 for iM in np.arange(self.tab_M.size)])
 
         bias = self.tab_bias[iz]
-        rho_bar = self.cosm.rho_m_z0 * rho_cgs
+        rho_bar = self.cosm.mean_density0
         dndlnm = self.tab_dndlnm[iz]
 
-        if (mmin1 is None) and (lum1 is None):
+        if weight_by_mass:
+            weight = self.tab_M / rho_bar
+        else:
+            weight = 1.
+
+        if (mmin1 is None) and (mmax1 is None) and (lum1 is None):
             fcoll1 = 1.
 
             # Small halo correction. Make use of Cooray & Sheth Eq. 71
-            _integrand = dndlnm * (self.tab_M / rho_bar) * bias
+            _integrand = dndlnm * weight * bias
             corr1 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
         elif lum1 is not None:
             corr1 = 0.0
             fcoll1 = 1.
         else:
+            if mmin1 is None:
+                mmin1 = 0
+
             fcoll1 = self.tab_fcoll[iz,np.argmin(np.abs(mmin1-self.tab_M))]
+
+            if np.isfinite(mmax1):
+                fcoll1 -= self.tab_fcoll[iz,np.argmin(np.abs(mmax1-self.tab_M))]
+
             corr1 = 0.0
 
-        if (mmin2 is None) and (lum2 is None):
+        if (mmin2 is None) and (mmax2 is None) and (lum2 is None):
             fcoll2 = 1.#self.mgtm[iz,0] / rho_bar
-            _integrand = dndlnm * (self.tab_M / rho_bar) * bias
+            _integrand = dndlnm * weight * bias
             corr2 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
         elif lum2 is not None:
             corr2 = 0.0
             fcoll2 = 1.
         else:
+            if mmin2 is None:
+                mmin2 = 0
             fcoll2 = self.tab_fcoll[iz,np.argmin(np.abs(mmin2-self.tab_M))]
+            if np.isfinite(mmax2):
+                fcoll2 -= self.tab_fcoll[iz,np.argmin(np.abs(mmax2-self.tab_M))]
+
             corr2 = 0.0
 
         ok = self.tab_fcoll[iz] > 0
 
+        if mmin1 is None:
+            mmin1 = 0
+        if mmin2 is None:
+            mmin2 = 0
+
+        ok1 = np.logical_and(self.tab_M >= mmin1, self.tab_M < mmax1)
+        ok2 = np.logical_and(self.tab_M >= mmin2, self.tab_M < mmax2)
+
         # If luminosities passed, then we must cancel out a factor of halo
         # mass that generally normalizes the integrand.
         if lum1 is None:
-            weight1 = self.tab_M
-            norm1 = rho_bar * fcoll1
+            weight1 = weight / fcoll1
         else:
             weight1 = lum1
-            norm1 = 1.
 
         if lum2 is None:
-            weight2 = self.tab_M
-            norm2 = rho_bar * fcoll2
+            weight2 = weight / fcoll2
         else:
             weight2 = lum2
-            norm2 = 1.
 
         ##
         # Are we doing the 1-h or 2-h term?
         if term == 1:
             integrand = dndlnm * focc1 * weight1 * weight2 \
-                * p1 * p2 / norm1 / norm2
+                * p1 * p2
 
-            result = np.trapz(integrand[ok==1], x=np.log(self.tab_M[ok==1]))
+            result = np.trapz(integrand[ok], x=np.log(self.tab_M[ok==1]))
 
             return result, None
 
         elif term == 2:
-            integrand1 = dndlnm * focc1 * weight1 * p1 * bias / norm1
-            integrand2 = dndlnm * focc2 * weight2 * p2 * bias / norm2
+            integrand1 = dndlnm * focc1 * weight1 * p1 * bias
+            integrand2 = dndlnm * focc2 * weight2 * p2 * bias
 
-            integral1 = np.trapz(integrand1[ok==1], x=np.log(self.tab_M[ok==1]),
-                axis=0)
-            integral2 = np.trapz(integrand2[ok==1], x=np.log(self.tab_M[ok==1]),
-                axis=0)
+            integral1 = np.trapz(integrand1[ok*ok1],
+                x=np.log(self.tab_M[ok*ok1]), axis=0)
+            integral2 = np.trapz(integrand2[ok*ok2],
+                x=np.log(self.tab_M[ok*ok2]), axis=0)
 
             return integral1 + corr1, integral2 + corr2
 
@@ -429,7 +452,8 @@ class HaloModel(HaloMassFunction):
         return ps_lin
 
     def get_ps_1h(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None,
-        mmin1=None, mmin2=None, focc1=1, focc2=1, ztol=1e-3):
+        mmin1=None, mmin2=None, mmax1=np.inf, mmax2=np.inf, focc1=1, focc2=1,
+        ztol=1e-3, weight_by_mass=True):
         """
         Compute 1-halo term of power spectrum.
         """
@@ -437,14 +461,24 @@ class HaloModel(HaloMassFunction):
         iz, k, prof1, prof2 = self._prep_for_ps(z, k, prof1, prof2, ztol)
 
         integ1, none = self._get_ps_integrals(k, iz, prof1, prof2,
-            lum1, lum2, mmin1, mmin2, focc1, focc2, term=1)
+            lum1, lum2, mmin1, mmin2, mmax1, mmax2, focc1, focc2, 1,
+            mmax1, mmax2, weight_by_mass=weight_by_mass)
 
         return integ1
 
     def get_ps_2h(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None,
-        mmin1=None, mmin2=None, focc1=1, focc2=1, ztol=1e-3):
+        mmin1=None, mmin2=None, mmax1=np.inf, mmax2=np.inf, focc1=1, focc2=1,
+        ztol=1e-3, weight_by_mass=True):
         """
         Get 2-halo term of power spectrum.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        k : np.ndarray, int, float
+            k-mode(s) of interest [h/cMpc]
+
         """
 
         iz, k, prof1, prof2 = self._prep_for_ps(z, k, prof1, prof2, ztol)
@@ -452,38 +486,50 @@ class HaloModel(HaloMassFunction):
         ps_lin = self._get_ps_lin(k, iz)
 
         # Cannot return unmodified P_lin unless no L's or Mmin's passed!
-        if self.pf['halo_ps_linear']:
-            if (lum1 is None) and (lum2 is None) and (mmin1 is None) and (mmin2 is None):
+        if self.pf['halo_ps_linear'] and weight_by_mass:
+            if (lum1 is None) and (lum2 is None) and \
+               (mmin1 is None) and (mmin2 is None) and \
+               (np.isinf(mmax1) and np.isinf(mmax2)):
                 return ps_lin
 
         integ1, integ2 = self._get_ps_integrals(k, iz, prof1, prof2,
-            lum1, lum2, mmin1, mmin2, focc1, focc2, term=2)
+            lum1, lum2, mmin1, mmin2, focc1, focc2, 2, mmax1, mmax2,
+            weight_by_mass=weight_by_mass)
 
         ps = integ1 * integ2 * ps_lin
 
         return ps
 
     def get_ps_shot(self, z, k=None, lum1=None, lum2=None, mmin1=None, mmin2=None,
-        focc1=1, focc2=1, ztol=1e-3):
+        mmax1=np.inf, mmax2=np.inf, focc1=1, focc2=1, ztol=1e-3,
+        weight_by_mass=True):
         """
         Compute the shot noise term quickly.
         """
 
         iz, k, _prof1_, _prof2_ = self._prep_for_ps(z, k, None, None, ztol)
 
+        # If no luminosities are supplied, we assume it's the halo power
+        # spectrum that's of interest, in case we need to weight by the mass
+        # (squared) divided by the cosmic mean density (squared)
         if lum1 is None:
-            lum1 = 1
+            lum1 = self.tab_M / self.cosm.mean_density0 if weight_by_mass else 1
         if lum2 is None:
-            lum2 = 1
+            lum2 = self.tab_M / self.cosm.mean_density0 if weight_by_mass else 1
+
+        if mmin1 is None:
+            mmin1 = 0
+
+        ok = np.logical_and(self.tab_M >= mmin1, self.tab_M < mmax1)
 
         dndlnm = self.tab_dndlnm[iz]
         integrand = dndlnm * focc1 * lum1 * lum2
-        shot = np.trapz(integrand, x=np.log(self.tab_M), axis=0)
+        shot = np.trapz(integrand[ok==1], x=np.log(self.tab_M[ok==1]), axis=0)
 
         return shot
 
     def get_ps_mm(self, z, k=None, prof1=None, prof2=None, lum1=None, lum2=None,
-        mmin1=None, mmin2=None, ztol=1e-3):
+        mmin1=None, mmin2=None, mmax1=np.inf, mmax2=np.inf, ztol=1e-3):
         """
         Return total power spectrum as sum of 1h and 2h terms.
         """
@@ -491,9 +537,11 @@ class HaloModel(HaloMassFunction):
         if self.pf['halo_ps_linear']:
             ps_1h = 0
         else:
-            ps_1h = self.get_ps_1h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
+            ps_1h = self.get_ps_1h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2,
+                mmax1, mmax2, ztol)
 
-        ps_2h = self.get_ps_2h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2, ztol)
+        ps_2h = self.get_ps_2h(z, k, prof1, prof2, lum1, lum2, mmin1, mmin2,
+            mmax1, mmax2, ztol)
 
         return ps_1h + ps_2h
 
