@@ -818,9 +818,9 @@ class LightCone(object): # pragma: no cover
         # First, check for a pre-existing catalog in this channel.
         fn_cat_ch = self.get_cat_fn(fov, pix, channel, popid,
             logmlim=logmlim, zlim=(zlo, zhi), wave_units=wave_units)
-
+        
         if os.path.exists(fn_cat_ch):
-
+            
             ra, dec, red, flux = self._load_cat(fn_cat_ch)
 
             # Figure out what pixel each source is in
@@ -840,7 +840,6 @@ class LightCone(object): # pragma: no cover
                 channel, pid)
             flux *= 1. / (self.get_map_norm(cat_units) / dnu)
         else:
-
             # Run fresh if we didn't find anything
             ra, dec, red, Mh, parents = self.get_catalog_halos(
                 zlim=(zlo, zhi), logmlim=logmlim, popid=popid, verbose=verbose,
@@ -910,8 +909,11 @@ class LightCone(object): # pragma: no cover
         mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
             pix / 60.)
 
+        resolved_sources = False
+
         # Extended emission from IHL
         if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
+            resolved_sources = True
 
             Rall = self.sim.pops[0].halos.tab_R_nfw
             Rvir = self.sim.pops[0].halos.get_Rvir(zmid, Mh) / 1e3 # kpc->Mpc
@@ -930,7 +932,8 @@ class LightCone(object): # pragma: no cover
                                 indexing='ij')
 
 
-        elif include_galaxy_sizes:
+        elif include_galaxy_sizes:  
+            resolved_sources = True
 
             assert self.profile_info is not None, \
                 "Must supply `profile_info` at initialization!"
@@ -998,121 +1001,127 @@ class LightCone(object): # pragma: no cover
             cos_theta, sin_theta = np.cos(theta), np.sin(theta)
             #
 
-        # Initialize empty map
-        img = buffer
-
-        Ibatch = None
-
         ##
-        # Actually sum fluxes from all objects in image plane.
-        for h in range(ra.size):
+        # Accelerated approach if not doing resolved sources
+        if (not resolved_sources):
+            _flux_ = None
+            _img_, _xe_, _ye_ = np.histogram2d(ra, dec, 
+                bins=(ra_e, dec_e), weights=flux)
 
-            # Where this galaxy lives in pixel coordinates
-            i, j = ra_ind[h], de_ind[h]
-
-            # Grab the flux
-            _flux_ = flux[h]
-
-            # HERE: account for fact that galaxies aren't point sources.
-            # [optional]
-            if self.sim.pops[pid].is_diffuse and include_galaxy_sizes and (R_X[h] >= 1):
-                # Interpolate between tabulated solutions.
-                iM = np.argmin(np.abs(Mh[h] - Mall))
-
-                if postage_stamp is not None:
-                    xx, yy, _r_ = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
-
-                    # This is in pixels, need to convert to cMpc before
-                    # interpolating
-                    Rarr = np.sqrt(xx**2 + yy**2) * (pix / 60.) \
-                        * mpc_per_arcmin
-
-                    I = self._get_ihl_postage_stamp(_r_, Rarr, Rall, Sall, iM)
-
-                    # OK, now need to drop into full image
-                    slcx, slcy, slcx2, slcy2 = \
-                        self._get_postage_stamp_slices(I, img, i, j)
-
-                else:
-                    # Image of distances from halo center
-                    r0 = ra_c[i] * 60 * mpc_per_arcmin
-                    d0 = dec_c[j] * 60 * mpc_per_arcmin
-                    Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
-
-                    # In Msun/cMpc^3
-                    I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
-
-                # Optional: hard cut at large radius.
-                I[Rarr >= null_beyond_size * Rvir[h]] = 0
-
-                tot = I.sum()
-
-                if postage_stamp is not None:
-                    img[slcx,slcy] += _flux_ * I[slcx2,slcy2] \
-                        / I[slcx2,slcy2].sum()
-                elif tot == 0:
-                    img[i,j] += _flux_
-                else:
-                    img[:,:] += _flux_ * I / tot
-
-            elif include_galaxy_sizes and (R_X[h] >= 1):
-
-                if postage_stamp is not None:
-
-                    xx, yy, _r_ = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
-
-                    # This is in pixels, need to convert to cMpc before
-                    # interpolating
-                    Rarr = np.sqrt(xx**2 + yy**2) * (pix / 60.) \
-                        * mpc_per_arcmin
-
-                    # Put galaxies at the center of the postage stamp, hence
-                    # no (xx - x_0) factors, just xx
-                    x_maj = xx * cos_theta[h] + yy * sin_theta[h]
-                    x_min = -xx * sin_theta[h] + yy * cos_theta[h]
-                    #z = np.sqrt((x_maj / a) ** 2 + (x_min / b) ** 2)
-                    zsq = (x_maj / a[h])**2 + (x_min / b[h])**2
-
-                    # Fractional contribution to total flux
-                    pstamp = np.exp(-b_n[h] * (zsq**(1. / nsers[h] / 2.) - 1))
-
-                    slcx, slcy, slcx2, slcy2 = \
-                        self._get_postage_stamp_slices(pstamp, img, i, j)
-
-                    I = pstamp
-
-                else:
-                    Rarr = np.sqrt((rr - x_0[h])**2 + (dd - y_0[h])**2)
-
-                    x_maj =  (rr - x_0[h]) * cos_theta[h] \
-                          + (dd - y_0[h]) * sin_theta[h]
-                    x_min = -(rr - x_0[h]) * sin_theta[h] \
-                          + (dd - y_0[h]) * cos_theta[h]
-                    #z = np.sqrt((x_maj / a) ** 2 + (x_min / b) ** 2)
-                    zsq = (x_maj / a[h])**2 + (x_min / b[h])**2
-
-                    # Fractional contribution to total flux
-                    I = np.exp(-b_n[h] * (zsq**(1. / nsers[h] / 2.) - 1))
-
-                # Optional: hard cut at large radius.
-                I[Rarr >= null_beyond_size * Rvir[h]] = 0
-
-                # Get total flux
-                tot = I.sum()
-
-                if postage_stamp is not None:
-                    img[slcx,slcy] += _flux_ * pstamp[slcx2,slcy2] \
-                        / pstamp[slcx2,slcy2].sum()
-                elif tot == 0 or R_X[h] < 1:
-                    img[i,j] += _flux_
-                else:
-                    img[:,:] += _flux_ * I / tot
+            # Recall that `img` is a buffer to be incremented
+            img += _img_
+        else:
 
             ##
-            # Otherwise just add flux to single pixel
-            else:
-                img[i,j] += _flux_
-
+            # Actually sum fluxes from all objects in image plane.
+            for h in range(ra.size):
+    
+                # Where this galaxy lives in pixel coordinates
+                i, j = ra_ind[h], de_ind[h]
+    
+                # Grab the flux
+                _flux_ = flux[h]
+    
+                # HERE: account for fact that galaxies aren't point sources.
+                # [optional]
+                if self.sim.pops[pid].is_diffuse and include_galaxy_sizes and (R_X[h] >= 1):
+                    # Interpolate between tabulated solutions.
+                    iM = np.argmin(np.abs(Mh[h] - Mall))
+    
+                    if postage_stamp is not None:
+                        xx, yy, _r_ = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
+    
+                        # This is in pixels, need to convert to cMpc before
+                        # interpolating
+                        Rarr = np.sqrt(xx**2 + yy**2) * (pix / 60.) \
+                            * mpc_per_arcmin
+    
+                        I = self._get_ihl_postage_stamp(_r_, Rarr, Rall, Sall, iM)
+    
+                        # OK, now need to drop into full image
+                        slcx, slcy, slcx2, slcy2 = \
+                            self._get_postage_stamp_slices(I, img, i, j)
+    
+                    else:
+                        # Image of distances from halo center
+                        r0 = ra_c[i] * 60 * mpc_per_arcmin
+                        d0 = dec_c[j] * 60 * mpc_per_arcmin
+                        Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
+    
+                        # In Msun/cMpc^3
+                        I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
+    
+                    # Optional: hard cut at large radius.
+                    I[Rarr >= null_beyond_size * Rvir[h]] = 0
+    
+                    tot = I.sum()
+    
+                    if postage_stamp is not None:
+                        img[slcx,slcy] += _flux_ * I[slcx2,slcy2] \
+                            / I[slcx2,slcy2].sum()
+                    elif tot == 0:
+                        img[i,j] += _flux_
+                    else:
+                        img[:,:] += _flux_ * I / tot
+    
+                elif include_galaxy_sizes and (R_X[h] >= 1):
+    
+                    if postage_stamp is not None:
+    
+                        xx, yy, _r_ = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
+    
+                        # This is in pixels, need to convert to cMpc before
+                        # interpolating
+                        Rarr = np.sqrt(xx**2 + yy**2) * (pix / 60.) \
+                            * mpc_per_arcmin
+    
+                        # Put galaxies at the center of the postage stamp, hence
+                        # no (xx - x_0) factors, just xx
+                        x_maj = xx * cos_theta[h] + yy * sin_theta[h]
+                        x_min = -xx * sin_theta[h] + yy * cos_theta[h]
+                        #z = np.sqrt((x_maj / a) ** 2 + (x_min / b) ** 2)
+                        zsq = (x_maj / a[h])**2 + (x_min / b[h])**2
+    
+                        # Fractional contribution to total flux
+                        pstamp = np.exp(-b_n[h] * (zsq**(1. / nsers[h] / 2.) - 1))
+    
+                        slcx, slcy, slcx2, slcy2 = \
+                            self._get_postage_stamp_slices(pstamp, img, i, j)
+    
+                        I = pstamp
+    
+                    else:
+                        Rarr = np.sqrt((rr - x_0[h])**2 + (dd - y_0[h])**2)
+    
+                        x_maj =  (rr - x_0[h]) * cos_theta[h] \
+                              + (dd - y_0[h]) * sin_theta[h]
+                        x_min = -(rr - x_0[h]) * sin_theta[h] \
+                              + (dd - y_0[h]) * cos_theta[h]
+                        #z = np.sqrt((x_maj / a) ** 2 + (x_min / b) ** 2)
+                        zsq = (x_maj / a[h])**2 + (x_min / b[h])**2
+    
+                        # Fractional contribution to total flux
+                        I = np.exp(-b_n[h] * (zsq**(1. / nsers[h] / 2.) - 1))
+    
+                    # Optional: hard cut at large radius.
+                    I[Rarr >= null_beyond_size * Rvir[h]] = 0
+    
+                    # Get total flux
+                    tot = I.sum()
+    
+                    if postage_stamp is not None:
+                        img[slcx,slcy] += _flux_ * pstamp[slcx2,slcy2] \
+                            / pstamp[slcx2,slcy2].sum()
+                    elif tot == 0 or R_X[h] < 1:
+                        img[i,j] += _flux_
+                    else:
+                        img[:,:] += _flux_ * I / tot
+    
+                ##
+                # Otherwise just add flux to single pixel
+                else:
+                    img[i,j] += _flux_
+    
         ##
         # Clear out some memory sheesh
         del flux, _flux_, ra, dec, red, Mh, ok, okp, okz, ra_ind, de_ind, \
