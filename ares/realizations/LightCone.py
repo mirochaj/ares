@@ -906,8 +906,7 @@ class LightCone(object): # pragma: no cover
         ##
         # Need some extra info to do more sophisticated modeling...
         ##
-        mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
-            pix / 60.)
+        mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid, 1)
 
         resolved_sources = False
 
