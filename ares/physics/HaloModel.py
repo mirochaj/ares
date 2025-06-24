@@ -509,18 +509,22 @@ class HaloModel(HaloMassFunction):
 
         iz, k, _prof1_, _prof2_ = self._prep_for_ps(z, k, None, None, ztol)
 
+        # Identify contributing halos
+        if mmin1 is None:
+            mmin1 = 0
+        
+        ok = np.logical_and(self.tab_M >= mmin1, self.tab_M < mmax1)
+
+        if (lum1 is None) and weight_by_mass:
+            rho = self.cosm.mean_density0 #* self.tab_fcoll[iz,0]
+
         # If no luminosities are supplied, we assume it's the halo power
         # spectrum that's of interest, in case we need to weight by the mass
         # (squared) divided by the cosmic mean density (squared)
         if lum1 is None:
-            lum1 = self.tab_M / self.cosm.mean_density0 if weight_by_mass else 1
+            lum1 = self.tab_M / rho if weight_by_mass else 1
         if lum2 is None:
-            lum2 = self.tab_M / self.cosm.mean_density0 if weight_by_mass else 1
-
-        if mmin1 is None:
-            mmin1 = 0
-
-        ok = np.logical_and(self.tab_M >= mmin1, self.tab_M < mmax1)
+            lum2 = self.tab_M / rho if weight_by_mass else 1
 
         dndlnm = self.tab_dndlnm[iz]
         integrand = dndlnm * focc1 * lum1 * lum2

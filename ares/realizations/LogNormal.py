@@ -1218,8 +1218,7 @@ class LogNormal(LightCone): # pragma: no cover
         elif self.bias_model == 1:
             # First generate positions the easy way just to force this method
             # to have the same number of halos
-            pos = self.get_halo_positions(z, Nexp, pb.delta_x(), seed=seed_pos,
-                bias_model=0)
+            pos = self.get_halo_positions(z, Nexp, rho, seed=seed_pos, bias_model=0)
             # Actual number is a Poisson draw
             Nact = pos.shape[0]#np.random.poisson(Nexp)
 
