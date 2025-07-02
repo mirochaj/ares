@@ -2660,6 +2660,22 @@ class GalaxyCohort(GalaxyAggregate):
             Lh = sfr * lum_per_sfr
 
             return Lh
+        elif self.pf['pop_lum_per_mass']:
+            # Assumed to be erg/s/Hz/(Msun/yr)
+            lum_per_mass = self.pf['pop_lum_per_mass']
+
+            Lbol = Ms * lum_per_mass
+
+            # Need to introduce SED modulation here
+            wave = self.src.get_ang_from_x(x, units=units)
+
+            if units_out.lower() == 'erg/s/hz':
+                pass
+            else:
+                raise ValueError(f'unknown units={units_out}')
+
+
+            return Lh
 
         # or lookup table, in which case we need to interpolate
         elif self.pf['pop_lum_tab'] is not None:
