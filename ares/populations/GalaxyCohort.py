@@ -1927,7 +1927,7 @@ class GalaxyCohort(GalaxyAggregate):
             window=window, absolute=absolute)
 
     def get_lf(self, z, bins=None, use_tabs=True,
-        use_mags=True, x=1600., units='Angstrom', window=1.,
+        use_mags=True, use_logL=True, x=1600., units='Angstrom', window=1.,
         absolute=True, raw=False, nebular_only=False, band=None, cam=None,
         filters=None, dlam=20, presets=None):
         """
@@ -1944,7 +1944,8 @@ class GalaxyCohort(GalaxyAggregate):
             Bin (centers) at which to compute LF.
         use_mags : bool
             If True, will return luminosity function vs. AB magnitudes,
-            otherwise will use luminosities.
+            otherwise will use luminosities. Assumes that the user-supplied
+            `bins` are AB magnitudes as well.
         absolute : bool
             If True and use_mags==True, returns LF at absolute AB magnitudes,
             otherwise will use apparent mags.
@@ -1990,13 +1991,24 @@ class GalaxyCohort(GalaxyAggregate):
                 window=window, absolute=absolute,
                 cam=cam, filters=filters, dlam=dlam)
         else:
-            # By default, we compute dn/dL
-            bins, phi_of_x = self._get_lf_lum(z, x=x,
+            # By default, we compute dn/dlog10L
+            _lum_, dndlog10L = self._get_lf_lum(z, x=x,
                 use_tabs=use_tabs,
                 units=units,
                 window=window, raw=raw, nebular_only=nebular_only, band=band)
-            #raise NotImplemented('needs fixing')
-            #phi_of_x = self._get_uvlf_lum(bins, z, wave=wave, window=window)
+            
+            # phi is dn/dlog10L, need to convert to dn/dL
+            # Recall dndlog10x = dndlnx / np.log(10.)
+            if use_logL:
+                _x_ = _lum_
+                phi = dndlog10L
+            else:
+                _x_ = np.log10(_lum_)
+                dndlnL = dndlog10L * np.log(10.)
+                dndL = dndlnL / _lum_
+                phi = dndL
+                
+            phi_of_x = np.interp(bins, _x_, phi, left=0, right=0)
 
         ##
         # Might need to apply dust correction if using empirical approach.
@@ -2661,7 +2673,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             return Lh
         elif self.pf['pop_lum_per_mass']:
-            # Assumed to be erg/s/Hz/(Msun/yr)
+            # Assumed to be erg/s/Msun bolometric
             lum_per_mass = self.pf['pop_lum_per_mass']
 
             Lbol = Ms * lum_per_mass
@@ -2674,8 +2686,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 raise ValueError(f'unknown units={units_out}')
 
-
-            return Lh
+            return Lbol
 
         # or lookup table, in which case we need to interpolate
         elif self.pf['pop_lum_tab'] is not None:
