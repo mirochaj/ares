@@ -2007,8 +2007,10 @@ class GalaxyCohort(GalaxyAggregate):
                 dndlnL = dndlog10L * np.log(10.)
                 dndL = dndlnL / _lum_
                 phi = dndL
-                
-            phi_of_x = np.interp(bins, _x_, phi, left=0, right=0)
+            
+            ok = _x_.mask==0
+            phi_of_x = np.interp(bins, np.log10(_x_[ok==1]), phi[ok==1], 
+                left=0, right=0)
 
         ##
         # Might need to apply dust correction if using empirical approach.
