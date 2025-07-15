@@ -461,7 +461,7 @@ class HaloModel(HaloMassFunction):
         iz, k, prof1, prof2 = self._prep_for_ps(z, k, prof1, prof2, ztol)
 
         integ1, none = self._get_ps_integrals(k, iz, prof1, prof2,
-            lum1, lum2, mmin1, mmin2, mmax1, mmax2, focc1, focc2, 1,
+            lum1, lum2, mmin1, mmin2, focc1, focc2, 1,
             mmax1, mmax2, weight_by_mass=weight_by_mass)
 
         return integ1

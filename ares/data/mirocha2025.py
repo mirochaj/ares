@@ -811,11 +811,6 @@ _base = \
 'pop_sys_sfr_a{0}': 1.1275e-01,
 }
 
-# 'base' model has different SMHM for star-forming and quiescent sources
-base = setup.copy()
-base.update(smhm_Q)
-base.update(_base)
-
 sed_modeling = \
 {
  'pop_lum_tab{0}': f"{HOME}/.ares/ares_ebl_data/ares_2024_11_04_smhm_diff_b13_2222_focc_erf_b13_2222_sfr_b13_2222_sc_dust_b13_22_sats_1_fit_smf_1_ssfr_1_uvlf_1_beta_0_ms_1b_s07_1_cts_0_clst_0_sys_1_sedtab_pop_0_mzr_0_obs_T0_12_1.0_alpha_0.40.hdf5",
@@ -842,3 +837,15 @@ scatter_flex = \
  'pop_scatter_smhm{0}': 0.,
  'pop_scatter_smhm{1}': 0.,
 }
+
+# 'base' model has:
+# (i) different SMHM for star-forming and quiescent sources
+# (ii) DPL SFR-Mh relation
+# (iii) DPL Dust-Mh relation
+# (iv) systematics not identical to B13
+# (v) satellites == centrals at given (sub)halo mass
+
+base = setup.copy()
+base.update(smhm_Q)
+base.update(dust_dpl)
+base.update(_base)

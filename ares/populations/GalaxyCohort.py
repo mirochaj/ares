@@ -6517,9 +6517,6 @@ class GalaxyCohort(GalaxyAggregate):
                         nebular_only=nebular_only, prof=prof,
                         cross_pop=cross_pop)
 
-                    if z > 6:
-                        print('z>6 integrand', integrand[i])
-
                 self._ps_obs_integrand[h,:] = integrand.copy()
 
                 ps[h] = np.trapz(integrand[zok] * zarr[zok],
