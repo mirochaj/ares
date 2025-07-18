@@ -877,6 +877,7 @@ def PopulationParameters():
     "pop_fox": 0.03,
 
     "pop_msr": None,
+    "pop_profile_info": None,
 
     "pop_dust_holes": 'big',
     "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
