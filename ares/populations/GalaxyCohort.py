@@ -1312,10 +1312,11 @@ class GalaxyCohort(GalaxyAggregate):
                 ##
                 # Just use get_lf.
                 # This is forced to be in units of 'erg/s/Hz' internally.
-                # The `use_logL=False` setting means the LF returned will be dn/dL, and the `bins` will 
+                # The `use_logL=False` setting means the LF returned 
+                # will be dn/dL, and the `bins` will 
                 # be L (as opposed to dn/dlog10L and log10L, with `use_logL=True`)
-                bins1, phi1 = self.get_lf(z1, x=x, use_mags=False, units=units, use_logL=False,
-                    band=band)
+                bins1, phi1 = self.get_lf(z1, x=x, use_mags=False, units=units,
+                    use_logL=False, band=band)
                 
                 if np.all(phi1[phi1.mask==0] == 0):
                     rhoL1 = 0
@@ -1464,14 +1465,13 @@ class GalaxyCohort(GalaxyAggregate):
                     fstar = self.get_sfe(z=z, Mh=self.halos.tab_M)
 
                 Ms_c = fstar * self.halos.tab_M
+                logMc = np.log10(Ms_c)
 
                 fstar_e = self.get_sfe(z=z, Mh=10**logMh_e)
                 Ms_e = fstar_e * 10**logMh_e
                 logMs_e = np.log10(Ms_e)
 
                 dlog10mdlog10M = np.diff(logMh_e) / np.diff(logMs_e)
-
-                logMc = np.log10(Ms_c)
 
             elif mass == 'gas':
                 Mg_c = self.get_gas_mass(z=z, Mh=self.halos.tab_M)
@@ -1483,10 +1483,10 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 raise NotImplementedError('help')
 
-            ##
-            # Extra step if we're dealing with satellites
+            # Get central abundance
             dndlnm = self.halos.tab_dndlnm[iz,:]
 
+            # Centrals are relatively easy, just be careful about scatter 
             if self.is_central_pop:
                 if use_tabs:
                     dndlnm = dndlnm * self.tab_focc[iz,:]
@@ -1506,21 +1506,45 @@ class GalaxyCohort(GalaxyAggregate):
                     mu = np.log(Ms_c)
 
                     # This is dn/dln(Mstell)
-                    pdf = lognormal(bin_c[None,:], mu[:,None], sigma)
+                    pdf = lognormal(mu[None,:], mu[:,None], sigma)
 
                     # Integrating over PDF, dn/dln(Mstell), so convert
-                    # halo abundance to dlog10Mstell first.
-                    # Need to hit dndlnm with log(10)^-1 factor to get into per log10(m) units.
-                    integrand = (dndlnm[ok==1,None] / np.log(10.)) \
-                        * dlog10mdlog10M[ok==1,None] * pdf[ok==1]
+                    # halo abundance to dlog10Mstell first (divide by ln(10)).
+                    integrand = (dndlnm[ok==1,None] * np.log(10.)) \
+                        * dlog10mdlog10M[ok==1,None] * pdf[ok==1,:]
+                
+                    # Reminder 7/18: slicing pdf with ok==1 in both axes here
+                    # caused problems...
+                    
+                    #import matplotlib.pyplot as plt 
+                    #from matplotlib.colors import LogNorm
+                    ##plt.figure(22)
+                    #fig, axes = plt.subplots(1, 2)
+                    ##print(mu[600])
+                    ###plt.plot(np.log10(Ms_c[ok==1]), pdf[600,ok==1])
+                    ###plt.plot(np.log10(Ms_c[ok==1]), pdf[ok==1,600], ls='--')
+                    #axes[0].imshow(pdf)
+                    #axes[1].imshow(integrand2, norm=LogNorm())
+#
+                    #print('hey pdf', mu.min(), mu.max())
+#
+                    ##print(np.trapz(pdf[600,ok==1], x=np.log(Ms_c[ok==1]), axis=0))
+##
+                    #input('<enter>')
 
+                    #print('hey', integrand.shape, ok.sum(), Ms_c[ok==1].shape)
                     # Integrate over halo mass (or <M_stell>) axis
                     phi_tot = np.trapz(integrand, x=np.log(Ms_c[ok==1]), axis=0)
 
-                    return bins, phi_tot
+
+                    #print('hey', self.id_num, phi_tot)
+
+                    return bin_c, np.interp(bin_c, np.log10(Ms_c), phi_tot)
                 else:
                     pdf = 1
                     sigma = 0
+            ##
+            # Extra step if we're dealing with satellites
             else:
                 if use_tabs:
                     fsurv = self.tab_fsurv[iz,:]
@@ -1549,7 +1573,7 @@ class GalaxyCohort(GalaxyAggregate):
                     # Log-normal distribution of stellar mass at given
                     # halo mass, need to integrate over.
                     # Arguments are just: x, mu, sigma
-                    pdf = lognormal(bin_c[None,:], mu[:,None], sigma)
+                    pdf = lognormal(mu[None,:], mu[:,None], sigma)
                 else:
                     sigma = 0
                     pdf = 1.
@@ -1581,22 +1605,22 @@ class GalaxyCohort(GalaxyAggregate):
                 # function of subhalo mass
                 if sigma > 0:
                     # Get integrand as dn/dlog10(Mstell)
-                    integrand = (dndlnm_sat / np.log(10)) * dlog10mdlog10M
+                    integrand = (dndlnm_sat * np.log(10)) * dlog10mdlog10M
                     # Integrate over halo mass axis
                     phi_tot = np.trapz(integrand[ok==1,None] * pdf[ok==1,:],
                         x=np.log(Ms_c[ok==1]), axis=0)
 
-                    return bins, phi_tot
+                    return bin_c, np.interp(bin_c, np.log10(Ms_c[ok==1]), phi_tot[ok==1])
                 else:
                     #
                     dndlnm = dndlnm_sat
 
             ##
             # Convert to [per mass unit] of our choosing.
-            phi = (dndlnm / np.log(10.)) * dlog10mdlog10M
+            phi = (dndlnm * np.log(10.)) * dlog10mdlog10M
 
             if bins is not None:
-                return bins, np.interp(bins, logMc, phi)
+                return bin_c, np.interp(bin_c, logMc, phi)
             else:
                 return logMc, phi
 
@@ -1709,7 +1733,7 @@ class GalaxyCohort(GalaxyAggregate):
         iz = self.get_zindex(z)
         dndlnm = self.halos.tab_dndlnm[iz]
         # Recall: dndlog10x = dndlnx / np.log(10.)
-        dndlog10m = dndlnm / np.log(10.)
+        dndlog10m = dndlnm * np.log(10.)
         # [note that log(10) won't matter: will cancel in the end anyways]
 
         # Bin centers
@@ -2080,7 +2104,7 @@ class GalaxyCohort(GalaxyAggregate):
             # Recall dndlog10x = dndlnx / np.log(10.)
             if use_logL:
                 _x_ = np.log10(_lum_)
-                phi = dndlnL / np.log(10.)
+                phi = dndlnL * np.log(10.)
             else:
                 _x_ = _lum_
                 dndL = dndlnL / _lum_
@@ -3837,7 +3861,8 @@ class GalaxyCohort(GalaxyAggregate):
 
                 # Integrate over halo mass (or really, <Lh>) axis
                 _ok = np.logical_and(ok, Lh>0)
-                phi_tot = np.trapz(dndlnL[_ok==1,None] * pdf[_ok==1,:], x=lnL[_ok==1], axis=0)
+                phi_tot = np.trapz(dndlnL[_ok==1,None] * pdf[_ok==1,:], x=lnL[_ok==1],  
+                    axis=0)
 
                 lum = np.ma.array(Lh, mask=mask)
                 phi = np.ma.array(phi_tot, mask=mask, fill_value=-np.inf)

@@ -547,7 +547,7 @@ def lognormal(x, mu, sigma):
     x : int, float, array 
         Independent variable [really ln(x)].
     mu : int, float, array 
-        Where log-normal peaks in ln(x).
+        Mean of log-normal in ln(x).
     sigma : int, float 
         Width of distribution.
 
