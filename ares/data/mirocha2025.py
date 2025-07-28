@@ -63,7 +63,7 @@ centrals_sf = \
 
  'pop_sfh': 'constant+ssp',
  'pop_ssp': (False, True),
- 'pop_age': (100., 2.5e3),
+ 'pop_age': (100., 4e3),
  'pop_Z': (0.02, 0.02), # placeholder, really
  'pop_binaries': False,
 
@@ -232,7 +232,7 @@ centrals_q['pop_aging'] = True
 centrals_q['pop_ssfr'] = None
 centrals_q['pop_sfr'] = None
 centrals_q['pop_ssp'] = True
-centrals_q['pop_age'] = 1e4
+centrals_q['pop_age'] = 5e3
 centrals_q['pop_Z'] = 0.02
 centrals_q['pop_fstar'] = 'link:fstar:0'
 centrals_q['pop_focc'] = 'link:focc:0'
@@ -356,7 +356,7 @@ satellites_q['pop_ssfr'] = None
 satellites_q['pop_sfh'] = 'ssp'
 satellites_q['pop_aging'] = True
 satellites_q['pop_ssp'] = True
-satellites_q['pop_age'] = 1e4
+satellites_q['pop_age'] = 5e3
 satellites_q['pop_Z'] = 0.02
 
 #
@@ -823,6 +823,14 @@ sed_modeling = \
  'pop_lum_tab{1}': f"{HOME}/.ares/ares_ebl_data/ares_2025_07_01_smhm_diff_b13_2222_focc_erf_b13_2222_sfr_b13_2222_sc_dustMh_dpl_b13_2222_c00_sats_1_fit_smf_1_ssfr_1_uvlf_b15_o18_p25_w18_1.75_3.75_4_beta_1_ms_1b_s07_1_cts_0_clst_0_sys_1_sedtab_pop_1_bb_544_obs_T0_12_1.0_alpha_0.00.hdf5",
  'pop_lum_tab{2}': f"{HOME}/.ares/ares_ebl_data/ares_2025_07_01_smhm_diff_b13_2222_focc_erf_b13_2222_sfr_b13_2222_sc_dustMh_dpl_b13_2222_c00_sats_1_fit_smf_1_ssfr_1_uvlf_b15_o18_p25_w18_1.75_3.75_4_beta_1_ms_1b_s07_1_cts_0_clst_0_sys_1_sedtab_pop_0_mzr_0_obs_T0_12_1.0_alpha_0.00.hdf5",
  'pop_lum_tab{3}': f"{HOME}/.ares/ares_ebl_data/ares_2025_07_01_smhm_diff_b13_2222_focc_erf_b13_2222_sfr_b13_2222_sc_dustMh_dpl_b13_2222_c00_sats_1_fit_smf_1_ssfr_1_uvlf_b15_o18_p25_w18_1.75_3.75_4_beta_1_ms_1b_s07_1_cts_0_clst_0_sys_1_sedtab_pop_1_bb_544_obs_T0_12_1.0_alpha_0.00.hdf5",
+}
+
+no_sed_modeling = \
+{
+ 'pop_lum_tab{0}': None,
+ 'pop_lum_tab{1}': None,
+ 'pop_lum_tab{2}': None,
+ 'pop_lum_tab{3}': None,
 }
 
 sys_b13 = \

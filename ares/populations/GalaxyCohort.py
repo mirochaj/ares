@@ -407,10 +407,10 @@ class GalaxyCohort(GalaxyAggregate):
         #f_fib = []
         #for i in range(Ms.size):
 
-
-
         # VERY ROUGH FOR NOW 
-        frac = (0.5 * ap / R_sec / 2.)**2
+        # Just assuming face-on, that the "full light radius" is 2x the half-light radius R_sec
+        # pi * R_ap**2 / (pi * R_eff**2)
+        frac = (ap / R_sec / 2.)**2
 
         return np.minimum(frac, 1.)
 
@@ -1516,28 +1516,9 @@ class GalaxyCohort(GalaxyAggregate):
                     # Reminder 7/18: slicing pdf with ok==1 in both axes here
                     # caused problems...
                     
-                    #import matplotlib.pyplot as plt 
-                    #from matplotlib.colors import LogNorm
-                    ##plt.figure(22)
-                    #fig, axes = plt.subplots(1, 2)
-                    ##print(mu[600])
-                    ###plt.plot(np.log10(Ms_c[ok==1]), pdf[600,ok==1])
-                    ###plt.plot(np.log10(Ms_c[ok==1]), pdf[ok==1,600], ls='--')
-                    #axes[0].imshow(pdf)
-                    #axes[1].imshow(integrand2, norm=LogNorm())
-#
-                    #print('hey pdf', mu.min(), mu.max())
-#
-                    ##print(np.trapz(pdf[600,ok==1], x=np.log(Ms_c[ok==1]), axis=0))
-##
-                    #input('<enter>')
-
-                    #print('hey', integrand.shape, ok.sum(), Ms_c[ok==1].shape)
                     # Integrate over halo mass (or <M_stell>) axis
                     phi_tot = np.trapz(integrand, x=np.log(Ms_c[ok==1]), axis=0)
 
-
-                    #print('hey', self.id_num, phi_tot)
 
                     return bin_c, np.interp(bin_c, np.log10(Ms_c), phi_tot)
                 else:
@@ -2679,7 +2660,7 @@ class GalaxyCohort(GalaxyAggregate):
         # Loop over provided emission lines, determine if any lie in the
         # requested wavelength range.
         for i, line_info in enumerate(self.pf['pop_lum_per_sfr_at_wave']):
-
+            
             if len(line_info) == 2:
                 _wave_, _lum_ = line_info
                 _width_ = None
@@ -3156,7 +3137,7 @@ class GalaxyCohort(GalaxyAggregate):
         if (type(T) in numeric_types) or (T.size == 1):
             T = float(T) * np.ones_like(Lh)
 
-        if np.all(T==1):
+        if np.all(T == 1):
             pass
         elif np.all(T == 0):
             return np.zeros_like(Lh)
@@ -6600,7 +6581,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             pb = ProgressBar(scale.shape[0],
                 use=use_pb and self.pf['progress_bar'],
-                name=f'p(k,{name})')
+                name=f'p(k,{name}; pop #{self.id_num})')
             pb.start()
 
             self._ps_obs_integrand = np.zeros((scale.size, zarr.size))
