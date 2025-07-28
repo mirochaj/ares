@@ -15,7 +15,7 @@ setup = \
 
  # NIRB
  'tau_approx': 0,#'neutral',
- 'tau_clumpy': 2,
+ 'tau_clumpy': 1,
 
  'cosmology_id': 'best',
  'cosmology_name': 'planck_TTTEEE_lowl_lowE',
@@ -32,6 +32,8 @@ setup = \
 
  #'interpolate_cosmology_in_z': True,
 }
+
+basic_settings = setup.copy()
 
 centrals_sf = \
 {

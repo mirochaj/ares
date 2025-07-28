@@ -3094,7 +3094,14 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Have options for stars or BHs
-        if self.pf['pop_star_formation']:
+        if self.pf['pop_lum_func'] is not None:
+            Lh = self.pf['pop_lum_func'](z=z, Mh=self.halos.tab_M if Mh is None else Mh, 
+                x=x, units=units, 
+                units_out=units_out, band=band)
+            # Assume user has done all the legwork? Could later 
+            # use same dust as host galaxies.
+            include_dust_transmission = False
+        elif self.pf['pop_star_formation']:
             Lh = self._get_lum_stellar_pop(z, x=x, use_tabs=use_tabs,
                 band=band, window=window,
                 units=units, units_out=units_out, load=load, raw=raw,

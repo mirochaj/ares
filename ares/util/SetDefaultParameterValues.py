@@ -506,6 +506,8 @@ def PopulationParameters():
 
     "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
 
+    "pop_lum_func": None,
+
     "pop_ham_z": None,
 
     # Mass accretion rate
