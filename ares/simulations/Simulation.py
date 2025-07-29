@@ -339,7 +339,7 @@ class Simulation(object):
 
         return scales, waves, ptot, px
 
-    def get_number_counts(self, wave, magbins, window=201, zmax=None):
+    def get_number_counts(self, wave, magbins, window=201, zbins=None, zmax=None, nsub=10., pops=None):
         """
         Determine number counts (per deg^2) summed over all source populations.
 
@@ -355,13 +355,37 @@ class Simulation(object):
         Counts (np.ndarray) in number / deg^2 in provided `magbins`.
 
         """
-        tot = np.zeros_like(magbins)
+
+        if zbins is not None:
+            tot = np.zeros((magbins.size, zbins.shape[0], len(self.pops)))
+        else:
+            tot = np.zeros_like(magbins)
 
         for i, pop in enumerate(self.pops):
 
-            if pop.is_emission_extended:
+            if pops is not None:
+                if i not in pops:
+                    continue
+            
+            # No IHL here
+            if (pop.is_emission_extended) and (not pop.is_satellite_pop):
                 continue
+            
+            ## 
+            # Can keep redshift axis if we want.
+            if zbins is not None:
+                for j, zbin in enumerate(zbins):
+                    dz = (zbin[1] - zbin[0]) / nsub
+                    num = pop.get_number_counts(magbins, x=wave,
+                        window=window, dlam=10,
+                        zbin=dz, zmin=zbin[0], zmax=zbin[1])
 
+                    tot[:,j,i] = num
+
+                continue 
+
+            ##
+            # Otherwise, lump everything together.
             if zmax is None:
                 zmax = pop.zform
 
