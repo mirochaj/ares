@@ -145,19 +145,45 @@ class Galaxy(SynthesisModel):
 
         ##
         # Null SFR for times after time of observation!
-        # Be careful: if time tobs provided is between grid points, we might
-        #
+        # Need to be careful here: we're actually going to keep the SFR
+        # one grid point beyond (lower than) tobs, so that later when 
+        # we interpolate  to tobs we'll get a non-zero value. This is
+        # important for validating that we get the right SFR out of our 
+        # optimization procedure. In short, it'd be easier to do 
+        # `sfr[t > tobs] = 0` but it'll screw things up one step down
+        # the road from here. 
+        # Note: `t` is descending, i.e., t[0] should be near the Hubble 
+        # time at z=0, t[-1] very high redshift.
         if type(sfr) == np.ndarray:
             k = np.argmin(np.abs(t - tobs))
 
-            # Ignore this is at edge of array (i.e., tobs=t since Big Bang)
+            #print('hey cmon', tobs, k, t[k], t.size, t[0], t[-1],  t.max())
+
+            # Ignore this if at edge of array (i.e., tobs=t since Big Bang)
+            # In this case there are no array elements that need nulling.
             if k == 0:
                 pass
-            elif t[k] < tobs:
-                k -= 1
+            # If this closest grid point to tobs is at later times than tobs
+            # we're OK and need not take any further action
+            elif tobs < t[k]:
+                pass
             else:
-                k -= 2
+                #assert tobs > t[k]
+                # If the closest grid point we found is still 
+                while k > 0:
+                    k -= 1
+
+                    if tobs < t[k]:
+                        break
+            #else:
+            #    k -= 2
+
+
+            #print('k after modification', k)
+
             sfr[t > t[k]] = 0
+            
+            
         else:
             if t > tobs:
                 sfr = 0
@@ -198,8 +224,13 @@ class Galaxy(SynthesisModel):
                 / (10**logtau * (np.exp(t / 10**logtau) - 1.))
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
 
-            tau = 10**fmin(func, np.log10(tau_guess),
-                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)[0]
+            best = fmin(func, np.log10(tau_guess),
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+            if disp:
+                best, fval, niter, neval, dunno = best
+
+            tau = 10**best[0]
 
             # Can analytically solve for normalization once tau in hand.
             norm = sfr / np.exp(-t / tau)
@@ -237,6 +268,9 @@ class Galaxy(SynthesisModel):
                 best = fmin(func, [np.log10(norm), np.log10(tau)],
                     disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
+                if disp:
+                    best, fval, niter, neval, dunno = best
+                
                 norm, tau = 10**best
 
                 mhist = self.get_mass(tarr, t, norm=norm, tau=tau,
@@ -244,6 +278,7 @@ class Galaxy(SynthesisModel):
                 shist = self.get_sfr(tarr, t, norm=norm, tau=tau,
                     sfh=sfh, **kwargs)
 
+                # If times are in descending order, need to flip before interpolating
                 if not np.all(np.diff(tarr) > 0):
                     _mass = 10**np.interp(np.log10(t), np.log10(tarr[-1::-1]),
                         np.log10(mhist[-1::-1]))
@@ -254,6 +289,13 @@ class Galaxy(SynthesisModel):
                         np.log10(mhist))
                     _sfr = 10**np.interp(np.log10(t), np.log10(tarr),
                         np.log10(shist))
+                    
+                #print('hi did we get _sfr=0?', _sfr, tarr)
+                #print(best, norm, tau)
+                #import matplotlib.pyplot as plt 
+#
+                #plt.loglog(tarr, shist)
+                #input('<enter>')
 
 
 
@@ -305,6 +347,9 @@ class Galaxy(SynthesisModel):
 
                 best = fmin(func, [np.log10(norm), np.log10(tau)],
                     disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+                if disp:
+                    best, fval, niter, neval, dunno = best
 
                 norm, tau = 10**best
 
@@ -372,6 +417,9 @@ class Galaxy(SynthesisModel):
                 best = fmin(func, [np.log10(norm), np.log10(tau)],
                     disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
+                if disp:
+                    best, fval, niter, neval, dunno = best
+
                 norm, tau = 10**best
 
                 mhist = self.get_mass(tarr, t, norm=norm, tau=tau,
@@ -422,6 +470,9 @@ class Galaxy(SynthesisModel):
                 best = fmin(func, [np.log10(t*0.5)],
                     disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
+                if disp:
+                    best, fval, niter, neval, dunno = best
+
                 t0 = 10**best[0]
 
                 mhist = self.get_mass(tarr, t, norm=sfr, t0=t0,
@@ -470,6 +521,9 @@ class Galaxy(SynthesisModel):
             best = fmin(func, [1, np.log10(tau_guess)],
                 disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
+            if best:
+                best, fval, niter, neval, dunno = best
+
             norm, tau = 10**best
 
             # Can analytically solve for normalization once tau in hand.
@@ -506,6 +560,9 @@ class Galaxy(SynthesisModel):
                 # Run minimization
                 best = fmin(func, [np.log10(norm), np.log10(tau)],
                     disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+                if disp:
+                    best, fval, niter, neval, dunno = best
 
                 norm, tau = 10**best
 
@@ -564,6 +621,7 @@ class Galaxy(SynthesisModel):
         # If we're here, we're exploring fallback options.
         print(f"! Retrieved mass is off by {np.log10(_mass / mass):.3f} dex (mtol={mtol}).")
         print(f"! Retrieved SFR  is off by {np.log10(_sfr / sfr):.3f} dex (stol={mtol}).")
+
         print(f"! Let's try this again with sfh={sfh_fall}...")
         kw = self.get_kwargs(t, mass, sfr, disp=disp, tau_guess=tau_guess,
             mtol=mtol, sfh=sfh_fall, mass_return=mass_return, tarr=tarr,
