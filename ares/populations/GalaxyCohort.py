@@ -3097,7 +3097,7 @@ class GalaxyCohort(GalaxyAggregate):
         if self.pf['pop_lum_func'] is not None:
             Lh = self.pf['pop_lum_func'](z=z, Mh=self.halos.tab_M if Mh is None else Mh, 
                 x=x, units=units, 
-                units_out=units_out, band=band)
+                units_out=units_out, band=band, pf=self.pf)
             # Assume user has done all the legwork? Could later 
             # use same dust as host galaxies.
             include_dust_transmission = False
