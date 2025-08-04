@@ -289,15 +289,6 @@ class Galaxy(SynthesisModel):
                         np.log10(mhist))
                     _sfr = 10**np.interp(np.log10(t), np.log10(tarr),
                         np.log10(shist))
-                    
-                #print('hi did we get _sfr=0?', _sfr, tarr)
-                #print(best, norm, tau)
-                #import matplotlib.pyplot as plt 
-#
-                #plt.loglog(tarr, shist)
-                #input('<enter>')
-
-
 
             ##
             # Save to dict
@@ -596,7 +587,10 @@ class Galaxy(SynthesisModel):
         merr = abs(np.log10(_mass / mass))
         serr = abs(np.log10(_sfr / sfr))
 
-        if (merr < mtol) and (serr < mtol):
+        print('hi', merr, serr)
+
+        if (merr <= mtol) and (serr <= mtol):
+            print(f"Found acceptable solution with kw={kw}")
             return kw
 
         # If we're not allowing a fallback option in the event that this
@@ -610,6 +604,28 @@ class Galaxy(SynthesisModel):
 
             return kw
 
+        low_or_high_m = 'low' if _mass < mass else 'high'
+        low_or_high_sfr = 'low' if _sfr < sfr else 'high'
+
+        if np.isnan(merr) or np.isnan(serr):
+
+            print("WARNING: NaN in mass and/or SFR ratio:")        
+            print(f"Mass requested: {mass:.3e}")
+            print(f"Mass recovered: {_mass:.3e}")
+
+            print(f"SFR requested: {sfr:.3e}")
+            print(f"SFR recovered: {_sfr:.3e}")
+
+            print(kw)
+            
+        ##
+        # If we're here, we're exploring fallback options.
+        print(f"! Summary of recoveries for sfh={sfh}: kw={kw}")
+        print(f"! Retrieved mass is {low_or_high_m} by {np.log10(_mass / mass):.5f} dex (mtol={mtol}).")
+        print(f"! Retrieved SFR  is {low_or_high_sfr} by {np.log10(_sfr / sfr):.5f} dex (stol={mtol}).")
+
+        # If we already tried our fallback option, try a constant SFR as a last resort.
+        # Should always work.
         if kw['sfh'] != self.pf['source_sfh']:
             #print("Double fail?")
             #print(err, np.log10(_mass), np.log10(mass), sfr, kw)
@@ -617,13 +633,10 @@ class Galaxy(SynthesisModel):
             sfh_fall = 'const'
         else:
             sfh_fall = self.pf['source_sfh_fallback']
-        ##
-        # If we're here, we're exploring fallback options.
-        print(f"! Retrieved mass is off by {np.log10(_mass / mass):.3f} dex (mtol={mtol}).")
-        print(f"! Retrieved SFR  is off by {np.log10(_sfr / sfr):.3f} dex (stol={mtol}).")
 
         print(f"! Let's try this again with sfh={sfh_fall}...")
-        kw = self.get_kwargs(t, mass, sfr, disp=disp, tau_guess=tau_guess,
+        kw = self.get_kwargs(t, mass, sfr, disp=disp, 
+            tau_guess=1,
             mtol=mtol, sfh=sfh_fall, mass_return=mass_return, tarr=tarr,
             ftol=ftol, xtol=xtol,
             **kwargs)
