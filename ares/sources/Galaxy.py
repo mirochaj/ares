@@ -196,7 +196,7 @@ class Galaxy(SynthesisModel):
         """
         return 0.05 * np.log(1. + t / 1.4)
 
-    def get_kwargs(self, t, mass, sfr, disp=False, mtol=0.05, tau_guess=1e3,
+    def get_kwargs(self, t, mass, sfr, disp=False, mtol=0.01, tau_guess=1e3,
         sfh=None, mass_return=False, tarr=None, xtol=0.01, ftol=0.01, **kwargs):
         """
         Determine the free parameters of a model needed to produce stellar mass
@@ -450,15 +450,23 @@ class Galaxy(SynthesisModel):
                 def func(pars):
                     log10t0 = pars[0]
                     t0 = 10**log10t0
+
                     dt = t - t0
-                    _mass = sfr * quad(1 - self._get_freturn(dt), t0, t)[0]
+
+                    print('calling special function', pars[0], t0, t, dt)
+
+                    _mass = sfr * 1e6 * quad(lambda tt: 1 - self._get_freturn(tt - t0), t0, t)[0]
 
                     dMst = np.log10(_mass / mass)
+
+                    print(f'pars[0]={pars[0]:.3f}, dMst={dMst:.3f}')
 #
                     return abs(dMst)
 
-                best = fmin(func, [np.log10(t*0.2)],
+                best = fmin(func, [np.log10(0.5 * t)],
                     disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+                t0 = 10**best[0]
 
                 kw['norm'] = sfr
                 kw['t0'] = t0
