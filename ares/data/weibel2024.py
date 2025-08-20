@@ -9,6 +9,7 @@ info = \
  'reference':'Weibel et al., 2024, MNRAS, 533, 1808',
  'data': 'Tables 2 and 3',
  'imf': ('Kroupa', (None, None)),
+ 'link': "https://ui.adsabs.harvard.edu/abs/2024MNRAS.533.1808W/abstract",
 }
 
 redshifts = [4, 5, 6, 7, 8, 9]

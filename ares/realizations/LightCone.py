@@ -1740,6 +1740,8 @@ class LightCone(object): # pragma: no cover
                         else:
                             cam, filt = channel.split('_')
 
+                            raise NotImplemented('do we need to do this anymore?')
+
                             ##
                             # Once again, in general need to sub-cycle through z
                             # to preserve accuracy.

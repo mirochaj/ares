@@ -768,6 +768,7 @@ class GalaxyCohort(GalaxyAggregate):
         if not hasattr(self, '_func_sfrd'):
             func = interp1d(self.halos.tab_z, self.tab_sfrd_total,
                 kind=self.pf['pop_interp_sfrd'])
+        
             self._func_sfrd = func
 
         return self._func_sfrd(z)
@@ -778,7 +779,7 @@ class GalaxyCohort(GalaxyAggregate):
         """
         return 0.05 * np.log(1. + t / 1.4)
 
-    def get_smd(self, z, mass_return=False):
+    def get_smd(self, z, mass_return=False, single_z=False):
         """
         Compute stellar mass density (SMD) at redshift `z`.
 
@@ -832,6 +833,15 @@ class GalaxyCohort(GalaxyAggregate):
             elif mass_return:
                 tasc = self.halos.tab_t[-1::-1]
                 zasc = self.halos.tab_z[-1::-1]
+
+                if single_z:
+                    iz = np.argmin(np.abs(z - zasc))
+                    
+                    smd_of_z = self.get_sfrd(zasc[0:iz]) \
+                        * (1 - self.get_freturn(tasc[iz] - tasc[0:iz]))
+
+                    return np.trapz(smd_of_z, x=tasc[0:iz] * 1e6)
+                
 
                 # `zasc` is redshift in ascending time order
                 smd_ret = []
