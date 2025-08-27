@@ -1315,6 +1315,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                 rhoL1 = np.trapz(integ1[ok1==1], dx=self.halos.dlnm)
                 rhoL2 = np.trapz(integ2[ok2==1], dx=self.halos.dlnm)
+
             else:
                 assert units_out.lower().startswith('erg/s/hz'), \
                     "Sorry: only how to do this with erg/s/hz units right now."

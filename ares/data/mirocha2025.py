@@ -15,7 +15,8 @@ setup = \
 
  # NIRB
  'tau_approx': 0,#'neutral',
- 'tau_clumpy': 1,
+ 'tau_clumpy': 1,     # 1 = all < 912A photons gone, 2 = all < 1216A gone, 
+                      # can also set to 'madau1995' for more detailed model.
 
  'cosmology_id': 'best',
  'cosmology_name': 'planck_TTTEEE_lowl_lowE',
@@ -270,7 +271,7 @@ ihl_scaled['pop_include_1h'] = True
 ihl_scaled['pop_include_2h'] = True
 ihl_scaled['pop_include_shot'] = False
 ihl_scaled['pop_Mmin'] = 1e10
-ihl_scaled['pop_Mmax'] = 1e14
+#ihl_scaled['pop_Mmax'] = 1e15
 ihl_scaled['pop_Tmin'] = None
 
 # These numbers are Purcell-like
