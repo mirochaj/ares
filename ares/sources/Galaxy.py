@@ -109,6 +109,19 @@ class Galaxy(SynthesisModel):
                     sfr = 0
                 else:
                     pass
+        elif sfh == 'exp_decl_quench':
+            norm = kwargs['norm']
+            tau = kwargs['tau']
+            tq = kwargs['tq']
+
+            sfr = norm * np.exp(-t / tau)
+            if type(sfr) == np.ndarray:
+                sfr[t > tq] = 0
+            else:
+                if t > tq:
+                    sfr = 0
+                else:
+                    pass        
         elif sfh == 'exp_rise':
             #norm = kwargs['norm']
             tau = kwargs['tau']
@@ -156,6 +169,16 @@ class Galaxy(SynthesisModel):
         # Note: `t` is descending, i.e., t[0] should be near the Hubble 
         # time at z=0, t[-1] very high redshift.
         if type(sfr) == np.ndarray:
+            sfr[t > tobs] = 0
+        else:
+            if t > tobs:
+                return 0 
+            else:
+                return sfr
+            
+        return sfr
+
+        if type(sfr) == np.ndarray:
             k = np.argmin(np.abs(t - tobs))
 
             #print('hey cmon', tobs, k, t[k], t.size, t[0], t[-1],  t.max())
@@ -199,7 +222,7 @@ class Galaxy(SynthesisModel):
 
     def get_kwargs(self, t, mass, sfr, disp=False, mtol=0.01, tau_guess=1e3,
         sfh=None, mass_return=False, tarr=None, xtol=0.01, ftol=0.01, 
-        direct_integration=False, **kwargs):
+        direct_integration=False, past_ms=None, **kwargs):
         """
         Determine the free parameters of a model needed to produce stellar mass
         `mass` and star formation rate `sfr` at time `t` [since Big Bang / Myr].
@@ -356,6 +379,108 @@ class Galaxy(SynthesisModel):
             kw['norm'] = norm
             kw['sfh'] = 'exp_decl_trunc'
             kw['t0'] = t0
+
+        elif sfh == 'exp_decl_quench':
+            assert past_ms is not None, "Must provide `past_ms` for exp_decl_quench model!"
+            assert 'tq' in kwargs, "Must provide `tq` for exp_decl_quench model!"
+
+            tq = kwargs['tq']
+            # This is like doing a normal exp_decl model except we're hunting for a galaxy 
+            # on the main sequence at some time in the past, t_quench, rather than t_obs.
+            
+            # For first guess with no mass loss, can just assume mass now is mass then.
+            _sfr = np.interp(mass, past_ms[0], past_ms[1])
+            # Note: `sfr` will be None for this case
+
+            # Note `tq`` here instead of `t`
+            # This is just for a guess at tau remember, hence use of `mass`.
+            f_sSFR = lambda logtau: 1e-6 \
+                / (10**logtau * (np.exp(tq / 10**logtau) - 1.))
+            func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (_sfr / mass)))
+
+            best = fmin(func, np.log10(tau_guess),
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+            if disp:
+                best, fval, niter, neval, dunno = best
+
+            tau = 10**best[0]
+
+            # Can analytically solve for normalization once tau in hand.
+            norm = _sfr / np.exp(-t / tau)
+
+            # Stellar mass = A * tau * (1 - e^(-t / tau))
+            # For rising history, mass = A * tau * (e^(t / tau) - 1)
+            _mass = 1e6 * norm * tau * (1 - np.exp(-t / tau))
+
+            print('tau guess', tau)
+            print('norm', norm)
+            print('_sfr', _sfr)
+            print('_mass', _mass)
+            print('mass', mass)
+
+            ##
+            # Refine if mass_return is on.
+            if mass_return:
+
+                # This is basically the same as the exp_decl history except we're 
+                # going to evaluate whether the past_ms=(mstell, SFR) jive with the main 
+                # sequence provided AND whether the present mass jives with what the user set 
+
+                def _get_sfh(tt, pars):
+                    if tt > tq:
+                        return 0
+                    
+                    norm = 10**pars[0]
+                    tau = 10**pars[1]
+                    
+                    return norm * np.exp(-tt / tau)
+                
+                def _get_mass(pars, tobs):
+                    norm = 10**pars[0]
+                    tau = 10**pars[1]
+                    _mass = 1e6 * quad(lambda tt: _get_sfh(tt, pars) * (1 - self._get_freturn(tobs - tt)),
+                         0, tobs)[0]
+                    return _mass
+                
+                def _penalty(pars):
+                    norm = 10**pars[0]
+                    tau = 10**pars[1]
+
+                    _mass_now = _get_mass(pars, t)
+                    _mass_then = _get_mass(pars, tq)
+                    _sfr_then = _get_sfh(tq, pars)
+                    
+                    _mass_then_from_ms = np.interp(_sfr_then, past_ms[1], past_ms[0])
+                    _sfr_then_from_ms = np.interp(_mass_then, past_ms[0], past_ms[1])
+
+                    dMst = np.log10(_mass_now / mass) \
+                         + np.log10(_mass_then / _mass_then_from_ms)
+                    dSFR = np.log10(_sfr_then / _sfr_then_from_ms)
+
+                    #print(f'mass now v then: {_mass_now:.2e} v {_mass_then:.2e}')
+
+                    #print('hey', pars, np.log10(_mass_now / mass), np.log10(_mass_then / _mass_then_from_ms), dSFR)
+
+                    return abs(dSFR) + abs(dMst)
+
+                best = fmin(_penalty, [np.log10(norm), np.log10(tau)],
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+                if disp:
+                    best, fval, niter, neval, dunno = best
+                
+                norm, tau = 10**best
+
+                # These are used to check for convergence
+                _mass = _get_mass(best, t)
+                _mass_then = _get_mass(best, tq)
+
+                _sfr = _get_sfh(tq, best)
+                sfr = np.interp(_mass_then, past_ms[0], past_ms[1])
+            ##
+            # Save to dict
+            kw = {'norm': norm, 'tau': tau, 'sfh': 'exp_decl_quench', 'tq': tq}
 
         elif sfh == 'exp_rise':
             # In limit of no mass return, can analytically determine tau. 
