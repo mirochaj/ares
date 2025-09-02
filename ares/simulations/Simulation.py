@@ -173,7 +173,7 @@ class Simulation(object):
 
     def get_ebl_ps(self, scales, waves, waves2=None, wave_units='mic',
         scale_units='ell', flux_units='SI', pops=None,
-        include_inter_pop=True, **kwargs):
+        include_inter_pop=True, cache_ipop_mtx=None, **kwargs):
         """
         Compute power spectrum of EBL at some observed wavelength(s).
 
@@ -258,7 +258,7 @@ class Simulation(object):
         if waves2 is None:
             waves2 = waves
 
-        ps = np.zeros((len(self.pops), len(scales), len(waves)))
+        #ps = np.zeros((len(self.pops), len(scales), len(waves)))
         px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
         # Save contributing pieces
 
@@ -285,13 +285,25 @@ class Simulation(object):
                     if j not in pops:
                         continue
 
+                # First, check for cache. This is a pro move.
+                if (cache_ipop_mtx is not None) and include_inter_pop:
+                    _px, _pz = cache_ipop_mtx
+                    _npops = _px.shape[0]
+                    # If we're covered by the cache, use it
+                    if i < _npops:
+                        px[i,j,:,:] = _px[i,j,:,:].copy()
+                        ps_z[i,j,:,:,:] = _pz[i,j,:,:,:].copy()
+                        print(f"# Loaded element ({i},{j}) from cache.")
+                        continue
+
                 for k, wave in enumerate(waves):
+                    
                     # Will default to 1h + 2h + shot
                     if j == i:
-                        ps[i,:,k] = pop.get_ps_obs(scales,
+                        px[i,i,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=wave, wave_obs2=waves2[k],
                             scale_units=scale_units, **kwargs)
-                        px[i,i,:,k] = ps[i,:,k].copy()
+                        #px[i,i,:,k] = ps[i,:,k].copy()
                         ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
                         continue
 
@@ -310,20 +322,15 @@ class Simulation(object):
                 #if hasattr(pop.halos, '_tab_u_nfw'):
                 #    del pop.halos._tab_u_nfw
 
-        ##
-        # Increment `ps` with cross terms.
-        # Convention is that fluctuations for population `i` includes
-        # all crosses with
-        #ps += px.sum(axis=1)
 
         ##
         # Modify PS units before return
         if flux_units.lower() == 'si':
-            ps *= cm_per_m**4 / erg_per_s_per_nW**2
+            #ps *= cm_per_m**4 / erg_per_s_per_nW**2
             px *= cm_per_m**4 / erg_per_s_per_nW**2
             ps_z *= cm_per_m**4 / erg_per_s_per_nW**2
         elif flux_units.lower() == 'mjy':
-            ps *= 1e17
+            #ps *= 1e17
             px *= 1e17
             ps_z *= 1e17
 
@@ -333,7 +340,6 @@ class Simulation(object):
             hist = self.history # poke
             self._history['ps_nirb'] = scales, waves, ptot, px
 
-        self.ps_auto = ps
         self.ps_cross = px
         self.ps_zall = ps_z
 
