@@ -323,6 +323,9 @@ class Simulation(object):
                 #    del pop.halos._tab_u_nfw
 
 
+        self.px_natu = px.copy()
+        self.pz_natu = ps_z.copy()
+
         ##
         # Modify PS units before return
         if flux_units.lower() == 'si':
