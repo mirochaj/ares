@@ -293,7 +293,6 @@ class Simulation(object):
                     if i < _npops:
                         px[i,j,:,:] = _px[i,j,:,:].copy()
                         ps_z[i,j,:,:,:] = _pz[i,j,:,:,:].copy()
-                        print(f"# Loaded element ({i},{j}) from cache.")
                         continue
 
                 for k, wave in enumerate(waves):

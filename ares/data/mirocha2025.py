@@ -566,7 +566,7 @@ ihl['pop_Emax{4}'] = 24.6
 ihl['pop_zdead{4}'] = 0
 
 # SED info
-ihl['pop_sed{4}'] = 'bc03'
+ihl['pop_sed{4}'] = 'bc03_2013'
 ihl['pop_rad_yield{4}'] = 'from_sed'
 
 ihl['pop_sed_degrade{4}'] = None#10
