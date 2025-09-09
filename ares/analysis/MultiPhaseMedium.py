@@ -15,9 +15,8 @@ from ..util import labels
 import matplotlib.pyplot as pl
 from ..util.Stats import get_nu
 from ..util.Pickling import read_pickle_file
-from scipy.misc import derivative
 from ..physics.Constants import *
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 from scipy.interpolate import interp1d
 from ..physics import Cosmology, Hydrogen
 from ..util.SetDefaultParameterValues import *
@@ -341,7 +340,7 @@ class MultiPhaseMedium(object):
 
         integrand *= sigma_T * dldz
 
-        tau = cumtrapz(integrand, self.history_asc['z'], initial=0)
+        tau = cumulative_trapezoid(integrand, self.history_asc['z'], initial=0)
 
         tau[self.history_asc['z'] > 100] = 0.0
 
@@ -803,7 +802,7 @@ class MultiPhaseMedium(object):
 
         integrand *= sigma_T * dldz
 
-        tau = cumtrapz(integrand, ztmp, initial=0)
+        tau = cumulative_trapezoid(integrand, ztmp, initial=0)
 
         return ztmp, tau
 

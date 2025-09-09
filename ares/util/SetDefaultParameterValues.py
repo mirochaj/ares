@@ -8,8 +8,8 @@ Created on 2010-10-19.
 Description: Defaults for all different kinds of parameters.
 
 """
-
-import os, imp
+# removed unnecessary imp call (outdated module)
+import os
 import numpy as np
 from ..data import ARES
 from ares import rcParams
@@ -1451,7 +1451,7 @@ def ControlParameters():
     # Real-time optical depth calculation once EoR begins
     "EoR_xavg": 1.0,        # ionized fraction indicating start of EoR (OFF by default)
     "EoR_dlogx": 0.001,
-    "EoR_approx_tau": False, # 0 = trapezoidal integration,
+    "EoR_approx_tau": False, # 0 = trapzal integration,
                              # 1 = mean ionized fraction, approx cross sections
                              # 2 = neutral approx, approx cross sections
 
@@ -1480,7 +1480,7 @@ def ControlParameters():
     "sed_prefix": None,
 
     "unsampled_integrator": 'quad',
-    "sampled_integrator": 'simps',
+    "sampled_integrator": 'simpson',
     "integrator_rtol": 1e-6,
     "integrator_atol": 1e-4,
     "integrator_divmax": 1e2,

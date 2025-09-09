@@ -23,7 +23,7 @@ from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
 from ..populations.Composite import CompositePopulation
 from ..populations.GalaxyAggregate import GalaxyAggregate
-from scipy.integrate import quad, romberg, romb, trapz, simps
+from scipy.integrate import quad, trapezoid, simpson
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu, h_p
 #from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
 #    flatten_emissivities
@@ -973,7 +973,7 @@ class UniformBackground(object):
         # Special case: delta function SED! Can't normalize a-priori without
         # knowing binning, so we do it here.
         if pop.src.is_delta:
-            # This is a little weird. Trapezoidal integration doesn't make
+            # This is a little weird. trapzal integration doesn't make
             # sense for a delta function, but it's what happens later, so
             # insert a factor of a half now so we recover all the flux we
             # should.

@@ -12,7 +12,7 @@ for each galaxy in a GalaxyEnsemble object based on Imara et al. (2018).
 """
 
 import numpy as np
-from scipy.integrate import simps
+from scipy.integrate import simpson
 from ares.physics.Constants import c, h, k_B, g_per_msun, cm_per_kpc, Lsun
 
 # T_dust parameters
@@ -376,8 +376,8 @@ class DustEmission(object):
             tmp_cmb = 8 * np.pi * h / c**2 * cmb_kappa_nu * (cmb_freqs[None, :, None])**3 \
                 / (np.exp(h * cmb_freqs[None,:,None] / k_B / T_cmb[:,None,:]) - 1)
 
-            tmp_power = simps(tmp_stellar, self.frequencies, axis = 1)
-            tmp_power += simps(tmp_cmb, cmb_freqs, axis = 1)
+            tmp_power = simpson(tmp_stellar, self.frequencies, axis = 1)
+            tmp_power += simpson(tmp_cmb, cmb_freqs, axis = 1)
 
             if self.pf.get('pop_dust_experimental'):
                 print("power =", tmp_power)
@@ -519,7 +519,7 @@ class DustEmission(object):
                 fmax = c / (8 * 1e-4)
                 fmin = c / (1000 * 1e-4)
                 freqs, luminosities = self.dust_sed(fmin, fmax, 1000)
-                luminosities = simps(luminosities[:,:,index], freqs, axis = 1)
+                luminosities = simpson(luminosities[:,:,index], freqs, axis = 1)
 
         # is not cached, we calculate everything for the given z and wave
         else:
@@ -557,7 +557,7 @@ class DustEmission(object):
                 kappa_nu = 0.1 * (nu / 1e12)**2
                 luminosities = 8 * np.pi * h / c**2 * nu[None,:]**3 * kappa_nu[None,:] \
                     / (np.exp(h * nu[None,:] / k_B / T_dust[:,None]) - 1) * (M_dust[:,None] * g_per_msun)
-                luminosities = simps(luminosities, nu, axis = 1)
+                luminosities = simpson(luminosities, nu, axis = 1)
 
 
         if idnum is not None:

@@ -15,7 +15,7 @@ from ..util import read_lit
 from inspect import ismethod
 from types import FunctionType
 from .Population import Population
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 from ..util.PrintInfo import print_pop
 from scipy.interpolate import interp1d
 from ..physics.HaloModel import HaloModel

@@ -25,7 +25,7 @@ from ..physics import DustEmission
 from scipy.optimize import curve_fit
 from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
-from scipy.integrate import quad, cumtrapz
+from scipy.integrate import quad, cumulative_trapezoid
 from ..analysis.BlobFactory import BlobFactory
 from ..obs.Photometry import get_filters_from_waves
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples, quantify_scatter
@@ -1062,7 +1062,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         # OK. We've got a bunch of halo histories and we need to integrate them
         # to get things like stellar mass, metal mass, etc. This means we need
         # to make an assumption about how halos grow between our grid points.
-        # If we assume smooth histories, we should be trying to do a trapezoidal
+        # If we assume smooth histories, we should be trying to do a trapzal
         # integration in log-space. However, given that we often add noise to
         # MARs, in that case we should probably just assume flat MARs within
         # the timestep.
@@ -1094,7 +1094,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         fml = (1. - fmr)
 
         # Integrate (crudely) mass accretion rates
-        #_Mint = cumtrapz(_MAR[:,:], dx=dt, axis=1)
+        #_Mint = cumulative_trapezoid(_MAR[:,:], dx=dt, axis=1)
         #_MAR_c = 0.5 * (np.roll(MAR, -1, axis=1) + MAR)
         #_Mint = np.cumsum(_MAR_c[:,1:] * dt, axis=1)
 
@@ -2641,7 +2641,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
         integ_top = bh[ok==1] * _nh[ok==1]
         integ_bot = _nh[ok==1]
 
-        # Don't do trapz -- not a continuous curve like in GalaxyCohort.
+        # Don't dotrapz -- not a continuous curve like in GalaxyCohort.
         b = np.sum(integ_top * _Mh[ok==1]) / np.sum(integ_bot * _Mh[ok==1])
 
         return b
@@ -3676,7 +3676,7 @@ class GalaxyEnsemble(HaloPopulation,BlobFactory):
             # some corresponding magnitude
             assert Ngal[i,0] == 0, "Broaden binning range?"
             #ntot = np.trapz(Ngal[i,:], x=x)
-            nltm[i,:] = cumtrapz(Ngal[i,:], x=x, initial=Ngal[i,0])
+            nltm[i,:] = cumulative_trapezoid(Ngal[i,:], x=x, initial=Ngal[i,0])
 
         # Can just return *maximum* number of galaxies detected,
         # regardless of band. Equivalent to requiring only single-band

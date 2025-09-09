@@ -18,7 +18,7 @@ from types import FunctionType
 from .Halo import HaloPopulation
 from collections import namedtuple
 from ..util.Math import interp1d
-from scipy.integrate import quad, simps
+from scipy.integrate import quad, simpson
 from ..util.Warnings import negative_SFRD
 from ..util.ParameterFile import get_pq_pars, pop_id_num
 from scipy.interpolate import interp1d as interp1d_scipy

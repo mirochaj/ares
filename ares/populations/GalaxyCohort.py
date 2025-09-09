@@ -13,15 +13,15 @@ Description:
 import re
 import time
 import numpy as np
+import numdifftools as nd
 from ..util import read_lit
 from inspect import ismethod
 from types import FunctionType
 from ..util import ProgressBar
 from ..analysis import ModelSet
-from scipy.misc import derivative
 from scipy.optimize import fsolve, minimize
 from ..analysis.BlobFactory import BlobFactory
-from scipy.integrate import quad, simps, cumtrapz, ode
+from scipy.integrate import quad, simpson, cumulative_trapezoid, ode
 from ..util.ParameterFile import par_info, get_pq_pars
 from ..physics.RateCoefficients import RateCoefficients
 from scipy.interpolate import RectBivariateSpline
@@ -493,7 +493,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 * self.tab_focc[i] * yield_per_sfr(**kw) * ok[i]
 
             _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
-            _cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M), initial=0.0)
+            _cumtot = cumulative_trapezoid(integrand, x=np.log(self.halos.tab_M), initial=0.0)
 
             _tmp = _tot - \
                 np.interp(np.log(self._tab_Mmin[i]), np.log(self.halos.tab_M), _cumtot)
@@ -573,7 +573,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 * self.tab_focc[i] * N_per_Msun * fesc * ok[i]
 
             tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
-            cumtot = cumtrapz(integrand, x=np.log(self.halos.tab_M),
+            cumtot = cumulative_trapezoid(integrand, x=np.log(self.halos.tab_M),
                 initial=0.0)
 
             tab[i] = tot - \
@@ -618,7 +618,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         if not hasattr(self, '_func_smd'):
             dtdz = np.array([self.cosm.dtdz(z) for z in self.halos.tab_z])
-            self._tab_smd = cumtrapz(self.tab_sfrd_total[-1::-1] * dtdz[-1::-1],
+            self._tab_smd = cumulative_trapezoid(self.tab_sfrd_total[-1::-1] * dtdz[-1::-1],
                 dx=np.abs(np.diff(self.halos.tab_z[-1::-1])), initial=0.)[-1::-1]
             self._func_smd = interp1d(self.halos.tab_z, self._tab_smd,
                 kind=self.pf['pop_interp_sfrd'])
@@ -688,10 +688,10 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
                     integ = self.halos.tab_dndlnm[i] * MAR
 
-                    p0 = simps(integ[j1-1:], x=np.log(self.halos.tab_M)[j1-1:])
-                    p1 = simps(integ[j1:], x=np.log(self.halos.tab_M)[j1:])
-                    p2 = simps(integ[j1+1:], x=np.log(self.halos.tab_M)[j1+1:])
-                    p3 = simps(integ[j1+2:], x=np.log(self.halos.tab_M)[j1+2:])
+                    p0 = simpson(integ[j1-1:], x=np.log(self.halos.tab_M)[j1-1:])
+                    p1 = simpson(integ[j1:], x=np.log(self.halos.tab_M)[j1:])
+                    p2 = simpson(integ[j1+1:], x=np.log(self.halos.tab_M)[j1+1:])
+                    p3 = simpson(integ[j1+2:], x=np.log(self.halos.tab_M)[j1+2:])
 
                     interp = interp1d(np.log(self.halos.tab_M)[j1-1:j1+3], [p0,p1,p2,p3],
                         kind=self.pf['pop_interp_MAR'])
@@ -991,7 +991,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         Ngal = Ngal[-1::-1]
 
         # Cumulative surface density of galaxies *brighter than* Mobs
-        cgal = cumtrapz(Ngal, x=Mobs, initial=Ngal[0])
+        cgal = cumulative_trapezoid(Ngal, x=Mobs, initial=Ngal[0])
 
         if mag is not None:
             return np.interp(mag, Mobs, cgal)
@@ -1013,7 +1013,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
         # some corresponding magnitude
         assert Ngal[0] == 0, "Broaden binning range?"
         ntot = np.trapz(Ngal, x=x)
-        nltm = cumtrapz(Ngal, x=x, initial=Ngal[0])
+        nltm = cumulative_trapezoid(Ngal, x=x, initial=Ngal[0])
 
         return x, nltm
 
@@ -2004,7 +2004,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                         i1 -= 1
                     i2 = i1 + 1
 
-                    # Trapezoid here we come
+                    # trapz here we come
                     b = self._tab_logMmax[i] - self._tab_logMmin[i]
 
                     M1 = self._tab_logMmin[i]
@@ -2093,7 +2093,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
             integrand = self.tab_sfr * self.halos.tab_dndlnm * self.tab_focc
 
             ##
-            # Use cumtrapz instead and interpolate onto Mmin, Mmax
+            # Use cumulative_trapezoid instead and interpolate onto Mmin, Mmax
             ##
             ct = 0
             self._tab_sfrd_total_ = np.zeros_like(self.halos.tab_z)
@@ -2122,7 +2122,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
                 #        continue
 
                 tot = np.trapz(integrand[i], x=np.log(self.halos.tab_M))
-                cumtot = cumtrapz(integrand[i], x=np.log(self.halos.tab_M),
+                cumtot = cumulative_trapezoid(integrand[i], x=np.log(self.halos.tab_M),
                     initial=0.0)
 
                 above_Mmin = np.interp(np.log(self._tab_Mmin[i]),
@@ -2393,7 +2393,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         logfst = lambda logM: np.log10(self.SFE(z=z, Mh=10**logM))
 
-        return derivative(logfst, np.log10(Mh), dx=0.01)[0]
+        return nd.Derivative(logfst)(np.log10(Mh))
 
     @property
     def _tab_Mz(self):
@@ -2622,7 +2622,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # Eq. 1: halo mass.
         _y1p = lambda _Mh: self.MGR(z, _Mh) * dtdz
-        y1p = derivative(_y1p, Mh)
+        y1p = nd.Derivative(_y1p)(Mh)
 
         # Eq. 2: gas mass
         if self.pf['pop_sfr'] is None:

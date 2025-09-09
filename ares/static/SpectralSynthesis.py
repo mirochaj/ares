@@ -1320,7 +1320,7 @@ class SpectralSynthesis(object):
             ###
             ## Integrate over all times up to this tobs
             if batch_mode:
-                # Should really just np.sum here...using trapz assumes that
+                # Should really just np.sum here...usingtrapz assumes that
                 # the SFH is a smooth function and not a series of constant
                 # SFRs. Doesn't really matter in practice, though.
                 if not do_all_time:

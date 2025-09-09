@@ -1,13 +1,14 @@
 import os as _os
-import imp as _imp
+import importlib as _imp
+# updates to imp: https://docs.python.org/3/whatsnew/3.12.html#whatsnew312-removed-imp
 
 _HOME = _os.environ.get('HOME')
 
 # Load custom defaults    
-if _os.path.exists('{!s}/.ares/defaults.py'.format(_HOME)):
+if _os.path.exists('~/.ares/defaults.py'.format(_HOME)):
     (_f, _filename, _data) =\
-        _imp.find_module('defaults', ['{!s}/.ares/'.format(_HOME)])
-    rcParams = _imp.load_module('defaults.py', _f, _filename, _data).pf
+        _imp.util.find_spec('defaults', ['~/.ares/'.format(_HOME)])
+    rcParams = _imp.import_module('defaults.py', _f, _filename, _data).pf
 else:
     rcParams = {}
 

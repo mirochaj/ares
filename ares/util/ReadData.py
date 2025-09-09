@@ -9,9 +9,9 @@ Created on: Wed Aug 27 10:55:19 MDT 2014
 Description:
 
 """
-
+# replaced outdated imp module with importlib according to the following guidance: https://docs.python.org/3/whatsnew/3.12.html#whatsnew312-removed-imp
 import numpy as np
-import imp as _imp
+import importlib as _imp
 from ..data import ARES
 import os, re, sys, glob
 from .Pickling import read_pickle_file
@@ -71,8 +71,8 @@ def read_lit(prefix, path=None, verbose=True):
         print("WARNING: multiple copies of {!s} found.".format(prefix))
         print("       : precedence: CWD -> $HOME -> $ARES/input/litdata")
 
-    _f, _filename, _data = _imp.find_module(prefix, [loc])
-    mod = _imp.load_module(prefix, _f, _filename, _data)
+    _f, _filename, _data = _imp.util.find_spec(prefix, [loc])
+    mod = _imp.import_module(prefix, _f, _filename, _data)
 
     # Save this for sanity checks later
     mod.path = loc

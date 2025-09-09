@@ -9,8 +9,8 @@ Created on: Wed Sep 24 16:15:52 MDT 2014
 Description:
 
 """
-
-import os, imp, re
+# relplaced imp with importlib using this guidance: https://docs.python.org/3/whatsnew/3.12.html#whatsnew312-removed-imp
+import os, importlib, re
 import numpy as np
 from matplotlib import cm
 from .ParameterFile import par_info
@@ -36,9 +36,9 @@ colors_charlotte2 = lambda z: _ch_c2(_normz(z))
 
 # Load custom defaults
 HOME = os.environ.get('HOME')
-if os.path.exists('{!s}/.ares/labels.py'.format(HOME)):
-    f, filename, data = imp.find_module('labels', ['{!s}/.ares/'.format(HOME)])
-    custom_labels = imp.load_module('labels.py', f, filename, data).pf
+if os.path.exists('~/.ares/labels.py'.format(HOME)):
+    f, filename, data = importlib.util.find_spec('labels', ['~/.ares/'.format(HOME)])
+    custom_labels = importlib.import_module('labels.py', f, filename, data).pf
 else:
     custom_labels = {}
 

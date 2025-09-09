@@ -16,7 +16,7 @@ from .Source import Source
 from ..util.Math import interp1d
 from ares.physics import Cosmology
 from scipy.optimize import minimize
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 from ..util.ReadData import read_lit
 from ..physics import NebularEmission
 from ..util.ParameterFile import ParameterFile
@@ -626,7 +626,7 @@ class SynthesisModelBase(Source):
         if self.pf['source_ssp']:
             photons_per_b_t = photons_per_s_per_msun / self.cosm.b_per_msun
             if return_all_t:
-                return cumtrapz(photons_per_b_t, x=self.times*s_per_myr,
+                return cumulative_trapezoid(photons_per_b_t, x=self.times*s_per_myr,
                     initial=0.0)
             else:
                 return np.trapz(photons_per_b_t, x=self.times*s_per_myr)

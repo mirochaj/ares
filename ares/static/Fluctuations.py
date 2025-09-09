@@ -18,7 +18,7 @@ from ..util.Stats import bin_c2e
 from scipy.special import erfinv
 from scipy.optimize import fsolve
 from scipy.interpolate import interp1d
-from scipy.integrate import quad, simps
+from scipy.integrate import quad, simpson
 from ..physics.Hydrogen import Hydrogen
 from ..physics.HaloModel import HaloModel
 from ..populations.Composite import CompositePopulation
@@ -459,8 +459,8 @@ class Fluctuations(object): # pragma: no cover
 
         return 1.0
 
-        #return simps(M_h * dndm_h * bias, x=np.log(M_h)) \
-        #    / simps(M_h * dndm_h, x=np.log(M_h))
+        #return simpson(M_h * dndm_h * bias, x=np.log(M_h)) \
+        #    / simpson(M_h * dndm_h, x=np.log(M_h))
 
     def tab_bubble_bias(self, zeta):
         if not hasattr(self, '_tab_bubble_bias'):
@@ -569,7 +569,7 @@ class Fluctuations(object): # pragma: no cover
     #
     #    dm_ddel = rho0 * V_i
     #
-    #    return simps(B[iM:] * dndm_b[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
+    #    return simpson(B[iM:] * dndm_b[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
 
     def delta_bubble_vol_weighted(self, z, ion=True):
         if not self.pf['ps_include_ion']:
@@ -610,7 +610,7 @@ class Fluctuations(object): # pragma: no cover
    #
    #    dm_ddel = rho0 * V_i
    #
-   #    return simps(B[iM:] * dndm_b[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
+   #    return simpson(B[iM:] * dndm_b[iM:] * M_b[iM:], x=np.log(M_b[iM:]))
 
     def mean_halo_abundance(self, z, Mmin=False):
         M_h = self.halos.tab_M
@@ -1911,7 +1911,7 @@ class Fluctuations(object): # pragma: no cover
                     #Vii = all_V[0]
                     #_integrand1 = dndm * Vii
                     #
-                    #_exp_int1 = np.exp(-simps(_integrand1[iM:] * M_b[iM:],
+                    #_exp_int1 = np.exp(-simpson(_integrand1[iM:] * M_b[iM:],
                     #    x=np.log(M_b[iM:])))
                     #_P1_ii = (1. - _exp_int1)
 
