@@ -13,7 +13,7 @@ Description:
 import ares
 import numpy as np
 
-def test():
+def test(tmp_dir):
 
     updates = {'stop_time': 100, 'grid_cells': 32}
 
@@ -36,7 +36,7 @@ def test():
     assert np.mean(sim.history['Tk'][-1]) > sim.history['Tk'][0,0]
 
     # This run will have generated a lookup table for Gamma. Write to disk.
-    sim.save_tables(prefix='test_rt1d')
+    sim.save_tables(prefix=f'{tmp_dir}/test_rt1d')
 
     # Eventually, test read capability. Currently broken.
 
@@ -49,4 +49,13 @@ def test():
     assert np.mean(sim.history['Tk'][-1]) > sim.history['Tk'][0,0]
 
 if __name__ == "__main__":
-    test()
+    import os 
+
+    if os.environ.get('RUNNER_TEMP') is not None:
+        tmp_dir = os.environ.get('RUNNER_TEMP')
+    else:
+        if not os.path.exists('_tmp_ares_data'):
+            os.mkdir('_tmp_ares_data')
+        tmp_dir = '_tmp_ares_data'
+
+    test(tmp_dir)

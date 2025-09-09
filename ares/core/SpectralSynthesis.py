@@ -16,9 +16,9 @@ from ..obs import Survey
 from ..util import ProgressBar
 from ..util import ParameterFile
 from scipy.optimize import curve_fit
-from scipy.interpolate import interp1d
+from scipy.integrate import trapezoid
 from ..physics.Cosmology import Cosmology
-from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import interp1d, RectBivariateSpline
 from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev, flux_AB, \
     lam_LL, lam_LyA
 
@@ -1269,14 +1269,14 @@ class SpectralSynthesis(object):
                 # the SFH is a smooth function and not a series of constant
                 # SFRs. Doesn't really matter in practice, though.
                 if not do_all_time:
-                    Lhist = np.trapz(Lall, dx=_dt, axis=1)
+                    Lhist = trapezoid(Lall, dx=_dt, axis=1)
                 else:
-                    Lhist[:,i] = np.trapz(Lall, dx=_dt, axis=1)
+                    Lhist[:,i] = trapezoid(Lall, dx=_dt, axis=1)
             else:
                 if not do_all_time:
-                    Lhist = np.trapz(Lall, dx=_dt)
+                    Lhist = trapezoid(Lall, dx=_dt)
                 else:
-                    Lhist[i] = np.trapz(Lall, dx=_dt)
+                    Lhist[i] = trapezoid(Lall, dx=_dt)
 
             ##
             # In this case, we only need one iteration of this loop.

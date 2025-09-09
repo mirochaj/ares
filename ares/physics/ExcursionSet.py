@@ -13,10 +13,10 @@ Description:
 import numpy as np
 from .Constants import rho_cgs
 from .Cosmology import Cosmology
+from scipy.interpolate import interp1d
 from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
-from scipy.integrate import quad
-from scipy.interpolate import interp1d
+from scipy.integrate import quad, trapezoid
 
 two_pi = 2. * np.pi
 four_pi = 4. * np.pi
@@ -171,7 +171,7 @@ class ExcursionSet(object):
 #
         #return quad(interp, np.log(self.tab_k.min()), np.log(self.tab_k.max()))[0]
 
-        return np.trapz(D * np.abs(W)**2, x=np.log(self.tab_k))
+        return trapezoid(D * np.abs(W)**2, x=np.log(self.tab_k))
 
     def CollapsedFraction(self):
         pass
