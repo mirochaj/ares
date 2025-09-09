@@ -618,7 +618,7 @@ class HaloMassFunction(object):
             p = camb.CAMBparams()
             p.set_matter_power(**_transfer_pars)
 
-            self._pars_transfer_ = {'camb_params': p}
+            self._pars_transfer_ = {'camb_params': p, 'extrapolate_with_eh': True}
 
         return self._pars_transfer_
 

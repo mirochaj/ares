@@ -70,4 +70,13 @@ def test(tmp_dir):
     assert np.all(sim_gs.history['cgm_h_2'] == sim_gs2.history['cgm_h_2'])
 
 if __name__ == '__main__':
-    test()
+    import os 
+
+    if os.environ.get('RUNNER_TEMP') is not None:
+        tmp_dir = os.environ.get('RUNNER_TEMP')
+    else:
+        if not os.path.exists('_tmp_ares_data'):
+            os.mkdir('_tmp_ares_data')
+        tmp_dir = '_tmp_ares_data'
+
+    test(tmp_dir)

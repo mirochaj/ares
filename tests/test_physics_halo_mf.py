@@ -79,8 +79,9 @@ def test(tmp_path):
     pop3.halos.save_hmf(clobber=True, save_MAR=True, destination=tmp_path)
     pop3.halos.save_hmf(clobber=True, save_MAR=True, destination=tmp_path, fmt="pkl")
 
+    rerr = np.abs(dndm - dndm3) / dndm3
     assert np.allclose(dndm, dndm3, rtol=2e-2), \
-        "Percent-level differences in tabulated and generated HMF!"
+        f"Percent-level differences in tabulated and generated HMF! {rerr}"
 
     # Check hmf_func
     _hmf = RectBivariateSpline(pop3.halos.tab_z, np.log10(pop3.halos.tab_M),
@@ -95,4 +96,13 @@ def test(tmp_path):
 
 
 if __name__ == '__main__':
-    test()
+    import os 
+
+    if os.environ.get('RUNNER_TEMP') is not None:
+        tmp_dir = os.environ.get('RUNNER_TEMP')
+    else:
+        if not os.path.exists('_tmp_ares_data'):
+            os.mkdir('_tmp_ares_data')
+        tmp_dir = '_tmp_ares_data'
+
+    test(tmp_dir)

@@ -104,7 +104,7 @@ def test():
     err = abs(pop_ares.src.tab_sed[i1000,:] - pop_ares2.src.tab_sed[i1000,:]) \
         / pop_ares.src.tab_sed[i1000,:]
     assert np.all(err <= 1e-2), \
-        "Ferland (1980) results should be closer to Dopita \& Sutherland!"
+        "Ferland (1980) results should be closer to Dopita & Sutherland!"
 
 
 if __name__ == '__main__':

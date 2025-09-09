@@ -3759,9 +3759,12 @@ class GalaxyEnsemble(HaloPopulation):
 
             fn_hist = path + pref + '.' + suffix
         else:
-            # Check to see if parameters match
-            if self.pf['verbose']:
-                print("Should check that HMF parameters match!")
+            pass
+            # Check to see if parameters match.
+            # This is effectively handled now given how we name files 
+            # with the cosmology_name and z/M dimensions/ranges.
+            #if self.pf['verbose']:
+            #    print("Should check that HMF parameters match!")
 
         # Read output
         if type(fn_hist) is str:
