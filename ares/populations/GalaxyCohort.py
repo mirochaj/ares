@@ -14,12 +14,12 @@ import os
 import h5py
 import numbers
 import numpy as np
+import numdifftools as nd
 from inspect import ismethod
 from types import FunctionType
 from ..util import ProgressBar
 from ..obs.Survey import Survey
 from ..analysis import ModelSet
-from scipy.misc import derivative
 from scipy.optimize import fsolve
 from functools import cached_property
 from ..util.Misc import numeric_types, get_band_edges
@@ -4817,7 +4817,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Eq. 1: halo mass.
         _y1p = lambda _Mh: self.MGR(z, _Mh) * dtdz
-        y1p = derivative(_y1p, Mh)
+        y1p = nd.Derivative(_y1p)(Mh)
 
         # Eq. 2: gas mass
         if self.pf['pop_sfr'] is None:

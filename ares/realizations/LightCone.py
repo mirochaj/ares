@@ -20,12 +20,16 @@ from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
 from ..util.Misc import numeric_types, get_hash
 from scipy.spatial.transform import Rotation
-from astropy.modeling.models import Sersic2D
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c, s_per_myr
 
 try:
     from astropy.io import fits
+except ImportError:
+    pass
+
+try:
+    from astropy.modeling.models import Sersic2D
 except ImportError:
     pass
 

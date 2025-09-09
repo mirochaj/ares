@@ -12,7 +12,7 @@ Fukugita & Kawasaki (1994). Would be nice to include rates from other sources.
 """
 
 import numpy as np
-from scipy.misc import derivative
+import numdifftools as nd
 from ..util.Math import interp1d
 from ..util.Math import central_difference
 
@@ -71,7 +71,7 @@ class RateCoefficients(object):
         if not hasattr(self, '_dCollisionalIonizationRate_'):
             self._dCollisionalIonizationRate_ = {}
             for i, absorber in enumerate(self.grid.absorbers):
-                tmp = derivative(lambda T: self.CollisionalIonizationRate(i, T), self.Tarr)
+                tmp = nd.Derivative(lambda T: self.CollisionalIonizationRate(i, T))(self.Tarr)
                 self._dCollisionalIonizationRate_[i] = interp1d(self.Tarr, tmp, 
                     kind=self.interp_rc)
             
@@ -132,7 +132,7 @@ class RateCoefficients(object):
         if not hasattr(self, '_dRadiativeRecombinationRate_'):
             self._dRadiativeRecombinationRate_ = {}
             for i, absorber in enumerate(self.grid.absorbers):
-                tmp = derivative(lambda T: self.RadiativeRecombinationRate(i, T), self.Tarr)
+                tmp = nd.Derivative(lambda T: self.RadiativeRecombinationRate(i, T))(self.Tarr)
                                 
                 self._dRadiativeRecombinationRate_[i] = interp1d(self.Tarr, tmp, 
                     kind=self.interp_rc)
@@ -161,7 +161,7 @@ class RateCoefficients(object):
     def _dDielectricRecombinationRate(self):
         if not hasattr(self, '_dDielectricRecombinationRate_'):
             self._dDielectricRecombinationRate_ = {}
-            tmp = derivative(lambda T: self.DielectricRecombinationRate(T), self.Tarr)
+            tmp = nd.Derivative(lambda T: self.DielectricRecombinationRate(T))(self.Tarr)
             self._dDielectricRecombinationRate_ = interp1d(self.Tarr, tmp, 
                 kind=self.interp_rc)
     
@@ -197,7 +197,7 @@ class RateCoefficients(object):
         if not hasattr(self, '_dCollisionalIonizationCoolingRate_'):
             self._dCollisionalIonizationCoolingRate_ = {}
             for i, absorber in enumerate(self.grid.absorbers):
-                tmp = derivative(lambda T: self.CollisionalExcitationCoolingRate(i, T), self.Tarr)
+                tmp = nd.Derivative(lambda T: self.CollisionalExcitationCoolingRate(i, T))(self.Tarr)
                 self._dCollisionalIonizationCoolingRate_[i] = interp1d(self.Tarr, tmp, 
                     kind=self.interp_rc)
     
@@ -233,7 +233,7 @@ class RateCoefficients(object):
         if not hasattr(self, '_dCollisionalExcitationCoolingRate_'):
             self._dCollisionalExcitationCoolingRate_ = {}
             for i, absorber in enumerate(self.grid.absorbers):
-                tmp = derivative(lambda T: self.CollisionalExcitationCoolingRate(i, T), self.Tarr)
+                tmp = nd.Derivative(lambda T: self.CollisionalExcitationCoolingRate(i, T))(self.Tarr)
                 self._dCollisionalExcitationCoolingRate_[i] = interp1d(self.Tarr, tmp, 
                     kind=self.interp_rc)
     
@@ -272,7 +272,7 @@ class RateCoefficients(object):
         if not hasattr(self, '_dRecombinationCoolingRate_'):
             self._dRecombinationCoolingRate_ = {}
             for i, absorber in enumerate(self.grid.absorbers):
-                tmp = derivative(lambda T: self.RecombinationCoolingRate(i, T), self.Tarr)
+                tmp = nd.Derivative(lambda T: self.RecombinationCoolingRate(i, T))(self.Tarr)
                 self._dRecombinationCoolingRate_[i] = interp1d(self.Tarr, tmp, 
                     kind=self.interp_rc)
     
@@ -300,7 +300,7 @@ class RateCoefficients(object):
     @property 
     def _dDielectricRecombinationCoolingRate(self):
         if not hasattr(self, '_dDielectricRecombinationCoolingRate_'):
-            tmp = derivative(lambda T: self.DielectricRecombinationCoolingRate(T), self.Tarr)
+            tmp = nd.Derivative(lambda T: self.DielectricRecombinationCoolingRate(T))(self.Tarr)
             self._dDielectricRecombinationCoolingRate_ = interp1d(self.Tarr, tmp, 
                 kind=self.interp_rc)
     

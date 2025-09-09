@@ -11,8 +11,8 @@ Description:
 """
 
 import numpy as np
+import numdifftools as nd
 from ..util import ParameterFile
-from scipy.misc import derivative
 from scipy.optimize import minimize
 from ..physics.Constants import nu_0_mhz
 from ..util.Math import central_difference
@@ -202,6 +202,7 @@ class TurningPoints(object):
                         continue
 
                 else:
+                    raise NotImplemented('havent revisited since scipy.misc deprecation')
                     # Compute curvature at turning point (mK**2 / MHz**2)
                     nuTP = nu_0_mhz / (1. + zTP)
                     d2 = float(derivative(lambda zz: splev(zz, Bspl_fit1),
