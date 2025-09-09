@@ -43,7 +43,7 @@ class Cosmology(object):
 
         # Load "raw" cosmological parameters
         ########################################################################
-        if self.pf['cosmology_name'] != 'user':
+        if self.pf['cosmology_name'] not in ['user', None]:
             self._load_cosmology()
         else:
             self.omega_m_0 = self.pf['omega_m_0']

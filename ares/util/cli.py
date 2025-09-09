@@ -966,7 +966,6 @@ def download_files(args):
 
             # Loop over [potentially] several files to download
             for _fn in to_dl:
-
                 if args.only is not None:
                     if args.only not in _fn:
                         continue
@@ -1090,6 +1089,8 @@ def init_ares(args):
 
     ##
     # Tell user about how much space this will take and how long.
+    print("")
+    print(f"!"*78)
     print(f"! This initialization will take a few minutes and ~500 MB of disk space.")
     print(f"! A complete set of ancillary data used by ARES for broader applications")
     print(f"! can take several GB of space, so if your $HOME quota is small, <= 10 GB,")
@@ -1194,11 +1195,13 @@ def config_download_subparser(subparser):
         "--only",
         help="limit downloads to files containing this sub-string",
         action="store_true",
+        default=None,
     )
     sp.add_argument(
         "--fresh",
         help="whether to force a new download or not",
         action="store_true",
+        default=False,
     )
     sp.set_defaults(func=download_files)
 

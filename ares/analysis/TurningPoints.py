@@ -202,13 +202,12 @@ class TurningPoints(object):
                         continue
 
                 else:
-                    raise NotImplemented('havent revisited since scipy.misc deprecation')
                     # Compute curvature at turning point (mK**2 / MHz**2)
                     nuTP = nu_0_mhz / (1. + zTP)
-                    d2 = float(derivative(lambda zz: splev(zz, Bspl_fit1),
-                        x0=float(zTP), n=2, dx=1e-4, order=5) * nu_0_mhz**2 / nuTP**4)
+                    d2 = float(nd.Derivative(lambda zz: splev(zz, Bspl_fit1), 
+                        n=2, step=1e-4, order=5)(float(zTP)))
 
-                    self.turning_points[TP] = (zTP, TTP, d2)
+                    self.turning_points[TP] = (zTP, TTP, d2 * nu_0_mhz**2 / nuTP**4)
 
                     break
 
