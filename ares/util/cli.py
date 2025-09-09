@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import gzip
+import glob
 import shutil
 import pickle
 import tarfile
@@ -32,6 +33,11 @@ from ..solvers import OpticalDepth
 from ..sources import BlackHole, Galaxy
 from ..simulations import RaySegment
 
+
+def _mv_bpass(parent_dir):
+    os.makedirs(f"{parent_dir}/SEDS", exist_ok=True)
+    for fn in glob.glob(f"{parent_dir}/sed.bpass.constant.nocont.sin.z0??.deg100"):
+        shutil.move(fn, f"{parent_dir}/SEDS/")
 
 # define helper function
 def read_FJS10(parent_dir):
@@ -205,7 +211,7 @@ aux_data = {
     "bpass_v1_tests": [
         "https://www.dropbox.com/s/8l69msro6n06hjx/sed_degraded.tar.gz?dl=1",
         "sed_degraded.tar.gz",
-        None],
+        _mv_bpass],
     "bpass_v1_stars": [
         "http://bpass.auckland.ac.nz/1/files", "starsmodels_tar.gz", None
     ],
@@ -1061,7 +1067,7 @@ def generate_data(args):
                 make_simpl(path)
             elif dset == "rt1d":
                 make_rt1d(path)
-            elif dset == "bpass_v1":
+            elif dset in ["bpass_v1"]:
                 make_lowres_sps(path + '/SEDS')
 
     return

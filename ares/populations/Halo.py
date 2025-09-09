@@ -119,7 +119,7 @@ class HaloPopulation(Population):
                 raise NotImplemented('do this')
             elif self.pf['pop_MAR'] == 'hmf':
                 # Would be nice if this were a pointer...
-                self._MAR = self.halos.MAR_func
+                self._MAR = self.halos.get_mass_accretion_rate
             else:
                 self._MAR = read_lit(self.pf['pop_MAR'],
                     verbose=self.pf['verbose']).MAR

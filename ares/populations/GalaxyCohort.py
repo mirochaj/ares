@@ -814,7 +814,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     @property
     def _tab_eta(self):
-        """
+        r"""
         Correction factor for MAR.
 
         \eta(z) \int_{M_{\min}}^{\infty} \dot{M}_{\mathrm{acc}}(z,M) n(z,M) dM
@@ -976,9 +976,9 @@ class GalaxyCohort(GalaxyAggregate):
 
         The error is defined as:
 
-            error = \log_{10} [Observed mass] - \log_{10} [True mass]
+            error = log10[Observed mass] - log10[True mass]
 
-        i.e., the true mass is the \log_{10} [Observed mass] - this error.
+        i.e., the true mass is the log10[Observed mass] - this error.
 
         """
 
@@ -1011,9 +1011,9 @@ class GalaxyCohort(GalaxyAggregate):
 
         The error is defined as:
 
-            error = \log_{10} [Observed SFR] - \log_{10} [True SFR]
+            error = log10 [Observed SFR] - log10[True SFR]
 
-        i.e., the true SFR is the \log_{10} [Observed SFR] - this error.
+        i.e., the true SFR is the log10 [Observed SFR] - this error.
 
         """
 
