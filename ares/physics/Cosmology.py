@@ -12,7 +12,7 @@ Description:
 import os
 import numpy as np
 from ..data import ARES
-from scipy.misc import derivative
+import numdifftools as nd
 from scipy.optimize import fsolve
 from scipy.integrate import quad, ode
 from ..util.Math import interp1d
@@ -462,7 +462,7 @@ class Cosmology(object):
             ##s
             #func = lambda zz: np.interp(zz, self.inits['z'], self.inits['Tk'])
 
-            dTdz = derivative(self._Tgas_CosmoRec, z, dx=1e-2)
+            dTdz = nd.Derivative(self._Tgas_CosmoRec)(z)
 
             xe = np.interp(z, self.inits['z'], self.inits['xe'])
 
@@ -483,7 +483,7 @@ class Cosmology(object):
             return dTdz + xe_cool * mult
 
         else:
-            return derivative(self.Tgas, z)
+            return nd.Derivative(self.Tgas)(z)
 
     def log_cooling_rate(self, z):
         if self.pf['approx_thermal_history'] == 'exp':

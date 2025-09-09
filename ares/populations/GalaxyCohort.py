@@ -13,12 +13,12 @@ Description:
 import re
 import time
 import numpy as np
+import numdifftools as nd
 from ..util import read_lit
 from inspect import ismethod
 from types import FunctionType
 from ..util import ProgressBar
 from ..analysis import ModelSet
-from scipy.misc import derivative
 from scipy.optimize import fsolve, minimize
 from ..analysis.BlobFactory import BlobFactory
 from scipy.integrate import quad, simpson, cumulative_trapezoid, ode
@@ -2393,7 +2393,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         logfst = lambda logM: np.log10(self.SFE(z=z, Mh=10**logM))
 
-        return derivative(logfst, np.log10(Mh), dx=0.01)[0]
+        return nd.Derivative(logfst)(np.log10(Mh))
 
     @property
     def _tab_Mz(self):
@@ -2622,7 +2622,7 @@ class GalaxyCohort(GalaxyAggregate,BlobFactory):
 
         # Eq. 1: halo mass.
         _y1p = lambda _Mh: self.MGR(z, _Mh) * dtdz
-        y1p = derivative(_y1p, Mh)
+        y1p = nd.Derivative(_y1p)(Mh)
 
         # Eq. 2: gas mass
         if self.pf['pop_sfr'] is None:

@@ -13,7 +13,7 @@ Description: ChemicalNetwork object just needs to have methods called
 
 import copy, sys
 import numpy as np
-from scipy.misc import derivative
+import numdifftools as nd
 from ..util.Warnings import solver_error
 from ..physics.RateCoefficients import RateCoefficients
 from ..physics.Constants import k_B, sigma_T, m_e, c, s_per_myr, erg_per_ev, h
@@ -639,8 +639,7 @@ class ChemicalNetwork(object):
 
         # Add in any parametric modifications?
         if self.exotic_heating:
-            J[-1,-1] += derivative(self.grid._exotic_func(z=z) * to_temp, z,
-                dx=0.05)
+            J[-1,-1] += nd.Derivative(lambda z: self.grid._exotic_func(z) * to_temp)(z)
 
         return J
 

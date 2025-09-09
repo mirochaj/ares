@@ -19,7 +19,6 @@ from . import Cosmology
 from ..data import ARES
 from types import FunctionType
 from ..util import ParameterFile
-from scipy.misc import derivative
 from scipy.optimize import fsolve
 from ..util.Warnings import no_hmf
 from scipy.integrate import cumulative_trapezoid, simpson

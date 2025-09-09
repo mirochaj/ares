@@ -23,8 +23,7 @@ from ..util.Warnings import no_tau_table
 from ..physics import Hydrogen, Cosmology
 from ..populations.Composite import CompositePopulation
 from ..populations.GalaxyAggregate import GalaxyAggregate
-# changed trapz to trapezoid (update)
-from scipy.integrate import quad, romberg, romb, trapezoid, simpson
+from scipy.integrate import quad, trapezoid, simpson
 from ..physics.Constants import ev_per_hz, erg_per_ev, c, E_LyA, E_LL, dnu, h_p
 #from ..util.ReadData import flatten_energies, flatten_flux, split_flux, \
 #    flatten_emissivities

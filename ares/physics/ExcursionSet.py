@@ -17,7 +17,6 @@ from ..util.Math import central_difference
 from ..util.ParameterFile import ParameterFile
 from scipy.integrate import simpson, quad
 from scipy.interpolate import interp1d
-from scipy.misc import derivative
 
 two_pi = 2. * np.pi
 four_pi = 4. * np.pi
