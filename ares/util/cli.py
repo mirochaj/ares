@@ -34,6 +34,11 @@ from ..sources import BlackHole, Galaxy
 from ..simulations import RaySegment
 
 
+try:
+    import gdown
+except ImportError:
+    pass
+
 def _mv_bpass(parent_dir):
     os.makedirs(f"{parent_dir}/SEDS", exist_ok=True)
     for fn in glob.glob(f"{parent_dir}/sed.bpass.constant.nocont.sin.z0??.deg100"):
@@ -209,9 +214,9 @@ aux_data = {
         "http://bpass.auckland.ac.nz/2/files"
     ] + _bpass_v1_links + [None],
     "bpass_v1_tests": [
-        "https://www.dropbox.com/s/8l69msro6n06hjx/sed_degraded.tar.gz?dl=1",
-        "sed_degraded.tar.gz",
-        _mv_bpass],
+        "https://drive.google.com/file/d/1U5d3cm57Kz_EndkcXkscJForGAvq7jkk/view?usp=drive_link",
+        'bpass_v1_tests.tar.gz',
+        None],
     "bpass_v1_stars": [
         "http://bpass.auckland.ac.nz/1/files", "starsmodels_tar.gz", None
     ],
@@ -904,6 +909,12 @@ def clean_files(args):
     return
 
 def _do_download(full_path, dl_link):
+    # Files from Google Drive need special treatment
+    if 'drive' in dl_link:
+        gdown.download(dl_link, full_path, fuzzy=1)
+        return 
+
+    # Otherwise, can use urlretrieve
     try:
         print(f"Downloading {dl_link} to {full_path}.")
         urlretrieve(dl_link, full_path)

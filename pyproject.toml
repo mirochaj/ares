@@ -11,6 +11,7 @@ dependencies = [
   "scipy>=1.6",
   "setuptools_scm",
   "numdifftools<1.0",
+  "gdown<6",
 ]
 dynamic = ["version"]
 requires-python = ">= 3.7"
