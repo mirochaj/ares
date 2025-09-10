@@ -1106,8 +1106,6 @@ def init_ares(args):
 
     print(f"! Beginning ARES initialization...")
 
-
-
     args.dataset = 'inits'
     download_files(args)
 
