@@ -194,15 +194,14 @@ class Survey(object):
         data = {}
         for fn in os.listdir(path):
 
-            # Mac OS creates a bunch of ._wfc_* files. Argh.
-            if not fn.startswith('wfc_'):
+            if not fn.startswith('ACS_WFC'):
                 continue
 
             if fn.endswith('tar.gz'):
                 continue
 
             # Full name of the filter, e.g., F606W
-            fname = fn.split('wfc_')[1].split('.dat')[0]
+            fname = fn.split('.')[1]
 
             # Do we care about this filter? If not, move along.
             if filters is not None:

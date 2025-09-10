@@ -269,8 +269,12 @@ aux_data = {
         None,
     ],
     "wfc": [
-        "https://www.dropbox.com/s/zv8qomgka9fkiek/wfc.tar.gz?dl=1",
-        "wfc.tar.gz",
+        "http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=HST/",
+        'ACS_WFC.F435W',
+        'ACS_WFC.F606W',
+        'ACS_WFC.F775W',
+        'ACS_WFC.F814W',
+        'ACS_WFC.F850LP',
         None,
     ],
     "hsc": [
