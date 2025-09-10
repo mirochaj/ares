@@ -179,6 +179,12 @@ def unpack_bc03_2013(parent_dir):
         for imf in os.listdir(f"{path}/{tracks}"):
             unpack_files(f"{path}/{tracks}/{imf}")
 
+def unpack_bpass_v1(parent_dir):
+    path = f"{ARES}/bpass_v1/"
+    for Zstr in ['z001', 'z004', 'z008', 'z020', 'z040']:
+        with tarfile.open(f"{path}/sed_bpass_{Zstr}_tar.gz") as f:
+            f.extractall(parent_dir)
+    
 # Auxiliary data downloads
 # Format: [URL, file1, file2, ..., file to run when done]
 aux_data = {
@@ -210,8 +216,8 @@ aux_data = {
     "bpass_v1": [
         "https://drive.google.com/file/d/1iuqKkcjh4fBF8MQS9XtDJvoSb9O9dCI9/view?usp=sharing",
         "bpass_v1.tar.gz",
-        None,
-    ]
+        unpack_bpass_v1,
+    ],
     "bpass_v1_tests": [
         "https://drive.google.com/file/d/1U5d3cm57Kz_EndkcXkscJForGAvq7jkk/view?usp=drive_link",
         'bpass_v1_tests.tar.gz',
