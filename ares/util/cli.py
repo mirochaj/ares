@@ -123,11 +123,6 @@ def read_FJS10(parent_dir):
     return
 
 
-# define data sources
-_bpass_v1_links = [
-    f"sed_bpass_z{zval}_tar.gz" for zval in ["001", "004", "008", "020", "040"]
-]
-
 _bc03_orig_links = []
 for imf in ['chabrier', 'salpeter']:
     for tracks in ['padova_1994', 'padova_2000', 'geneva_1994']:
@@ -193,33 +188,34 @@ aux_data = {
         None,
     ],
     "inits": [
-        "https://www.dropbox.com/s/c6kwge10c8ibtqn/inits.tar.gz?dl=1",
+        "https://drive.google.com/file/d/1RHz-MJ7DD6W7H0TG_kLvFSrZYWBgqgwm/view?usp=sharing",
         "inits.tar.gz",
         None,
     ],
     "optical_depth": [
-        "https://www.dropbox.com/s/ol6240qzm4w7t7d/tau.tar.gz?dl=1",
+        "https://drive.google.com/file/d/1CNuMWQGfVNuz0hmg3KFqduN5u3bVUoEj/view?usp=sharing",
         "tau.tar.gz",
         None,
     ],
     "secondary_electrons": [
-        "https://www.dropbox.com/s/jidsccfnhizm7q2/elec_interp.tar.gz?dl=1",
+        "https://drive.google.com/file/d/1IMxyvPKDS0JiLQ79EDwgMYrSH6umlTPZ/view?usp=sharing",
         "elec_interp.tar.gz",
         read_FJS10,
     ],
     "starburst99": [
-        "http://www.stsci.edu/science/starburst99/data", "data.tar.gz", None
+        "http://www.stsci.edu/science/starburst99/data", 
+        "data.tar.gz", 
+        None
     ],
     "bpass_v1": [
-        "http://bpass.auckland.ac.nz/2/files"
-    ] + _bpass_v1_links + [None],
+        "https://drive.google.com/file/d/1iuqKkcjh4fBF8MQS9XtDJvoSb9O9dCI9/view?usp=sharing",
+        "bpass_v1.tar.gz",
+        None,
+    ]
     "bpass_v1_tests": [
         "https://drive.google.com/file/d/1U5d3cm57Kz_EndkcXkscJForGAvq7jkk/view?usp=drive_link",
         'bpass_v1_tests.tar.gz',
         None],
-    "bpass_v1_stars": [
-        "http://bpass.auckland.ac.nz/1/files", "starsmodels_tar.gz", None
-    ],
     "bc03": [
         "https://www.bruzual.org/bc03/Original_version_2003"
     ] + _bc03_orig_links + [unpack_bc03],
@@ -375,7 +371,7 @@ datasets = {
         "IR.zip",
         "wfc.tar.gz",
         aux_data["planck"][1],
-        "sed_degraded.tar.tz",
+        "bpass_v1_tests.tar.gz",
         "tau.tar.gz",
     ],
     "photometry": [
