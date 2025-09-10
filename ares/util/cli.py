@@ -188,8 +188,13 @@ def unpack_bpass_v1(parent_dir):
 # Auxiliary data downloads
 # Format: [URL, file1, file2, ..., file to run when done]
 aux_data = {
+    "halos_tests": [
+        "https://drive.google.com/file/d/1k8YG1Z02WQ-bUFqBB6C7W4eb_huwMKxz/view?usp=sharing",
+        "halos_tests.tar.gz",
+        None,
+    ],
     "halos": [
-        "https://www.dropbox.com/s/8df7rsskr616lx5/halos.tar.gz?dl=1",
+        "https://drive.google.com/file/d/1k8YG1Z02WQ-bUFqBB6C7W4eb_huwMKxz/view?usp=sharing",
         "halos.tar.gz",
         None,
     ],
