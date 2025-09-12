@@ -368,27 +368,28 @@ aux_data = {
 }
 
 # define which files are needed for which things
-datasets = {
+dataset_groups = {
     "tests": [
         "inits",
         "secondary_electrons",
-        "halos",
+        "halos_tests",
         "wfc",
         "wfc3",
         "planck",
         "bpass_v1_tests",
         "optical_depth",
     ],
-    "test_files": [
-        "inits.tar.gz",
-        "elec_interp.tar.gz",
-        "halos.tar.gz",
-        "IR.zip",
-        "wfc.tar.gz",
-        aux_data["planck"][1],
-        "bpass_v1_tests.tar.gz",
-        "tau.tar.gz",
-    ],
+    # Don't think test_files ever gets used, covered by 'tests' above
+    #"test_files": [
+    #    "inits.tar.gz",
+    #    "elec_interp.tar.gz",
+    #    "halos_tests.tar.gz",
+    #    "IR.zip",
+    #    "wfc.tar.gz",
+    #    aux_data["planck"][1],
+    #    "bpass_v1_tests.tar.gz",
+    #    "tau.tar.gz",
+    #],
     "photometry": [
         "nircam",
         "irac",
@@ -402,6 +403,7 @@ datasets = {
     ],
     "basics": [
        "inits",
+       "halos",
        "bpass_v1",
        "bc03_2013",
     ]
@@ -898,8 +900,8 @@ def clean_files(args):
     # figure out what to delete
     if args.dataset.lower() == "all":
         dsets = available_dsets
-    elif args.dataset.lower() in datasets:
-        dsets = datasets[args.dataset.lower()]
+    elif args.dataset.lower() in dataset_groups:
+        dsets = dataset_groups[args.dataset.lower()]
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "
