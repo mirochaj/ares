@@ -70,7 +70,7 @@ def GalaxyPopulation(pf=None, cosm=None, **kwargs):
                 model = 'sfe-func'
 
     if model in ['sfe-func', 'sfr-func', 'mlf-func', 'sfe-tab', 'sfr-tab',
-        'uvlf', '21cmfast', 'smhm-func', 'quiescent', 'lum-func']:
+        'uvlf', '21cmfast', 'smhm-func', 'quiescent']:
         return GalaxyCohort(pf=pf, **kwargs)
     elif model in ['fcoll', 'sfrd-func', 'sfrd-class']:
         return GalaxyAggregate(pf=pf, **kwargs)

@@ -364,8 +364,8 @@ class SynthesisModelBase(Source):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        #if kwds in self._cache_L_:
-        #    return self._cache_L_[kwds]
+        if kwds in self._cache_L_:
+            return self._cache_L_[kwds]
 
         return None
 
@@ -454,8 +454,6 @@ class SynthesisModelBase(Source):
                         yield_UV[i] = data[i1,i] * dlam \
                             / (self.tab_energies_c[i1] * erg_per_ev)
                 else:
-                    # Multiplying by wavelength here just prepares for
-                    # integral over log(wavelength).
                     if 'erg' in units_out.lower():
                         integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
                     else:
@@ -464,6 +462,8 @@ class SynthesisModelBase(Source):
 
                     yield_UV[i] = np.trapz(integrand,
                         x=np.log(self.tab_waves_c[i1:i0]))
+
+
         else:
             wave = self.get_ang_from_x(x, units=units)
             j = np.argmin(np.abs(wave - self.tab_waves_c))
@@ -511,7 +511,7 @@ class SynthesisModelBase(Source):
         # else:
         #     erg / sec / Hz / (Msun / yr)
 
-        #self._cache_L_[kwds] = yield_UV
+        self._cache_L_[kwds] = yield_UV
 
         return yield_UV
 
@@ -544,9 +544,9 @@ class SynthesisModelBase(Source):
             Number of wavelength bins over which to average
 
         Units are
-            `units_out` / (Msun / yr)
+            erg / s / Hz / (Msun / yr)
         or
-            `units_out` / Msun
+            erg / s / Hz / Msun
 
         """
 

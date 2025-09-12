@@ -15,26 +15,21 @@ setup = \
 
  # NIRB
  'tau_approx': 0,#'neutral',
- 'tau_clumpy': 1,     # 1 = all < 912A photons gone, 2 = all < 1216A gone, 
-                      # can also set to 'madau1995' for more detailed model.
+ 'tau_clumpy': 2,
 
  'cosmology_id': 'best',
  'cosmology_name': 'planck_TTTEEE_lowl_lowE',
  'cosmological_Mmin': None,
 
  'first_light_redshift': 15,
- 'final_redshift': 6e-3,
+ 'final_redshift': 5e-3,
 
  'tau_redshift_bins': 100,
 
  'halo_dlnk': 0.05,
  'halo_lnk_min': -9.,
  'halo_lnk_max': 11.,
-
- #'interpolate_cosmology_in_z': True,
 }
-
-basic_settings = setup.copy()
 
 centrals_sf = \
 {
@@ -66,7 +61,7 @@ centrals_sf = \
 
  'pop_sfh': 'constant+ssp',
  'pop_ssp': (False, True),
- 'pop_age': (100., 4e3),
+ 'pop_age': (100., 2.5e3),
  'pop_Z': (0.02, 0.02), # placeholder, really
  'pop_binaries': False,
 
@@ -201,7 +196,7 @@ _sfr_dpl = \
  'pq_func_par1[1]': 3e12,
  'pq_func_par2[1]': 1.6,
  'pq_func_par3[1]': 0.2,
- 'pq_func_par4[1]': 1e10,   # Mh anchor
+ 'pq_func_par4[1]': 1e10,  # Mh anchor
  'pq_func_par5[1]': 0.6,    # scales (1-a) term
  'pq_func_par6[1]': 0.,     # scales (1-a) term
  'pq_func_par7[1]': 0,      # scales (1-a) term
@@ -219,10 +214,10 @@ _sfr_dpl = \
  'pq_func_par19[1]': 0.0,
  'pq_func_par20[1]': 0.0,
  # Extension!
- 'pq_func_par21[1]': 0.0,   # Turn-over mass
- 'pq_func_par22[1]': 0.0,   # upturn
- 'pq_func_par23[1]': 0.0,   # upturn
- 'pq_func_par24[1]': 0.0,   # evolution in turn-over mass
+ 'pq_func_par21[1]': 0.0,
+ 'pq_func_par22[1]': 0.0,
+ 'pq_func_par23[1]': 0.0,
+ 'pq_func_par24[1]': 0.0,
  'pq_func_par25[1]': 0.0,
  'pq_func_par26[1]': 0.0,
 }
@@ -235,14 +230,13 @@ centrals_q['pop_aging'] = True
 centrals_q['pop_ssfr'] = None
 centrals_q['pop_sfr'] = None
 centrals_q['pop_ssp'] = True
-centrals_q['pop_age'] = 5e3
+centrals_q['pop_age'] = 1e4
 centrals_q['pop_Z'] = 0.02
 centrals_q['pop_fstar'] = 'link:fstar:0'
 centrals_q['pop_focc'] = 'link:focc:0'
 centrals_q['pop_nebular'] = 0
 centrals_q['pop_focc_inv'] = True
 centrals_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
-
 centrals_q['pop_sys_method'] = 'separate'
 centrals_q['pop_sys_mstell_now'] = 'pop_sys_mstell_now{0}'
 centrals_q['pop_sys_mstell_a'] = 'pop_sys_mstell_a{0}'
@@ -271,26 +265,14 @@ ihl_scaled['pop_include_1h'] = True
 ihl_scaled['pop_include_2h'] = True
 ihl_scaled['pop_include_shot'] = False
 ihl_scaled['pop_Mmin'] = 1e10
-#ihl_scaled['pop_Mmax'] = 1e15
+ihl_scaled['pop_Mmax'] = 1e14
 ihl_scaled['pop_Tmin'] = None
 
-# These numbers are Purcell-like
-ihl_tanh = ihl_scaled.copy()
-ihl_tanh['pq_func[50]'] = 'logtanh_abs'
-ihl_tanh['pq_func_par0[50]'] = 0.7
-ihl_tanh['pq_func_par1[50]'] = 0.0
-ihl_tanh['pq_func_par2[50]'] = 13.6
-ihl_tanh['pq_func_par3[50]'] = -1.
-ihl_tanh['pq_val_ceil[50]'] = 0.99
-
-ihl_tanh_zevol = ihl_tanh.copy()
-
-#ihl_b19 = ihl_scaled.copy()
-#ihl_b19['pq_func_par0[50]'] = 0.01
-#ihl_b19['pq_func_par1[50]'] = 1e12
-#ihl_b19['pq_func_par2[50]'] = 0.7
-#ihl_b19['pq_val_ceil[50]'] = 0.99
-#ihl_b19['pq_val_floor[50]{4}'] = 3e-3
+ihl_b19 = ihl_scaled.copy()
+ihl_b19['pq_func_par0[50]'] = 0.01
+ihl_b19['pq_func_par1[50]'] = 1e12
+ihl_b19['pq_func_par2[50]'] = 0.7
+ihl_b19['pq_val_ceil[50]'] = 0.99
 
 ihl_p24 = ihl_scaled.copy()
 ihl_p24['pq_func_par0[50]'] = 0.13
@@ -311,14 +293,6 @@ ihl_p07['pq_func_par1[50]'] = 0.0
 ihl_p07['pq_func_par2[50]'] = 13.6
 ihl_p07['pq_func_par3[50]'] = -1.
 ihl_p07['pq_val_ceil[50]'] = 0.99
-
-ihl_b19 = ihl_scaled.copy()
-ihl_b19['pq_func[50]'] = 'logtanh_abs'
-ihl_b19['pq_func_par0[50]'] = 0.7
-ihl_b19['pq_func_par1[50]'] = 3e-3
-ihl_b19['pq_func_par2[50]'] = 14.1
-ihl_b19['pq_func_par3[50]'] = -0.8
-ihl_b19['pq_val_ceil[50]'] = 0.99
 
 satellites_sf = centrals_sf.copy()
 satellites_sf['pop_focc'] = 'link:focc:0'
@@ -351,15 +325,14 @@ satellites_q['pop_prof_1h'] = 'nfw'
 satellites_q['pop_include_1h'] = True
 satellites_q['pop_include_2h'] = True
 satellites_q['pop_include_shot'] = True
-satellites_q['pop_fstar'] = 'link:fstar:1'
+satellites_q['pop_fstar'] = 'link:fstar:0'
 satellites_q['pop_ssfr'] = None
-#satellites_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
-#satellites_q['pop_scatter_smhm'] = 'pop_scatter_smhm{1}'
+satellites_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
 
 satellites_q['pop_sfh'] = 'ssp'
 satellites_q['pop_aging'] = True
 satellites_q['pop_ssp'] = True
-satellites_q['pop_age'] = 5e3
+satellites_q['pop_age'] = 1e4
 satellites_q['pop_Z'] = 0.02
 
 #
@@ -416,20 +389,20 @@ dust['pq_val_floor[4]'] = 0
 
 dust_x = {}
 dust_x['pop_dust_template_extension{0}'] = 'pq[40]'
-dust_x['pq_func[40]{0}'] = 'pl_evolB13'
-dust_x['pq_func_var[40]{0}'] = 'wave'
-dust_x['pq_func_var2[40]{0}'] = '1+z'
-dust_x['pq_func_par0[40]{0}'] = 1
-dust_x['pq_func_par1[40]{0}'] = 5500
-dust_x['pq_func_par2[40]{0}'] = 0.0
-dust_x['pq_func_par3[40]{0}'] = 0     # norm
-dust_x['pq_func_par4[40]{0}'] = 0     # slope
-dust_x['pq_func_par5[40]{0}'] = 0     # norm
-dust_x['pq_func_par6[40]{0}'] = 0     # slope
-dust_x['pq_func_par7[40]{0}'] = 0     # norm
-dust_x['pq_func_par8[40]{0}'] = 0     # slope
-dust_x['pq_func_par9[40]{0}'] = 0     # slope
-dust_x['pq_func_par10[40]{0}'] = 0     # slope
+dust_x['pq_func{0}[40]'] = 'pl_evolB13'
+dust_x['pq_func_var{0}[40]'] = 'wave'
+dust_x['pq_func_var2{0}[40]'] = '1+z'
+dust_x['pq_func_par0{0}[40]'] = 1
+dust_x['pq_func_par1{0}[40]'] = 5500
+dust_x['pq_func_par2{0}[40]'] = 0.0
+dust_x['pq_func_par3{0}[40]'] = 0     # norm
+dust_x['pq_func_par4{0}[40]'] = 0     # slope
+dust_x['pq_func_par5{0}[40]'] = 0     # norm
+dust_x['pq_func_par6{0}[40]'] = 0     # slope
+dust_x['pq_func_par7{0}[40]'] = 0     # norm
+dust_x['pq_func_par8{0}[40]'] = 0     # slope
+dust_x['pq_func_par9{0}[40]'] = 0     # slope
+dust_x['pq_func_par10{0}[40]'] = 0     # slope
 
 for par in dust.keys():
     setup[par + '{0}'] = dust[par]
@@ -460,60 +433,6 @@ dust_dpl = \
  'pq_func_par18[4]{0}': 0.0,           # peak
  'pq_func_par19[4]{0}': 0.0,           # low
  'pq_func_par20[4]{0}': 0.0,           # high
-}
-
-dust_dplx = \
-{
- 'pq_func[4]{0}': 'dplx_evolB13',
- 'pq_func_var[4]{0}': 'Mh',
- 'pq_func_var2[4]{0}': '1+z',
- 'pq_func_par0[4]{0}': 0.0,
- 'pq_func_par1[4]{0}': 1e12,
- 'pq_func_par2[4]{0}': 0.2,
- 'pq_func_par3[4]{0}': 0.,
- 'pq_func_par4[4]{0}': 1e10,           # normalization pinned to this Mh
- 'pq_func_par5[4]{0}': 0,              # norm
- 'pq_func_par6[4]{0}': 0,              # peak
- 'pq_func_par7[4]{0}': 0,              # low
- 'pq_func_par8[4]{0}': 0,              # high
- 'pq_func_par9[4]{0}': 0.0,            # norm
- 'pq_func_par10[4]{0}': 0.0,           # peak
- 'pq_func_par11[4]{0}': 0.0,           # low
- 'pq_func_par12[4]{0}': 0.0,           # high
- 'pq_func_par13[4]{0}': 0.0,           # norm
- 'pq_func_par14[4]{0}': 0.0,           # peak
- 'pq_func_par15[4]{0}': 0.0,           # low
- 'pq_func_par16[4]{0}': 0.0,           # high
- 'pq_func_par17[4]{0}': 0.0,           # norm
- 'pq_func_par18[4]{0}': 0.0,           # peak
- 'pq_func_par19[4]{0}': 0.0,           # low
- 'pq_func_par20[4]{0}': 0.0,           # high
-  # Extension!
- 'pq_func_par21[4]{0}': 5.0, # evolution done in log10(Mturn), hence default > 0
- 'pq_func_par22[4]{0}': 0.0,
- 'pq_func_par23[4]{0}': 0.0,
- 'pq_func_par24[4]{0}': 0.0,
- 'pq_func_par25[4]{0}': 0.0,
- 'pq_func_par26[4]{0}': 0.0,
-}
-
-dust_linlog = \
-{
- 'pq_func[4]{0}': 'linlog_evolB13',
- 'pq_func_var[4]{0}': 'Ms',
- 'pq_func_var2[4]{0}': '1+z',
- 'pq_func_par0[4]{0}': 0.5,
- 'pq_func_par1[4]{0}': 10,             # log10(Mstell/Msun) we pin to
- 'pq_func_par2[4]{0}': 0.1,            # slope
- # Start evol params
- 'pq_func_par3[4]{0}': 0.,             # norm  (1 - a)
- 'pq_func_par4[4]{0}': 0,              # slope (1 - a)
- 'pq_func_par5[4]{0}': 0,              # norm  log(1+z)
- 'pq_func_par6[4]{0}': 0,              # slope log(1+z)
- 'pq_func_par7[4]{0}': 0,              # norm  z
- 'pq_func_par8[4]{0}': 0,              # slope z
- 'pq_func_par9[4]{0}': 0.0,            # norm  a
- 'pq_func_par10[4]{0}': 0.0,           # slope a
 }
 
 base_centrals = setup.copy()
@@ -566,7 +485,7 @@ ihl['pop_Emax{4}'] = 24.6
 ihl['pop_zdead{4}'] = 0
 
 # SED info
-ihl['pop_sed{4}'] = 'bc03_2013'
+ihl['pop_sed{4}'] = 'bc03'
 ihl['pop_rad_yield{4}'] = 'from_sed'
 
 ihl['pop_sed_degrade{4}'] = None#10
@@ -591,6 +510,7 @@ ihl['pop_sfr{4}'] = None
 ihl['pop_ssp{4}'] = True
 ihl['pop_age{4}'] = 1e4
 ihl['pop_Z{4}'] = 0.02
+ihl['pop_scatter_sfh{4}'] = 'pop_scatter_sfh{0}'
 
 mzr = \
 {
@@ -638,7 +558,6 @@ smhm_Q['pq_func_par19[10]{1}'] = 0.0
 smhm_Q['pq_func_par20[10]{1}'] = 0.0
 smhm_Q['pq_val_ceil[10]{1}'] = 1
 
-setup_centrals = setup.copy()
 setup.update(subhalos)
 
 ##
@@ -661,6 +580,7 @@ subhalos_sfr_ext['pop_sfr{2}'] = 'pq[6]'
 subhalos_sfr_ext['pq_func[6]{2}'] = 'dplx_evolB13'
 subhalos_sfr_ext['pq_func_var[6]{2}'] = 'Mh'
 subhalos_sfr_ext['pq_func_var2[6]{2}'] = '1+z'
+
 
 for i in range(0, 27):
     subhalos_sfr_ext['pq_func_par%i[6]{2}' % i] = setup['pq_func_par%i[1]{0}' % i]
@@ -697,27 +617,8 @@ lines['pop_lum_per_sfr_at_wave{0}'] = \
      (3970, 0.159 * 0.44e41),     # H-epsilon
      (3727, 0.71e41),             # [O II]
      (1.87e4, 1.27e41 * 0.123),   # [P-alpha]
-     (3.28e4, lsun * 10**6.6)]     # 3.3 micron PAH (Lai+ 2020)
+     (3.3e4, lsun * 10**6.6)]     # 3.3 micron PAH (Lai+ 2020)
 lines['pop_lum_per_sfr_at_wave{2}'] = lines['pop_lum_per_sfr_at_wave{0}']
-
-lines_wprof = {}
-lines_wprof['pop_lum_per_sfr_at_wave{0}'] = \
-    [
-     (1216., 1.21e42),            # Ly-a
-     (6563, 1.27e41),             # H-alpha
-     (5007, 1.32e41),             # [O III]
-     (4861, 0.44e41),             # H-beta
-     (4340, 0.468 * 0.44e41),     # H-gamma
-     (4102, 0.259 * 0.44e41),     # H-delta
-     (3970, 0.159 * 0.44e41),     # H-epsilon
-     (3727, 0.71e41),             # [O II]
-     (1.87e4, 1.27e41 * 0.123),   # [P-alpha]
-     (3.28e4, 0.505 * lsun * 10**6.6, 0.0301e4),     # 3.3 micron PAH (Lai+ 2020)
-     (3.28e4, 0.495 * lsun * 10**6.6, 0.1028e4),
-     (3.40e4, 0.08592 * lsun * 10**6.6, 0.0301e4),
-     (3.48e4, 0.17205 * lsun * 10**6.6, 0.0555e4)]
-
-lines_wprof['pop_lum_per_sfr_at_wave{2}'] = lines_wprof['pop_lum_per_sfr_at_wave{0}']
 
 no_lines = \
 {
@@ -752,88 +653,59 @@ slow = \
 # Need to be careful with this
 _base = \
 {
-'pq_func_par0[0]{0}': 7.2815e-05, 
-'pq_func_par1[0]{0}': 1.4430e+12, 
-'pq_func_par2[0]{0}': 1.3226e+00, 
-'pq_func_par3[0]{0}': -2.5893e-01, 
-'pq_func_par0[10]{1}': 1.0534e-03, 
-'pq_func_par1[10]{1}': 3.2164e+11, 
-'pq_func_par2[10]{1}': 1.0233e+00, 
-'pq_func_par3[10]{1}': -4.9251e-01, 
-'pq_func_par5[0]{0}': -1.5774e+00, 
-'pq_func_par9[0]{0}': 1.0673e+00, 
-'pq_func_par6[0]{0}': -3.8390e-01, 
-'pq_func_par10[0]{0}': 2.6777e-01, 
-'pq_func_par7[0]{0}': -1.5361e+00, 
-'pq_func_par11[0]{0}': 5.0344e-01, 
-'pq_func_par8[0]{0}': -3.3829e+00, 
-'pq_func_par12[0]{0}': 1.7435e+00, 
-'pq_func_par5[10]{1}': -1.2436e-01, 
-'pq_func_par9[10]{1}': -1.0433e+00, 
-'pq_func_par6[10]{1}': 1.7571e+00, 
-'pq_func_par10[10]{1}': -4.1490e-01, 
-'pq_func_par7[10]{1}': 3.4618e+00, 
-'pq_func_par11[10]{1}': 3.3509e+00, 
-'pq_func_par8[10]{1}': -1.9147e+00, 
-'pq_func_par12[10]{1}': 1.8761e+00, 
-'pq_func_par0[2]{0}': 2.4117e-01, 
-'pq_func_par1[2]{0}': 9.7025e-01, 
-'pq_func_par2[2]{0}': 1.2994e+01, 
-'pq_func_par3[2]{0}': -3.9922e-01, 
-'pq_func_par4[2]{0}': -3.7360e+00, 
-'pq_func_par8[2]{0}': -4.7217e+00, 
-'pq_func_par5[2]{0}': 2.3421e+00, 
-'pq_func_par9[2]{0}': 1.3401e+00, 
-'pq_func_par6[2]{0}': 3.2989e+00, 
-'pq_func_par10[2]{0}': -4.8534e+00, 
-'pq_func_par7[2]{0}': -6.7647e-02, 
-'pq_func_par11[2]{0}': -4.5169e+00, 
-'pq_func_par0[1]{0}': 3.7837e-04, 
-'pq_func_par1[1]{0}': 4.1900e+11, 
-'pq_func_par2[1]{0}': 2.3168e+00, 
-'pq_func_par3[1]{0}': 1.9083e-02, 
-'pq_func_par5[1]{0}': -5.3792e-01, 
-'pq_func_par9[1]{0}': 1.2113e+00, 
-'pq_func_par6[1]{0}': 6.0217e-01, 
-'pq_func_par10[1]{0}': -1.1771e-01, 
-'pq_func_par7[1]{0}': -2.9937e-01, 
-'pq_func_par11[1]{0}': -2.4585e-01, 
-'pq_func_par8[1]{0}': -9.9456e-01, 
-'pq_func_par12[1]{0}': 7.8243e-01, 
-'pq_func_par0[4]{0}': 2.0465e-01, 
-'pq_func_par1[4]{0}': 5.9843e+11, 
-'pq_func_par2[4]{0}': 5.1163e-01, 
-'pq_func_par3[4]{0}': -6.2534e-01, 
-'pq_func_par5[4]{0}': 8.1619e-02, 
-'pq_func_par9[4]{0}': 2.3364e-02, 
-'pq_func_par6[4]{0}': -1.3702e+00, 
-'pq_func_par10[4]{0}': 4.9983e-01, 
-'pq_func_par7[4]{0}': 2.5034e+00, 
-'pq_func_par11[4]{0}': -1.1455e+00, 
-'pq_func_par8[4]{0}': 1.2596e+00, 
-'pq_func_par12[4]{0}': -2.3796e-01, 
-'pop_scatter_sfh{0}': 1.2728e-01, 
-'pop_sfr_below_ms{1}': 5.4408e+02, 
-'pop_sys_mstell_now{0}': -3.0761e-02, 
-'pop_sys_mstell_a{0}': -1.1592e-02, 
-'pop_sys_sfr_now{0}': 1.0303e-02, 
-'pop_sys_sfr_a{0}': 9.5621e-03,
+'pq_func_par0[0]{0}': 6.1764e-05,
+'pq_func_par1[0]{0}': 9.1754e+11,
+'pq_func_par2[0]{0}': 1.4473e+00,
+'pq_func_par3[0]{0}': -5.5587e-01,
+'pq_func_par5[0]{0}': -1.0034e+00,
+'pq_func_par6[0]{0}': 5.8955e-01,
+'pq_func_par7[0]{0}': -6.7433e-01,
+'pq_func_par8[0]{0}': 1.6365e-01,
+'pq_func_par0[2]{0}': 2.4506e-01,
+'pq_func_par1[2]{0}': 8.2420e-01,
+'pq_func_par2[2]{0}': 1.2364e+01,
+'pq_func_par3[2]{0}': -2.0167e-01,
+'pq_func_par4[2]{0}': -1.0386e-01,
+'pq_func_par8[2]{0}': 3.6803e-01,
+'pq_func_par5[2]{0}': -6.5620e-01,
+'pq_func_par9[2]{0}': 6.3437e-01,
+'pq_func_par6[2]{0}': -2.3490e+00,
+'pq_func_par10[2]{0}': 1.0774e+00,
+'pq_func_par7[2]{0}': 5.3345e-01,
+'pq_func_par11[2]{0}': -2.8394e-01,
+'pq_func_par0[1]{0}': 4.2053e-04,
+'pq_func_par1[1]{0}': 2.7720e+11,
+'pq_func_par2[1]{0}': 2.3336e+00,
+'pq_func_par3[1]{0}': 4.9890e-01,
+'pq_func_par5[1]{0}': -2.8294e+00,
+'pq_func_par9[1]{0}': 1.9135e+00,
+'pq_func_par6[1]{0}': 2.5113e+00,
+'pq_func_par10[1]{0}': -1.0102e+00,
+'pq_func_par7[1]{0}': -5.7024e-01,
+'pq_func_par11[1]{0}': -8.2598e-02,
+'pq_func_par8[1]{0}': -1.2234e+00,
+'pq_func_par12[1]{0}': 6.7375e-01,
+'pq_func_par0[4]{0}': 1.1055e+00,
+'pq_func_par2[4]{0}': 8.7996e-03,
+'pq_func_par5[4]{0}': -2.3831e-01,
+'pq_func_par6[4]{0}': 8.9493e-02,
+'pop_scatter_sfh{0}': 1.4846e-01,
+'pop_sfr_below_ms{1}': 1.4333e+03,
+'pop_sys_mstell_now{0}': -4.2003e-02,
+'pop_sys_mstell_a{0}': 9.3474e-02,
+'pop_sys_sfr_now{0}': 2.1676e-01,
+'pop_sys_sfr_a{0}': 1.3600e-02,
 }
+
+#setup = base.copy()
+#base.update(_base)
 
 sed_modeling = \
 {
- 'pop_lum_tab{0}': f"{HOME}/.ares/ares_ebl_data/ares_2025_07_01_smhm_diff_b13_2222_focc_erf_b13_2222_sfr_b13_2222_sc_dustMh_dpl_b13_2222_c00_sats_1_fit_smf_1_ssfr_1_uvlf_b15_o18_p25_w18_1.75_3.75_4_beta_1_ms_1b_s07_1_cts_0_clst_0_sys_1_sedtab_pop_0_mzr_0_obs_T0_12_1.0_alpha_0.00.hdf5",
- 'pop_lum_tab{1}': f"{HOME}/.ares/ares_ebl_data/ares_2025_07_01_smhm_diff_b13_2222_focc_erf_b13_2222_sfr_b13_2222_sc_dustMh_dpl_b13_2222_c00_sats_1_fit_smf_1_ssfr_1_uvlf_b15_o18_p25_w18_1.75_3.75_4_beta_1_ms_1b_s07_1_cts_0_clst_0_sys_1_sedtab_pop_1_bb_544_obs_T0_12_1.0_alpha_0.00.hdf5",
- 'pop_lum_tab{2}': f"{HOME}/.ares/ares_ebl_data/ares_2025_07_01_smhm_diff_b13_2222_focc_erf_b13_2222_sfr_b13_2222_sc_dustMh_dpl_b13_2222_c00_sats_1_fit_smf_1_ssfr_1_uvlf_b15_o18_p25_w18_1.75_3.75_4_beta_1_ms_1b_s07_1_cts_0_clst_0_sys_1_sedtab_pop_0_mzr_0_obs_T0_12_1.0_alpha_0.00.hdf5",
- 'pop_lum_tab{3}': f"{HOME}/.ares/ares_ebl_data/ares_2025_07_01_smhm_diff_b13_2222_focc_erf_b13_2222_sfr_b13_2222_sc_dustMh_dpl_b13_2222_c00_sats_1_fit_smf_1_ssfr_1_uvlf_b15_o18_p25_w18_1.75_3.75_4_beta_1_ms_1b_s07_1_cts_0_clst_0_sys_1_sedtab_pop_1_bb_544_obs_T0_12_1.0_alpha_0.00.hdf5",
-}
-
-no_sed_modeling = \
-{
- 'pop_lum_tab{0}': None,
- 'pop_lum_tab{1}': None,
- 'pop_lum_tab{2}': None,
- 'pop_lum_tab{3}': None,
+ 'pop_lum_tab{0}': f"{HOME}/.ares/ares_ebl_data/ares_base_seds_acen_beta_0.hdf5",
+ 'pop_lum_tab{1}': f"{HOME}/.ares/ares_ebl_data/ares_base_seds_qcen_beta_0.hdf5",
+ 'pop_lum_tab{2}': f"{HOME}/.ares/ares_ebl_data/ares_base_seds_acen_beta_0.hdf5",
+ 'pop_lum_tab{3}': f"{HOME}/.ares/ares_ebl_data/ares_base_seds_qcen_beta_0.hdf5",
 }
 
 sys_b13 = \
@@ -843,28 +715,3 @@ sys_b13 = \
  'pop_sys_method{2}': "b13",
  'pop_sys_method{3}': "b13",
 }
-
-scatter_flex = \
-{
- 'pop_scatter_sfh{0}': 0,
- 'pop_scatter_sfh{1}': 0,
- 'pop_scatter_sfh{2}': 0,
- 'pop_scatter_sfh{3}': 0,
- 'pop_scatter_sfr{0}': 0.,
- 'pop_scatter_smhm{0}': 0.,
- 'pop_scatter_smhm{1}': 0.,
-}
-
-# 'base' model has:
-# (i) different SMHM for star-forming and quiescent sources
-# (ii) DPL SFR-Mh relation
-# (iii) DPL Dust-Mh relation
-# (iv) systematics not identical to B13
-# (v) satellites == centrals at given (sub)halo mass
-
-base = setup.copy()
-base.update(smhm_Q)
-base.update(dust_dplx)
-base.update(_base)
-base.update(sed_modeling)
-#base.update(lines_wprof)

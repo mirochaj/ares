@@ -1193,7 +1193,6 @@ class SpectralSynthesis(object):
                     else:
                         _ages, _SFR = self._oversample_sfh(ages, sfh[0:i+1], i)
 
-                    # `_ages` and `ages` are in Myr, _dt here is in years
                     _dt = np.abs(np.diff(_ages) * 1e6)
 
                     # `_ages` is in order of old to young.
@@ -1321,6 +1320,8 @@ class SpectralSynthesis(object):
                     rand = hist['rand']
 
                 tau = kappa * Sd
+
+                print('hi', x, idnum, tau[izobs])
 
                 clear = rand > fcov
                 block = ~clear

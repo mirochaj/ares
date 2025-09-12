@@ -132,7 +132,7 @@ class Simulation(object):
             data = {}
 
         if not self.background_intensity._run_complete:
-            self.background_intensity.run()#include_pops=pops)
+            self.background_intensity.run()
 
         for i in range(len(self.pops)):
             if i in data:
@@ -172,8 +172,8 @@ class Simulation(object):
         return data
 
     def get_ebl_ps(self, scales, waves, waves2=None, wave_units='mic',
-        scale_units='ell', flux_units='SI', pops=None,
-        include_inter_pop=True, cache_ipop_mtx=None, **kwargs):
+        scale_units='ell', flux_units='SI', dimensionless=False, pops=None,
+        include_inter_pop=True, **kwargs):
         """
         Compute power spectrum of EBL at some observed wavelength(s).
 
@@ -217,17 +217,11 @@ class Simulation(object):
 
         Returns
         -------
-        Tuple containing (scales, waves, total power spectrum, PS by pop).
+        Tuple containing (scales, 2 pi / scales or l*l(+1),
+            waves, power spectra).
 
-        Note the total power spectrum is a 2-D array with shape
-        (len(scales), len(waves)), while the final "PS by pop" array is 4-D,
-        as it saves separately all of the constituent terms, and is thus
-        (len(pops), len(pops), len(scales), len(waves)). So, the
-        element [0,0] encodes the PS of star-forming galaxies x star-forming
-        galaxies, [1,1] is quiescent galaxies x quiescent galaxies, and so on.
-
-        Saves as attributes
-        -------------------
+        Note that the power spectra are return as 2-D arrays with shape
+        (len(scales), len(waves))
 
         """
 
@@ -247,6 +241,22 @@ class Simulation(object):
                 "If `waves` is 2-D, must have shape (num waves, 2)."
             waves_is_2d = True
 
+        # Prep scales
+        if scale_units.lower() in ['l', 'ell']:
+            scales_inv = np.sqrt(scales * (scales + 1))
+            # Squared below hence the sqrt here.
+        else:
+            if scale_units.lower().startswith('deg'):
+                scale_rad = scales * (np.pi / 180.)
+            elif scale_units.lower() == 'arcmin':
+                scale_rad = (scales / 60.) * (np.pi / 180.)
+            elif scale_units.lower() == 'arcsec':
+                scale_rad = (scales / 3600.) * (np.pi / 180.)
+            else:
+                raise NotImplemented(f"Don't recognize `scale_units`={scale_units}")
+
+            scales_inv = 2 * np.pi / scale_rad
+
         if wave_units.lower().startswith('mic'):
             pass
         else:
@@ -258,7 +268,7 @@ class Simulation(object):
         if waves2 is None:
             waves2 = waves
 
-        #ps = np.zeros((len(self.pops), len(scales), len(waves)))
+        ps = np.zeros((len(self.pops), len(scales), len(waves)))
         px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
         # Save contributing pieces
 
@@ -285,24 +295,12 @@ class Simulation(object):
                     if j not in pops:
                         continue
 
-                # First, check for cache. This is a pro move.
-                if (cache_ipop_mtx is not None) and include_inter_pop:
-                    _px, _pz = cache_ipop_mtx
-                    _npops = _px.shape[0]
-                    # If we're covered by the cache, use it
-                    if i < _npops:
-                        px[i,j,:,:] = _px[i,j,:,:].copy()
-                        ps_z[i,j,:,:,:] = _pz[i,j,:,:,:].copy()
-                        continue
-
                 for k, wave in enumerate(waves):
-                    
                     # Will default to 1h + 2h + shot
                     if j == i:
-                        px[i,i,:,k] = pop.get_ps_obs(scales,
+                        ps[i,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=wave, wave_obs2=waves2[k],
                             scale_units=scale_units, **kwargs)
-                        #px[i,i,:,k] = ps[i,:,k].copy()
                         ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
                         continue
 
@@ -321,98 +319,36 @@ class Simulation(object):
                 #if hasattr(pop.halos, '_tab_u_nfw'):
                 #    del pop.halos._tab_u_nfw
 
-
-        self.px_natu = px.copy()
-        self.pz_natu = ps_z.copy()
+        ##
+        # Increment `ps` with cross terms.
+        # Convention is that fluctuations for population `i` includes
+        # all crosses with
+        ps += px.sum(axis=1)
 
         ##
         # Modify PS units before return
         if flux_units.lower() == 'si':
-            #ps *= cm_per_m**4 / erg_per_s_per_nW**2
+            ps *= cm_per_m**4 / erg_per_s_per_nW**2
             px *= cm_per_m**4 / erg_per_s_per_nW**2
             ps_z *= cm_per_m**4 / erg_per_s_per_nW**2
         elif flux_units.lower() == 'mjy':
-            #ps *= 1e17
+            ps *= 1e17
             px *= 1e17
             ps_z *= 1e17
 
-        ptot = px.sum(axis=0).sum(axis=0)
-
         if pops is None:
             hist = self.history # poke
-            self._history['ps_nirb'] = scales, waves, ptot, px
+            self._history['ps_nirb'] = scales, scales_inv, waves, ps
 
+        if dimensionless:
+            ps *= scales_inv[None,:,None]**2 / 2. / np.pi
+            px *= scales_inv[None,:,None]**2 / 2. / np.pi
+
+        self.ps_auto = ps
         self.ps_cross = px
         self.ps_zall = ps_z
 
-        return scales, waves, ptot, px
-
-    def get_number_counts(self, wave, magbins, window=201, zbins=None, zmax=None, nsub=10., pops=None):
-        """
-        Determine number counts (per deg^2) summed over all source populations.
-
-        Parameters
-        ----------
-        wave : int, float
-            Observed wavelength of interest [Angstroms].
-        magbins : np.ndarray
-            Array of AB magnitude bins (centers) at which to compute counts.
-
-        Returns
-        -------
-        Counts (np.ndarray) in number / deg^2 in provided `magbins`.
-
-        """
-
-        if zbins is not None:
-            tot = np.zeros((magbins.size, zbins.shape[0], len(self.pops)))
-        else:
-            tot = np.zeros_like(magbins)
-
-        for i, pop in enumerate(self.pops):
-
-            if pops is not None:
-                if i not in pops:
-                    continue
-            
-            # No IHL here
-            if (pop.is_emission_extended) and (not pop.is_satellite_pop):
-                continue
-            
-            ## 
-            # Can keep redshift axis if we want.
-            if zbins is not None:
-                for j, zbin in enumerate(zbins):
-                    dz = (zbin[1] - zbin[0]) / nsub
-                    num = pop.get_number_counts(magbins, x=wave,
-                        window=window, dlam=10,
-                        zbin=dz, zmin=zbin[0], zmax=zbin[1])
-
-                    tot[:,j,i] = num
-
-                continue 
-
-            ##
-            # Otherwise, lump everything together.
-            if zmax is None:
-                zmax = pop.zform
-
-            num_hiz = pop.get_number_counts(magbins, x=wave,
-                window=window, dlam=10,
-                zbin=0.1, zmin=2., zmax=zmax)
-
-            num_midz = pop.get_number_counts(magbins, x=wave,
-                window=window, dlam=10,
-                zbin=0.01, zmin=0.05, zmax=2)
-
-            num_lowz = pop.get_number_counts(magbins, x=wave,
-                window=window, dlam=10,
-                zbin=0.001, zmin=0.006, zmax=0.05)
-
-            tot += num_midz + num_lowz + num_hiz
-
-        return tot
-
+        return scales, scales_inv, waves, ps
 
     @property
     def pops(self):
