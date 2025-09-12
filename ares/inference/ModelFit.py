@@ -23,7 +23,7 @@ from types import FunctionType
 import numpy as np
 
 from ..util import get_hash
-from ..util.MPIPool import MPIPool
+from ..util.WorkerPools import MPIPool
 from ..physics.Constants import nu_0_mhz
 from ..util.Warnings import not_a_restart
 from ..util.ParameterFile import par_info

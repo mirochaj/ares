@@ -14,6 +14,7 @@ import gc
 import numpy as np
 from ..util import ProgressBar
 from .LightCone import LightCone
+from scipy.integrate import cumtrapz
 from ..simulations import Simulation
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
@@ -24,7 +25,7 @@ try:
 except ImportError:
     pass
 
-class NbodySim(LightCone): # pragma: no cover
+class NbodySimCoeval(LightCone): # pragma: no cover
     def __init__(self, model_name, Lbox=256, dims=128, zmin=0.05, zmax=2, verbose=True,
         base_dir='ares_mock', seed_rot=None, seed_trans=None, mem_concious=1,
         apply_rotations=False, apply_translations=False, **kwargs):

@@ -72,6 +72,7 @@ class DustExtinction(object):
         if is_templ:
             assert have_dustext, \
                 "Use of `pop_dust_template` requires `dustextinction` package!"
+
         return is_templ
 
     @cached_property
