@@ -1739,4 +1739,4 @@ class HaloMassFunction(object):
 
         print('# Wrote {!s}.'.format(fn))
 
-        return
+        return fn

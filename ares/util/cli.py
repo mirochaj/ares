@@ -194,7 +194,7 @@ aux_data = {
         None,
     ],
     "halos": [
-        "https://drive.google.com/file/d/1k8YG1Z02WQ-bUFqBB6C7W4eb_huwMKxz/view?usp=sharing",
+        "https://drive.google.com/file/d/1sglCEiO6HrpQJWKcwmBNvRl1lyUQWfNO/view?usp=sharing",
         "halos.tar.gz",
         None,
     ],
@@ -498,8 +498,8 @@ def generate_hmf_tables(path, **kwargs):
     # initialize hmf values
     def_kwargs = {
         "halo_mf": "Tinker10",
-        "halo_logMmin": 6,
-        "halo_logMmax": 16,
+        "halo_logMmin": 4,
+        "halo_logMmax": 18,
         "halo_dlogM": 0.01,
 
         "halo_fmt": "hdf5",
@@ -523,10 +523,12 @@ def generate_hmf_tables(path, **kwargs):
     halos.info
 
     try:
-        halos.save_hmf(fmt="hdf5", clobber=False)
+        fn = halos.save_hmf(fmt="hdf5", clobber=False)
     except IOError as err:
         print(err)
-    return
+        fn = None
+
+    return fn
 
 def generate_halo_histories(path, fn_hmf):
     """
@@ -566,7 +568,7 @@ def generate_halo_histories(path, fn_hmf):
             grp[key].read_direct(buff)
             cosmo_pars[key] = buff[0]
 
-        print(f"Read cosmology from {fn_hmf}")
+        print(f"# Read cosmology from {fn_hmf}")
 
     pars.update(cosmo_pars)
 
@@ -603,7 +605,7 @@ def generate_halo_histories(path, fn_hmf):
         print("! Wrote {}".format(fn))
     else:
         print("! File {} exists. Exiting.".format(fn))
-    return
+    return fn
 
 def make_halos(path):
     """
