@@ -2490,8 +2490,7 @@ class GalaxyEnsemble(HaloPopulation):
                 window=window, load=load, units_out=units_out)
 
             ##
-            # Note: in this case, no additional transmission effects in this
-            # case.
+            # Note: in this case, no additional transmission effects.
 
         ##
         # Otherwise, doing our usual: stellar emission only.
@@ -2505,6 +2504,20 @@ class GalaxyEnsemble(HaloPopulation):
                 + " (The reason for keeping it within the spectral synthesis" \
                 + " machinery is to allow for Charlot & Fall (2000)-like \n" \
                 + " approaches where reddening is age-dependent."
+
+            ##
+            # Check that we're not applying IGM transmission for ionizing
+            # photons. In this case, we're probably modeling reionization and
+            # so really want the ionizing luminosity BEFORE attenuation.
+            if include_igm_transmission:
+                if band is not None:
+                    _band = self.src.get_ang_from_x(band, units=units)
+                    assert np.all(np.array(_band) > 912), \
+                        "Should set include_igm_transmission=False for ionizing emission!"
+                else:
+                    _x = self.src.get_ang_from_x(x, units=units)
+                    assert np.all(_x > 912), \
+                        "Should set include_igm_transmission=False for ionizing emission!"
 
             L = self.synth.get_lum(x=x, units=units, zobs=z, hist=self.histories,
                 extras=self.extras, idnum=idnum, window=window, load=load,

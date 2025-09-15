@@ -454,7 +454,7 @@ class Source(object):
         else:
             out = h_p * c / erg_per_ev / np.array(xout) / 1e-8
 
-        # Check for order change, since get_ev_from_x aways returns in
+        # Check for order change, since get_ev_from_x always returns in
         # ascending energy. Want to match input order of `x`.
         # In other words, match order of input `x` unless we're converting
         # from wavelength to energy.

@@ -506,6 +506,8 @@ def PopulationParameters():
 
     "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
 
+    "pop_lum_func": None,
+
     "pop_ham_z": None,
 
     # Mass accretion rate
@@ -536,6 +538,9 @@ def PopulationParameters():
 
     "pop_centrals": True,
     "pop_ihl": None,
+    "pop_ihl_mask": None,
+    "pop_ihl_mask_pix": 6,
+    "pop_ihl_suppression": None,
 
     "pop_focc": 1.0,
     "pop_focc_inv": False,
@@ -594,6 +599,7 @@ def PopulationParameters():
     "pop_sfh": 'const',
     "pop_sfh_degrade": 1,
     "pop_sfh_fallback": None,
+    "pop_fallback_last_resort": False,
     "pop_age_definition": None,
 
 
@@ -874,6 +880,7 @@ def PopulationParameters():
     "pop_fox": 0.03,
 
     "pop_msr": None,
+    "pop_profile_info": None,
 
     "pop_dust_holes": 'big',
     "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
@@ -911,11 +918,16 @@ def PopulationParameters():
     "pop_calib_wave": 1600,
     "pop_calib_lum": None,
     "pop_lum_per_sfr": None,
-
+    "pop_lum_per_mass": None,
+    
     "pop_lum_per_sfr_off_wave": 1,
     "pop_lum_per_sfr_at_wave": None,
     "pop_lum_corr": None,
     "pop_lum_tab": None,
+    "pop_lum_tab_prefix": None,
+    "pop_lum_tab_T0": 1,
+    "pop_lum_tab_T0_alpha": 0,
+
 
     "pop_calib_Z": None,        # not implemented
 
@@ -1065,6 +1077,7 @@ def SourceParameters():
         "source_prof_1h": None,
         "source_ssp": False,             # a.k.a., continuous SF
         "source_sfh": 'const',
+        "source_fallback_last_resort": False,
         "source_sfh_axes": None,
         "source_sfh_fallback": None,
 

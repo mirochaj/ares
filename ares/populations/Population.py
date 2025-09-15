@@ -311,8 +311,7 @@ class Population(object):
 
     @property
     def is_diffuse(self):
-        return (self.pf['pop_ihl'] is not None) or \
-            (self.pf['pop_include_1h'] and not self.pf['pop_include_shot'])
+        return self.pf['pop_ihl'] is not None
 
     @property
     def is_src_radio(self):
@@ -528,7 +527,9 @@ class Population(object):
 
         if not hasattr(self, '_is_emissivity_scalable'):
 
-            if self.pf['pop_scatter_sfh'] > 0:
+            if (self.pf['pop_scatter_sfh'] > 0) or \
+               (self.pf['pop_scatter_sfr'] > 0) or \
+               (self.pf['pop_scatter_smhm'] > 0):
                 self._is_emissivity_scalable = False
                 return self._is_emissivity_scalable
 
@@ -1174,7 +1175,7 @@ class Population(object):
     def tab_sersic_n(self):
         return np.arange(0.3, 6.25, 0.05)
 
-    def get_sersic_rmax(self, frac, n):
+    def get_sersic_r_containing_lightfrac(self, frac, n):
         """
         Return the radius containing `frac` per-cent of the total surface
         brightness for a Sersic profile of index `n`.
@@ -1272,10 +1273,11 @@ class Population(object):
 
             pb = ProgressBar(z.size*len(E),
                 use=self.pf['progress_bar'] * use_pbar,
-                name=f"ehat(z,E;pop={self.id_num})")
+                name=f"ehat(z,{E.min():.2f}<E/eV<{E.max():.2f};pop={self.id_num})")
             pb.start()
 
             _waves = h_p * c * 1e8 / (E * erg_per_ev)
+
             # Provide E_user to be careful about bins lining up with Ly-a.
             bands, dfreq = get_rte_bands(z.max(), z.min(), nz=z.size,
                 Emin=E.min(), Emax=E.max(), E_user=E)
@@ -1295,7 +1297,7 @@ class Population(object):
 
                     # Convert from luminosity in erg to photons / s / Hz
                     epsilon[ll,jj] = _tot / H[ll] / (E[jj] * erg_per_ev)
-
+                    
             pb.finish()
 
         elif scalable:

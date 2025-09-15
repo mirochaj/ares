@@ -685,6 +685,14 @@ class HaloMassFunction(object):
         return 10**bin_c2e(logM)
 
     @cached_property
+    def tab_log10M_e(self):
+        return np.log10(self.tab_M_e)
+
+    @cached_property
+    def tab_log10M(self):
+        return np.log10(self.tab_M)
+
+    @cached_property
     def dlnm(self):
         lnM = np.log(self.tab_M)
         dlnM = np.diff(lnM)
@@ -720,6 +728,21 @@ class HaloMassFunction(object):
                 self._tab_dndlnm_sub = dndlnm
             else:
                 raise NotImplemented('Only know about Tinker & Wetzel sub-HMF.')
+
+        return self._tab_dndlnm_sub
+
+    @property
+    def tab_ngtm_sub(self):
+        if not hasattr(self, '_tab_dndlnm_sub'):
+            tab_dndlnm_sub = self.tab_dndlnm_sub
+            self._tab_dndlnm_sub = np.zeros([self.halos.tab_M.size]*2)
+
+            m = self.halos.tab_M
+            for i, Mc in enumerate(self.halos.tab_M):
+                dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,:] / Mc
+                self._tab_dndlnm_sub[i,:] = \
+                    cumulative_trapezoid(dndm[-1::-1] * m[-1::-1],
+                        x=-np.log(m[-1::-1]), initial=0)[-1::-1]
 
         return self._tab_dndlnm_sub
 
@@ -1353,6 +1376,11 @@ class HaloMassFunction(object):
         and collapse redshift.
 
         Equation 24 in Barkana & Loeb (2001).
+
+        Returns
+        -------
+        Virial radius in kpc (we eliminate little h here).
+
         """
 
         return (

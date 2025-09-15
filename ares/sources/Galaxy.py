@@ -109,10 +109,24 @@ class Galaxy(SynthesisModel):
                     sfr = 0
                 else:
                     pass
-        elif sfh == 'exp_rise':
+        elif sfh == 'exp_decl_quench':
             norm = kwargs['norm']
             tau = kwargs['tau']
-            sfr = norm * np.exp(-self.tH / tau) * np.exp(t / tau)
+            tq = kwargs['tq']
+
+            sfr = norm * np.exp(-t / tau)
+            if type(sfr) == np.ndarray:
+                sfr[t > tq] = 0
+            else:
+                if t > tq:
+                    sfr = 0
+                else:
+                    pass        
+        elif sfh == 'exp_rise':
+            #norm = kwargs['norm']
+            tau = kwargs['tau']
+            sfr = kwargs['norm'] * np.exp(-tobs / tau) * np.exp(t / tau)
+            
         elif sfh == 'const':
             norm = kwargs['norm']
             if 't0' in kwargs:
@@ -145,19 +159,55 @@ class Galaxy(SynthesisModel):
 
         ##
         # Null SFR for times after time of observation!
-        # Be careful: if time tobs provided is between grid points, we might
-        #
+        # Need to be careful here: we're actually going to keep the SFR
+        # one grid point beyond (lower than) tobs, so that later when 
+        # we interpolate  to tobs we'll get a non-zero value. This is
+        # important for validating that we get the right SFR out of our 
+        # optimization procedure. In short, it'd be easier to do 
+        # `sfr[t > tobs] = 0` but it'll screw things up one step down
+        # the road from here. 
+        # Note: `t` is descending, i.e., t[0] should be near the Hubble 
+        # time at z=0, t[-1] very high redshift.
+        if type(sfr) == np.ndarray:
+            sfr[t > tobs] = 0
+        else:
+            if t > tobs:
+                return 0 
+            else:
+                return sfr
+            
+        return sfr
+
         if type(sfr) == np.ndarray:
             k = np.argmin(np.abs(t - tobs))
 
-            # Ignore this is at edge of array (i.e., tobs=t since Big Bang)
+            #print('hey cmon', tobs, k, t[k], t.size, t[0], t[-1],  t.max())
+
+            # Ignore this if at edge of array (i.e., tobs=t since Big Bang)
+            # In this case there are no array elements that need nulling.
             if k == 0:
                 pass
-            elif t[k] < tobs:
-                k -= 1
+            # If this closest grid point to tobs is at later times than tobs
+            # we're OK and need not take any further action
+            elif tobs < t[k]:
+                pass
             else:
-                k -= 2
+                #assert tobs > t[k]
+                # If the closest grid point we found is still 
+                while k > 0:
+                    k -= 1
+
+                    if tobs < t[k]:
+                        break
+            #else:
+            #    k -= 2
+
+
+            #print('k after modification', k)
+
             sfr[t > t[k]] = 0
+            
+            
         else:
             if t > tobs:
                 sfr = 0
@@ -170,8 +220,9 @@ class Galaxy(SynthesisModel):
         """
         return 0.05 * np.log(1. + t / 1.4)
 
-    def get_kwargs(self, t, mass, sfr, disp=False, mtol=0.05, tau_guess=1e3,
-        sfh=None, mass_return=False, tarr=None, **kwargs):
+    def get_kwargs(self, t, mass, sfr, disp=False, mtol=0.01, tau_guess=1e3,
+        sfh=None, mass_return=False, tarr=None, xtol=0.01, ftol=0.01, 
+        direct_integration=False, past_ms=None, **kwargs):
         """
         Determine the free parameters of a model needed to produce stellar mass
         `mass` and star formation rate `sfr` at time `t` [since Big Bang / Myr].
@@ -198,8 +249,13 @@ class Galaxy(SynthesisModel):
                 / (10**logtau * (np.exp(t / 10**logtau) - 1.))
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
 
-            tau = 10**fmin(func, np.log10(tau_guess),
-                disp=disp, full_output=disp, ftol=0.01, xtol=0.001)[0]
+            best = fmin(func, np.log10(tau_guess),
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+            if disp:
+                best, fval, niter, neval, dunno = best
+
+            tau = 10**best[0]
 
             # Can analytically solve for normalization once tau in hand.
             norm = sfr / np.exp(-t / tau)
@@ -214,49 +270,41 @@ class Galaxy(SynthesisModel):
             ##
             # Refine if mass_return is on.
             if mass_return:
-                def func(pars):
-                    logA, logtau = pars
-                    sfr0 = self.get_sfr(t, t, norm=10**logA, tau=10**logtau,
-                        sfh=sfh, **kwargs)
-                    dSFR = np.log10(sfr0 / sfr)
 
-                    mhist = self.get_mass(tarr, t, norm=10**logA, tau=10**logtau,
-                        mass_return=True, sfh=sfh, **kwargs)
+                def _get_sfh(tt, pars):
+                    norm = 10**pars[0]
+                    tau = 10**pars[1]
+                    return norm * np.exp(-tt / tau)
+                
+                def _get_mass(pars):
+                    norm = 10**pars[0]
+                    tau = 10**pars[1]
+                    _mass = 1e6 * quad(lambda tt: _get_sfh(tt, pars) * (1 - self._get_freturn(t - tt)),
+                         0, t)[0]
+                    return _mass
+                
+                def _penalty(pars):
+                    norm = 10**pars[0]
+                    tau = 10**pars[1]
 
-                    if not np.all(np.diff(tarr) > 0):
-                        _mass = 10**np.interp(np.log10(t), np.log10(tarr[-1::-1]),
-                            np.log10(mhist[-1::-1]))
-                    else:
-                        _mass = 10**np.interp(np.log10(t), np.log10(tarr),
-                            np.log10(mhist))
-
+                    _mass = _get_mass(pars)
+                    _sfr = _get_sfh(t, pars)
+                    
                     dMst = np.log10(_mass / mass)
+                    dSFR = np.log10(_sfr / sfr)
 
                     return abs(dSFR) + abs(dMst)
 
-                best = fmin(func, [np.log10(norm), np.log10(tau)],
-                    disp=disp, full_output=disp, ftol=0.0001, xtol=0.0001)
+                best = fmin(_penalty, [np.log10(norm), np.log10(tau)],
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
+                if disp:
+                    best, fval, niter, neval, dunno = best
+                
                 norm, tau = 10**best
 
-                mhist = self.get_mass(tarr, t, norm=norm, tau=tau,
-                    mass_return=True, sfh=sfh, **kwargs)
-                shist = self.get_sfr(tarr, t, norm=norm, tau=tau,
-                    sfh=sfh, **kwargs)
-
-                if not np.all(np.diff(tarr) > 0):
-                    _mass = 10**np.interp(np.log10(t), np.log10(tarr[-1::-1]),
-                        np.log10(mhist[-1::-1]))
-                    _sfr = 10**np.interp(np.log10(t), np.log10(tarr[-1::-1]),
-                        np.log10(shist[-1::-1]))
-                else:
-                    _mass = 10**np.interp(np.log10(t), np.log10(tarr),
-                        np.log10(mhist))
-                    _sfr = 10**np.interp(np.log10(t), np.log10(tarr),
-                        np.log10(shist))
-
-
-
+                _mass = _get_mass(best)
+                _sfr = _get_sfh(t, best)
             ##
             # Save to dict
             kw = {'norm': norm, 'tau': tau, 'sfh': 'exp_decl'}
@@ -268,7 +316,7 @@ class Galaxy(SynthesisModel):
                 / (10**logtau * (np.exp(t / 10**logtau) - np.exp(t0 / 10**logtau)))
             func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
             tau = 10**fmin(func, np.log10(tau_guess),
-                disp=disp, full_output=disp, ftol=0.01, xtol=0.001)[0]
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)[0]
 
             # Can analytically solve for normalization once tau in hand.
             norm = sfr / np.exp(-t / tau)
@@ -304,7 +352,10 @@ class Galaxy(SynthesisModel):
                     return abs(dSFR) + abs(dMst)
 
                 best = fmin(func, [np.log10(norm), np.log10(tau)],
-                    disp=disp, full_output=disp, ftol=0.0001, xtol=0.0001)
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+                if disp:
+                    best, fval, niter, neval, dunno = best
 
                 norm, tau = 10**best
 
@@ -329,115 +380,188 @@ class Galaxy(SynthesisModel):
             kw['sfh'] = 'exp_decl_trunc'
             kw['t0'] = t0
 
-        elif sfh == 'exp_rise':
+        elif sfh == 'exp_decl_quench':
+            assert past_ms is not None, "Must provide `past_ms` for exp_decl_quench model!"
+            assert 'tq' in kwargs, "Must provide `tq` for exp_decl_quench model!"
+
+            tq = kwargs['tq']
+            # This is like doing a normal exp_decl model except we're hunting for a galaxy 
+            # on the main sequence at some time in the past, t_quench, rather than t_obs.
+            
+            # For first guess with no mass loss, can just assume mass now is mass then.
+            _sfr = np.interp(mass, past_ms[0], past_ms[1])
+            # Note: `sfr` will be None for this case
+
+            # Note `tq`` here instead of `t`
+            # This is just for a guess at tau remember, hence use of `mass`.
             f_sSFR = lambda logtau: 1e-6 \
-                / (10**logtau * (1 - np.exp(-t / 10**logtau)))
-            func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
-            tau = 10**fmin(func, np.log10(tau_guess),
-                disp=disp, full_output=disp, ftol=0.001, xtol=0.001)[0]
+                / (10**logtau * (np.exp(tq / 10**logtau) - 1.))
+            func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (_sfr / mass)))
+
+            best = fmin(func, np.log10(tau_guess),
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+            if disp:
+                best, fval, niter, neval, dunno = best
+
+            tau = 10**best[0]
 
             # Can analytically solve for normalization once tau in hand.
-            norm = sfr / np.exp(t / tau) / np.exp(-self.tH / tau)
+            norm = _sfr / np.exp(-t / tau)
 
-            _sfr = sfr
+            # Stellar mass = A * tau * (1 - e^(-t / tau))
+            # For rising history, mass = A * tau * (e^(t / tau) - 1)
+            _mass = 1e6 * norm * tau * (1 - np.exp(-t / tau))
 
-            _mass = 1e6 * norm * np.exp(-self.tH / tau) * \
-                tau * (np.exp(t / tau) - 1)
+            print('tau guess', tau)
+            print('norm', norm)
+            print('_sfr', _sfr)
+            print('_mass', _mass)
+            print('mass', mass)
 
             ##
             # Refine if mass_return is on.
             if mass_return:
-                def func(pars):
-                    logA, logtau = pars
-                    sfr0 = self.get_sfr(t, t, norm=10**logA, tau=10**logtau,
-                        sfh=sfh, **kwargs)
-                    dSFR = np.log10(sfr0 / sfr)
 
-                    mhist = self.get_mass(tarr, t, norm=10**logA, tau=10**logtau,
-                        mass_return=True, sfh=sfh, **kwargs)
+                # This is basically the same as the exp_decl history except we're 
+                # going to evaluate whether the past_ms=(mstell, SFR) jive with the main 
+                # sequence provided AND whether the present mass jives with what the user set 
 
-                    if not np.all(np.diff(tarr) > 0):
-                        _mass = 10**np.interp(np.log10(t), np.log10(tarr[-1::-1]),
-                            np.log10(mhist[-1::-1]))
-                    else:
-                        _mass = 10**np.interp(np.log10(t), np.log10(tarr),
-                            np.log10(mhist))
+                def _get_sfh(tt, pars):
+                    if tt > tq:
+                        return 0
+                    
+                    norm = 10**pars[0]
+                    tau = 10**pars[1]
+                    
+                    return norm * np.exp(-tt / tau)
+                
+                def _get_mass(pars, tobs):
+                    norm = 10**pars[0]
+                    tau = 10**pars[1]
+                    _mass = 1e6 * quad(lambda tt: _get_sfh(tt, pars) * (1 - self._get_freturn(tobs - tt)),
+                         0, tobs)[0]
+                    return _mass
+                
+                def _penalty(pars):
+                    norm = 10**pars[0]
+                    tau = 10**pars[1]
 
-                    dMst = np.log10(_mass / mass)
+                    _mass_now = _get_mass(pars, t)
+                    _mass_then = _get_mass(pars, tq)
+                    _sfr_then = _get_sfh(tq, pars)
+                    
+                    _mass_then_from_ms = np.interp(_sfr_then, past_ms[1], past_ms[0])
+                    _sfr_then_from_ms = np.interp(_mass_then, past_ms[0], past_ms[1])
+
+                    dMst = np.log10(_mass_now / mass) \
+                         + np.log10(_mass_then / _mass_then_from_ms)
+                    dSFR = np.log10(_sfr_then / _sfr_then_from_ms)
+
+                    #print(f'mass now v then: {_mass_now:.2e} v {_mass_then:.2e}')
+
+                    #print('hey', pars, np.log10(_mass_now / mass), np.log10(_mass_then / _mass_then_from_ms), dSFR)
 
                     return abs(dSFR) + abs(dMst)
 
-                ##
-                # Run minimization
-                best = fmin(func, [np.log10(norm), np.log10(tau)],
-                    disp=disp, full_output=disp, ftol=0.001, xtol=0.001)
+                best = fmin(_penalty, [np.log10(norm), np.log10(tau)],
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
+                if disp:
+                    best, fval, niter, neval, dunno = best
+                
                 norm, tau = 10**best
 
-                mhist = self.get_mass(tarr, t, norm=norm, tau=tau,
-                    mass_return=True, sfh=sfh, **kwargs)
-                shist = self.get_sfr(tarr, t, norm=norm, tau=tau,
-                    sfh=sfh, **kwargs)
+                # These are used to check for convergence
+                _mass = _get_mass(best, t)
+                _mass_then = _get_mass(best, tq)
 
-                if not np.all(np.diff(tarr) > 0):
-                    _mass = 10**np.interp(np.log10(t), np.log10(tarr[-1::-1]),
-                        np.log10(mhist[-1::-1]))
-                    _sfr = 10**np.interp(np.log10(t), np.log10(tarr[-1::-1]),
-                        np.log10(shist[-1::-1]))
-                else:
-                    _mass = 10**np.interp(np.log10(t), np.log10(tarr),
-                        np.log10(mhist))
-                    _sfr = 10**np.interp(np.log10(t), np.log10(tarr),
-                        np.log10(shist))
+                _sfr = _get_sfh(tq, best)
+                sfr = np.interp(_mass_then, past_ms[0], past_ms[1])
+            ##
+            # Save to dict
+            kw = {'norm': norm, 'tau': tau, 'sfh': 'exp_decl_quench', 'tq': tq}
 
+        elif sfh == 'exp_rise':
+            # In limit of no mass return, can analytically determine tau. 
+            # Usually we allow mass return in which case we'll use this as 
+            # an initial guess to the iterative solver.
+            f_sSFR = lambda logtau: 1e-6 \
+                / (10**logtau * (1 - np.exp(-t / 10**logtau)))
+            func = lambda logtau: np.abs(np.log10(f_sSFR(logtau) / (sfr / mass)))
+            tau = 10**fmin(func, np.log10(tau_guess),
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)[0]
 
-            # Fools get_sfr routine into doing an exponential rise!
-            kw['tau'] = tau
-            kw['norm'] = norm
-            kw['sfh'] = 'exp_rise'
-        elif sfh == 'const':
+            # Can analytically solve for normalization once tau in hand.
+            #norm = sfr / np.exp(t / tau) / np.exp(-tobs / tau)
+
+            _sfr = sfr
+
+            #_mass = 1e6 * norm * np.exp(-tobs / tau) * \
+            #    tau * (np.exp(t / tau) - 1)
+            _mass = tau * sfr
+
+            ##
+            # Refine if mass_return is on.
             if mass_return:
-                _kw = kwargs.copy()
-
-                # Means this is a fallback option
-                if 't0' in _kw:
-                    del _kw['t0']
-
-                def func(pars):
-                    logt0 = pars[0]
-                    mhist = self.get_mass(tarr, t, norm=sfr, t0=10**logt0,
-                        mass_return=True, sfh=sfh, **_kw)
-
-                    if not np.all(np.diff(tarr) > 0):
-                        _mass = 10**np.interp(np.log10(t), np.log10(tarr[-1::-1]),
-                            np.log10(mhist[-1::-1]))
-                    else:
-                        _mass = 10**np.interp(np.log10(t), np.log10(tarr),
-                            np.log10(mhist))
-
+                
+                def _get_mass(tau):
+                    _sfh = lambda tt: sfr * np.exp(-t / tau) * np.exp(tt / tau)
+                    _mass = 1e6 * quad(lambda tt: _sfh(tt) * (1 - self._get_freturn(t - tt)), 0, t)[0]
+                    return _mass 
+                
+                def _penalty(pars):
+                    tau = 10**pars[0]
+                    _mass = _get_mass(tau)
                     dMst = np.log10(_mass / mass)
-
+                     
+                    # No penalty for SFR -- guaranteed by construction.
                     return abs(dMst)
 
-                best = fmin(func, [np.log10(t*0.5)],
-                    disp=disp, full_output=disp, ftol=0.001, xtol=0.001)
+                #        
+                best = fmin(_penalty, [np.log10(tau)],
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+                tau = 10**best[0]
+                kw['tau'] = tau
+                _mass = _get_mass(tau)
+            
+            # Fools get_sfr routine into doing an exponential rise!
+            kw['tau'] = tau
+            kw['norm'] = sfr
+            
+            kw['sfh'] = 'exp_rise'
+        elif sfh == 'const':
+            # Not quite analytic due to mass return 
+            # but we'll use quad to avoid use of `tarr` which 
+            # can introduce numerical errors.
+            if mass_return:
+
+                # Can just do this at high precision numerically
+                # Remember: we're solving for t_0, i.e., when star 
+                # formation began
+                def func(pars):
+                    log10t0 = pars[0]
+                    t0 = 10**log10t0
+
+                    dt = t - t0
+
+                    _mass = sfr * 1e6 * quad(lambda tt: 1 - self._get_freturn(tt - t0), 
+                        t0, t)[0]
+
+                    dMst = np.log10(_mass / mass)
+#
+                    return abs(dMst)
+
+                best = fmin(func, [np.log10(0.5 * t)],
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
                 t0 = 10**best[0]
-
-                mhist = self.get_mass(tarr, t, norm=sfr, t0=t0,
-                    mass_return=True, sfh=sfh, **_kw)
-
-                if not np.all(np.diff(tarr) > 0):
-                    _mass = 10**np.interp(np.log10(t), np.log10(tarr[-1::-1]),
-                        np.log10(mhist[-1::-1]))
-                else:
-                    _mass = 10**np.interp(np.log10(t), np.log10(tarr),
-                        np.log10(mhist))
 
                 kw['norm'] = sfr
                 kw['t0'] = t0
                 kw['sfh'] = 'const'
                 kw['tau'] = np.inf
+
             else:
                 kw['norm'] = sfr
                 kw['tau'] = np.inf
@@ -468,7 +592,10 @@ class Galaxy(SynthesisModel):
                 return abs(dSFR) + abs(dMst)
 
             best = fmin(func, [1, np.log10(tau_guess)],
-                disp=disp, full_output=disp, ftol=0.01, xtol=0.01)
+                disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+            if best:
+                best, fval, niter, neval, dunno = best
 
             norm, tau = 10**best
 
@@ -505,7 +632,10 @@ class Galaxy(SynthesisModel):
                 ##
                 # Run minimization
                 best = fmin(func, [np.log10(norm), np.log10(tau)],
-                    disp=disp, full_output=disp, ftol=0.001, xtol=0.001)
+                    disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
+
+                if disp:
+                    best, fval, niter, neval, dunno = best
 
                 norm, tau = 10**best
 
@@ -533,13 +663,18 @@ class Galaxy(SynthesisModel):
         else:
             raise NotImplemented("help!")
 
+        # Just keep so we don't have to recompute later. 
+        kw['sfr_obs'] = _sfr 
+        kw['mass_obs'] = _mass
+        
         ##
-        # Check stellar mass -- if way above requested `mass`, then the
+        # Check stellar mass -- if way above/below requested `mass`, then the
         # requested history is inadequate. Switch to something else, potentially.
         merr = abs(np.log10(_mass / mass))
         serr = abs(np.log10(_sfr / sfr))
 
-        if (merr < mtol) and (serr < mtol):
+        if (merr <= mtol) and (serr <= mtol):
+            print(f"* Found acceptable solution with kw={kw}")
             return kw
 
         # If we're not allowing a fallback option in the event that this
@@ -553,28 +688,64 @@ class Galaxy(SynthesisModel):
 
             return kw
 
-        if kw['sfh'] != self.pf['source_sfh']:
-            #print("Double fail?")
-            #print(err, np.log10(_mass), np.log10(mass), sfr, kw)
-            #input('enter>')
-            sfh_fall = 'const'
-        else:
-            sfh_fall = self.pf['source_sfh_fallback']
+        low_or_high_m = 'low' if _mass < mass else 'high'
+        low_or_high_sfr = 'low' if _sfr < sfr else 'high'
+
+        if np.isnan(merr) or np.isnan(serr):
+
+            print("WARNING: NaN in mass and/or SFR ratio:")        
+            print(f"Mass requested: {mass:.3e}")
+            print(f"Mass recovered: {_mass:.3e}")
+
+            print(f"SFR requested: {sfr:.3e}")
+            print(f"SFR recovered: {_sfr:.3e}")
+
+            print(kw)
+            
         ##
         # If we're here, we're exploring fallback options.
-        print(f"Retrieved mass is off by {merr:.3f} relative to mtol.")
-        print(f"Let's try this again with sfh={sfh_fall}...")
-        kw = self.get_kwargs(t, mass, sfr, disp=disp, tau_guess=tau_guess,
+        print(f"! Summary of recoveries for sfh={sfh}: kw={kw}")
+        print(f"! Retrieved mass is {low_or_high_m} by {np.log10(_mass / mass):.5f} dex (mtol={mtol}).")
+        print(f"! Retrieved SFR  is {low_or_high_sfr} by {np.log10(_sfr / sfr):.5f} dex (stol={mtol}).")
+
+        # If we already tried our fallback option, try a constant SFR as a last resort.
+        # Should always work.
+        if (kw['sfh'] != self.pf['source_sfh']): 
+            if self.pf['source_fallback_last_resort']:
+                #print("Double fail?")
+                #print(err, np.log10(_mass), np.log10(mass), sfr, kw)
+                #input('enter>')
+                sfh_fall = 'const'
+            else:
+                print(f"Failing on sfh={kw['sfh']}, not allowing last resort try.")
+                return kw
+        else:
+            sfh_fall = self.pf['source_sfh_fallback']
+
+        print(f"! Let's try this again with sfh={sfh_fall}...")
+        kw = self.get_kwargs(t, mass, sfr, disp=disp, 
+            tau_guess=1,
             mtol=mtol, sfh=sfh_fall, mass_return=mass_return, tarr=tarr,
+            ftol=ftol, xtol=xtol,
             **kwargs)
 
         return kw
 
-    def get_mass(self, t, tobs, mass_return=False, **kwargs):
+    def get_mass(self, t, tobs, mass_return=False, direct_integration=0, **kwargs):
         """
         Return stellar mass for a given SFH model, integrate analytically
         when possible.
         """
+
+        if direct_integration:
+            if 't0' in kwargs:
+                t0 = kwargs['t0']
+            else:
+                t0 = 0
+                
+            sfr = lambda tt: self.get_sfr(tt, tobs, direct_integration=1, **kwargs)
+            #return np.array([quad(func, t0, tt) for tt in t])
+            return quad(lambda tt: sfr(tt) * (1 - self._get_freturn(tobs - tt)), t0, tobs)[0] * 1e6
 
         if 'sfh' in kwargs:
             sfh = kwargs['sfh']
@@ -636,7 +807,7 @@ class Galaxy(SynthesisModel):
             raise NotImplemented('help')
 
     def get_spec(self, zobs, t=None, sfh=None, mass=None, sfr=None, waves=None,
-        tau_guess=1e3, use_pbar=True, hist={}, units_out='erg/s/Hz', **kwargs):
+        tau_guess=1e3, use_pbar=True, hist={}, units_out='erg/s/Hz', tobs=None, **kwargs):
         """
         Return the rest-frame spectrum of a galaxy at observed redshift, `zobs`.
 
@@ -690,7 +861,7 @@ class Galaxy(SynthesisModel):
         # General case: synthesize SED
         if perform_synthesis:
             spec = self.synth.get_spec_rest(sfh=sfh_asc, tarr=tasc,
-                waves=waves, zobs=zobs, load=False, use_pbar=use_pbar,
+                waves=waves, zobs=zobs, tobs=tobs, load=False, use_pbar=use_pbar,
                 hist=hist, units_out=units_out)
             return spec
 
