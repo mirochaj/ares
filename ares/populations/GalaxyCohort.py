@@ -6181,10 +6181,14 @@ class GalaxyCohort(GalaxyAggregate):
         magbins = np.arange(10, 30, 0.5)
 
         # Pre-select galaxies for cross
-        cut_cam, cut_filt, cut_mag = galaxy_prop['mag']
-        _z_, cts_vs_z, cts_tot = self.get_number_counts(magbins,
-            xobs=8500, cam=cut_cam, filters=(cut_filt))
-
+        if 'mag' in galaxy_prop:
+            cut_cam, cut_filt, cut_mag = galaxy_prop['mag']
+            _z_, cts_vs_z, cts_tot = self.get_number_counts(magbins,
+                xobs=8500, cam=cut_cam, filters=(cut_filt))
+        if 'z' in galaxy_prop:
+            _zok = np.logical_and(zarr >= galaxy_prop['z'][0], zarr < galaxy_prop['z'][1])
+            zok = zok * _zok 
+            
         #cts = np.interp(zarr, _z_, cts_tot)
 
         for h, _scale_ in enumerate(scales):

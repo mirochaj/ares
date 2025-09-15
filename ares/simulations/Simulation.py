@@ -351,7 +351,7 @@ class Simulation(object):
         return scales, scales_inv, waves, ps
 
     def get_ebl_x_galaxies(self, scales, waves, galaxy_prop, wave_units='mic',
-        scale_units='ell', flux_units='SI', dimensionless=False, pops=None,
+        scale_units='ell', flux_units='SI', pops=None,
         include_inter_pop=True, **kwargs):
         """
         Compute cross spectrum between EBL and galaxy population.
@@ -417,8 +417,8 @@ class Simulation(object):
         # bandpasses instead of a set of wavelengths.
 
 
-        ps = np.zeros((len(self.pops), len(scales), len(waves)))
-        #px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
+        #ps = np.zeros((len(self.pops), len(scales), len(waves)))
+        px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
         # Save contributing pieces
 
         # [optonal] Save redshift chunks
@@ -435,7 +435,7 @@ class Simulation(object):
                     continue
 
             for k, wave in enumerate(waves):
-                ps[i,:,k] = pop.get_xs_obs(scales,
+                px[i,i,:,k] = pop.get_xs_obs(scales,
                     wave_obs=wave, galaxy_prop=galaxy_prop,
                     scale_units=scale_units, **kwargs)
 
@@ -443,7 +443,6 @@ class Simulation(object):
         # Modify PS units before return
         if flux_units.lower() == 'si':
             ps *= cm_per_m**2 / erg_per_s_per_nW
-
         else:
             raise NotImplemented()
 
