@@ -351,7 +351,7 @@ class HaloModel(HaloMassFunction):
             corr1 = 0.0
 
         if bias2 is not None:
-            corr2 = fcoll2 = 1
+            corr2 = fcoll2 = norm2 = 1
         elif (mmin2 is None) and (mmax2 is None) and (lum2 is None):
             fcoll2 = 1.#self.mgtm[iz,0] / rho_bar
             _integrand = dndlnm * weight * bias
@@ -412,7 +412,7 @@ class HaloModel(HaloMassFunction):
                 integral2 = bias2
                 corr2 = 0
             else:
-                integrand2 = dndlnm * focc2 * weight2 * p2 * b_h / norm2
+                integrand2 = dndlnm * focc2 * weight2 * p2 * bias #/ norm2
                 integral2 = np.trapz(integrand2[ok*ok2==1], x=np.log(self.tab_M[ok*ok2==1]),
                     axis=0)
 
@@ -420,7 +420,7 @@ class HaloModel(HaloMassFunction):
             return integral1 + corr1, integral2 + corr2
 
         else:
-            raise NotImplemented('dunno man')
+            raise NotImplementedError(f"Don't understand term={term}")
 
     def _prep_for_ps(self, z, k, prof1, prof2, ztol):
         """
@@ -471,7 +471,7 @@ class HaloModel(HaloMassFunction):
         iz, k, prof1, prof2 = self._prep_for_ps(z, k, prof1, prof2, ztol)
 
         integ1, none = self._get_ps_integrals(k, iz, prof1, prof2,
-            lum1, lum2, mmin1, mmin2, focc1, focc2, 1,
+            lum1, lum2, mmin1, mmin2, focc1, focc2, None, 1,
             mmax1, mmax2, weight_by_mass=weight_by_mass)
 
         return integ1
@@ -514,7 +514,7 @@ class HaloModel(HaloMassFunction):
         return ps
 
     def get_ps_shot(self, z, k=None, lum1=None, lum2=None, mmin1=None, mmin2=None,
-        mmax1=np.inf, mmax2=np.inf, focc1=1, focc2=1, ztol=1e-3,
+        mmax1=np.inf, mmax2=np.inf, focc1=1, focc2=1, dNdz=None, ztol=1e-3,
         weight_by_mass=True):
         """
         Compute the shot noise term quickly.
@@ -536,7 +536,10 @@ class HaloModel(HaloMassFunction):
         # (squared) divided by the cosmic mean density (squared)
         if lum1 is None:
             lum1 = self.tab_M / rho if weight_by_mass else 1
-        if lum2 is None:
+
+        if dNdz is not None:
+            lum2 = dNdz
+        elif lum2 is None:
             lum2 = self.tab_M / rho if weight_by_mass else 1
 
         dndlnm = self.tab_dndlnm[iz]

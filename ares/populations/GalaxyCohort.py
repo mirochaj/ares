@@ -6260,7 +6260,7 @@ class GalaxyCohort(GalaxyAggregate):
         """
         return 1. * k**0
 
-    def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=False,
+    def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=False, dNdz=None,
         nebular_only=False, ztol=1e-3):
         """
         Return shot noise term of halo power spectrum.
@@ -6292,9 +6292,14 @@ class GalaxyCohort(GalaxyAggregate):
         lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom',
             raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
             total_sat=self.is_central_pop)
-        lum2 = self.get_lum(z, x=wave2, band=band2, units='Angstrom',
-            raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
-            total_sat=self.is_central_pop)
+        
+        # Cross-shot in this case
+        if wave2 is None:
+            lum2 = None
+        else:
+            lum2 = self.get_lum(z, x=wave2, band=band2, units='Angstrom',
+                raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
+                total_sat=self.is_central_pop)
 
         if self.is_central_pop:
             focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
@@ -6303,9 +6308,11 @@ class GalaxyCohort(GalaxyAggregate):
             focc1 *= fnmask1
             focc2 *= fnmask2
 
+            # `dNdz` will override `lum2` if provided
             ps = self.halos.get_ps_shot(z, k=k,
                 lum1=lum1, lum2=lum2,
-                mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
+                mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, 
+                dNdz=dNdz, ztol=ztol)
         else:
             iz, k, _prof1_, _prof2_ = self.halos._prep_for_ps(z, k,
                 None, None, ztol)
@@ -6681,7 +6688,7 @@ class GalaxyCohort(GalaxyAggregate):
             integrand = np.zeros_like(zarr)
             for i, z in enumerate(zarr):
 
-                if not zok[i]:
+                if zok[i] == 0:
                     continue
 
                 # Pre-processing: compute bias and surface density of
@@ -6691,15 +6698,13 @@ class GalaxyCohort(GalaxyAggregate):
                 iz = np.argmin(np.abs(z - _z_))
                 dNdz = np.trapz(cts_vs_z[iz,magbins <= cut_mag],
                     x=magbins[magbins <= cut_mag])
-
+                
                 if dNdz == 0:
                     continue
 
                 integrand[i] = self._get_ps_obs(z, _scale_,
                     wave_obs, wave_obs2=None, cross_w_galaxies=(b_g, dNdz),
-                    #include_shot=include_shot,
-                    #include_1h=include_1h, include_2h=include_2h,
-                    scale_units=scale_units)#, #raw=raw,
+                    scale_units=scale_units, **kwargs)#, #raw=raw,
                     #nebular_only=nebular_only, #prof=prof)
 
                 if np.isnan(integrand[i]):
@@ -6849,6 +6854,8 @@ class GalaxyCohort(GalaxyAggregate):
         elif wave_obs2 is None:
             wave_obs2 = wave_obs1
             b_g = N_g = None
+        else:
+            b_g = N_g = None
 
         ##
         # Convert to Angstroms in rest frame. Determine emissivity.
@@ -6922,7 +6929,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         if include_shot:
             ps_shot = self.get_ps_shot(z, k, wave1=wave1, wave2=wave2,
-                raw=self.pf['pop_1h_nebular_only'],
+                raw=self.pf['pop_1h_nebular_only'], dNdz=N_g,
                 nebular_only=False)
             ps3d += ps_shot
 

@@ -481,8 +481,8 @@ class Simulation(object):
         # bandpasses instead of a set of wavelengths.
 
 
-        #ps = np.zeros((len(self.pops), len(scales), len(waves)))
-        px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
+        ps = np.zeros((len(self.pops), len(scales), len(waves)))
+        
         # Save contributing pieces
 
         # [optonal] Save redshift chunks
@@ -499,7 +499,7 @@ class Simulation(object):
                     continue
 
             for k, wave in enumerate(waves):
-                px[i,i,:,k] = pop.get_xs_obs(scales,
+                ps[i,:,k] = pop.get_xs_obs(scales,
                     wave_obs=wave, galaxy_prop=galaxy_prop,
                     scale_units=scale_units, **kwargs)
 
@@ -514,7 +514,7 @@ class Simulation(object):
         #    hist = self.history # poke
         #    self._history['ps_nirb_x_gal'] = scales, scales_inv, waves, ps
 
-        return scales, waves, ps
+        return scales, waves, ps.sum(axis=0), ps
 
 
     @property
