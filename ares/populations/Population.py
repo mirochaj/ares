@@ -1291,9 +1291,12 @@ class Population(object):
                     _band = tuple(bands[jj]) if E.size > 1 else None
 
                     # Put Hz^-1 back in by hand [since `band` integrates]
+                    #_tot = self.get_emissivity(z[ll], x=_waves[jj],
+                    #    units='Ang', units_out='erg/s/Hz',
+                    #    band=_band) / dfreq[jj]
                     _tot = self.get_emissivity(z[ll], x=_waves[jj],
                         units='Ang', units_out='erg/s/Hz',
-                        band=_band) / dfreq[jj]
+                        band=None) #/ dfreq[jj]
 
                     # Convert from luminosity in erg to photons / s / Hz
                     epsilon[ll,jj] = _tot / H[ll] / (E[jj] * erg_per_ev)
