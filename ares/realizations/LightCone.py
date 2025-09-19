@@ -1520,13 +1520,13 @@ class LightCone(object): # pragma: no cover
         ##
         # Start doing work.
         ct = 0
-        tracker = {0: np.zeros((len(zlayers), len(mlayers)), dtype=int),
-                   1: np.zeros((len(zlayers), len(mlayers)), dtype=int)}
+        tracker = {int(pid): np.zeros((len(zlayers), len(mlayers)), dtype=int) \
+            for pid in include_pops}
 
         Nlayers = len(zlayers) * len(mlayers)
-        tracker_flat = {0: [None] * Nlayers, 1: [None] * Nlayers}
-        tracker_flat[0][0] = 0
-        tracker_flat[1][0] = 0
+        tracker_flat = {int(pid): [None] * Nlayers for pid in include_pops}
+        for pid in include_pops:
+            tracker_flat[int(pid)][0] = 0
 
         ra = []
         dec = []
@@ -1537,6 +1537,8 @@ class LightCone(object): # pragma: no cover
 
             # Unpack info about this layer
             popid, channel, chname, zlayer, mlayer = layer
+
+            chan_mic = self.convert_chan_to_micron(channel, wave_units)
 
             # Just used for file naming
             field_names = ['ra', 'dec', 'z', channel]
@@ -1713,11 +1715,11 @@ class LightCone(object): # pragma: no cover
                             # erg/s/cm^2/Ang, but then integrated over channel.
                             # Will need channel width in Hz to recover specific
                             # intensities averaged over band.
-                            nu = c * 1e4 / np.mean(channel)
-                            dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
+                            nu = c * 1e4 / np.mean(chan_mic)
+                            dnu = c * 1e4 * (chan_mic[1] - chan_mic[0]) / np.mean(chan_mic)**2
 
                             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
-                                channel, pid)
+                                chan_mic, pid)
                             _dat *= self.get_map_norm(cat_units) / dnu
                         elif channel in ['Mh']:
                             _dat = _Mh
