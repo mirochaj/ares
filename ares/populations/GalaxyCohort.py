@@ -1326,8 +1326,8 @@ class GalaxyCohort(GalaxyAggregate):
                 # The `use_logL=False` setting means the LF returned 
                 # will be dn/dL, and the `bins` will 
                 # be L (as opposed to dn/dlog10L and log10L, with `use_logL=True`)
-                bins1, phi1 = self.get_lf(z1, x=x, use_mags=False, units=units,
-                    use_logL=False, band=band)
+                bins1, phi1 = self.get_lf(z1, x=x, use_mags=False, 
+                    units=units, use_logL=False, band=band)
                 
                 if np.all(phi1[phi1.mask==0] == 0):
                     rhoL1 = 0
@@ -1338,8 +1338,8 @@ class GalaxyCohort(GalaxyAggregate):
                 if z == z1:
                     return rhoL1
 
-                bins2, phi2 = self.get_lf(z2, x=x, use_mags=False, units=units,
-                    use_logL=False, band=band)
+                bins2, phi2 = self.get_lf(z2, x=x, use_mags=False, 
+                    units=units, use_logL=False, band=band)
 
                 if np.all(phi2[phi2.mask==0] == 0):
                     rhoL2 = 0
@@ -1373,6 +1373,22 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Need to be a little careful here.
             rhoL = 10**log10rhoL
+
+            ##
+            # DEBUGGING 
+            #import matplotlib.pyplot as plt 
+            #plt.figure(10)
+            #plt.loglog(bins1, phi1 * bins1**2)
+            #plt.loglog(bins2, phi2 * bins2**2)
+            #print(len(bins1), len(self.halos.tab_M))
+            #imin = np.argmin(np.abs(self.get_Mmin(z) - self.halos.tab_M))
+            #print(phi1[imin-10:imin+10])
+            #print(self.halos.tab_M[imin] / 1e8, bins1[imin:imin+25])
+            ##plt.loglog(bins1, phi1)
+            ##plt.loglog(bins2, phi2, ls='--')
+            #plt.plot([bins1[imin]]*2, [1e22, 1e27])
+            #input('<enter>')
+            #plt.close()
 
             return rhoL
 
@@ -2088,7 +2104,7 @@ class GalaxyCohort(GalaxyAggregate):
             # By default, we compute dn/dlnL.
             _lum_, dndlnL = self._get_lf_lum(z, x=x,
                 use_tabs=use_tabs,
-                units=units,
+                units=units, #dlam=dlam,
                 window=window, raw=raw, nebular_only=nebular_only, band=band)
                         
             # phi is dn/dlnL. Default is to return log10(L), but might need to convert to dn/dL
@@ -3054,7 +3070,7 @@ class GalaxyCohort(GalaxyAggregate):
         band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False,
         age=None, Mh=None, include_dust_transmission=True,
-        include_igm_transmission=True, total_sat=True):
+        include_igm_transmission=True, total_sat=False):
         """
         Return the luminosity of all halos at given redshift `z`.
 
@@ -3074,7 +3090,7 @@ class GalaxyCohort(GalaxyAggregate):
             function of central halo mass (total_sat=True) or the luminosity
             of satellites as a function of sub-halo mass. The former is used
             to compute 1-h and 2-h terms in power spectra, while the latter is
-            needed for shot noise.
+            needed for shot noise and luminosity functions.
 
         Returns
         -------
@@ -3772,7 +3788,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Recall: this is always the *median* luminosity vs. Mh
         # If scatter is provided, will handle below.
-        Lh = self.get_lum(z, x=x, use_tabs=use_tabs, window=window,
+        Lh = self.get_lum(z, x=x, use_tabs=use_tabs, window=window, 
             raw=raw, nebular_only=nebular_only, band=band, units=units,
             units_out='erg/s/Hz', total_sat=self.is_central_pop)
 
@@ -3806,11 +3822,15 @@ class GalaxyCohort(GalaxyAggregate):
             if self.is_central_pop:
                 dndm = dndm * focc
         else:
-            dndm_func = interp1d(self.halos.tab_z,
-                self.halos.tab_dndm[:,:],
-                axis=0, kind=self.pf['pop_interp_lf'])
+            if not hasattr(self, '_interp_dndm'):
+                if self.pf['halo_mf_interp'] is not None:
+                    self._interp_dndm = self.pf['halo_mf_interp']
+                else:
+                    self._interp_dndm = interp1d(self.halos.tab_z,
+                        self.halos.tab_dndm[:,:],
+                        axis=0, kind=self.pf['pop_interp_lf'])
 
-            dndm = dndm_func(z)
+            dndm = self._interp_dndm(z)
             focc = self.get_focc(z=z, Mh=self.halos.tab_M)
 
             if self.is_central_pop:
