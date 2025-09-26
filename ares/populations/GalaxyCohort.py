@@ -2022,10 +2022,15 @@ class GalaxyCohort(GalaxyAggregate):
             phi_of_x = np.interp(bins_abs, x_phi[ok==1][-1::-1][ix+1:],
                 phi[ok==1][-1::-1][ix+1:], left=0, right=0)
         except ValueError:
-            print(f"Getting 'array of samples points empty' error.")
-            print(bins_abs)
-            print(x_phi)
-            print(phi)
+            # This happens when `bins_abs` are all brighter than the `x_phi` values. 
+            # Usually this means our model doesn't produce any galaxies in the mag range 
+            # the user is requesting, e.g., poor fit to some dataset.
+            #print(f"Getting 'array of samples points empty' error.")
+            #print(z, type(bins_abs), type(x_phi), type(phi))
+            #print(x_phi[x_phi.mask==0].size, phi[phi.mask==0].size)
+            #print(bins_abs)
+            #print(x_phi)
+            #print(phi)
 
             return bins, tiny_phi * np.ones_like(bins)
 
