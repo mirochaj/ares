@@ -14,6 +14,8 @@ import os
 import gc
 import time
 import h5py
+import shutil
+import pickle
 import numpy as np
 from pathlib import Path
 from scipy.stats import truncnorm
@@ -1453,6 +1455,66 @@ class LightCone(object): # pragma: no cover
             cen_ok.append(1)
 
         return np.array(p_out, dtype=int), np.array(cen_ok)
+    
+    def check_metadata(self, fov):
+        """
+        Check that parameters being used are the same as previous checkpoints 
+        (if restart) or write files if running from scratch.
+        """
+
+        ##
+        # Convention is to save dictionary of ARES parameters in 
+        # the `model_name` subdirectory. Also, copies of SED tables.
+        
+        root_dir = f"{self.base_dir}/fov_{fov:.1f}/box_{self.Lbox:.0f}/dim_{self.dims:.0f}/{self.model_name}"
+
+        # First, parameters
+        is_restart = False
+        fn_pf = f"{root_dir}/params.pkl"
+        if os.path.exists(fn_pf):
+            with open(fn_pf, 'rb') as f:
+                pf_disk = pickle.load(f)
+        
+            assert pf_disk == self.kwargs
+            print(f"* Supplied parameters match `{fn_pf}`.")
+
+            is_restart = True
+        else:
+            with open(fn_pf, 'wb') as f:
+                pickle.dump(self.kwargs, f)
+
+            print(f"! Wrote {fn_pf}.")
+
+        # Second, check SED tables.
+        Npops_max = 10
+        for i in range(Npops_max):
+            par_sed = f'pop_lum_tab{{{i}}}'
+
+            if not par_sed in self.kwargs:
+                continue 
+
+            fn_sed_full = self.kwargs[par_sed]
+            fn_sed = self.kwargs[par_sed][fn_sed_full.rfind('/')+1:]
+
+            ## 
+            # If restart, make sure file contents are the same.
+            if is_restart:
+                orig = fn_sed_full
+                copy = f"{root_dir}/{fn_sed}"
+
+                fc = h5py.File(copy, 'r')
+                with h5py.File(orig, 'r') as f:
+                    for key in f:
+                        assert np.all(np.array(f[key]) == np.array(fc[key])), \
+                            f"Mismatch in {copy} (vs. {orig}) in dataset `{key}`!"
+
+                fc.close()
+                print(f"* Matching lookup tables for `{par_sed}`.")
+
+            else:
+                shutil.copy(fn_sed_full, f"{root_dir}/")
+                print(f"! Copied {fn_sed_full} to {root_dir}")
+
 
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
@@ -1479,6 +1541,10 @@ class LightCone(object): # pragma: no cover
         # Create root directory if it doesn't already exist.
         base_dir = self.get_output_dir(fov, pix,
             zlim=self.zlim, logmlim=logmlim)
+        
+        # Save parameters and key lookup tables or verify consistency with 
+        # `self.kwargs` if this is a re-start.
+        self.check_metadata(fov)
 
         # At least save halo mass since we get it for free.
         if (channels is None):
@@ -1742,7 +1808,7 @@ class LightCone(object): # pragma: no cover
                         else:
                             cam, filt = channel.split('_')
 
-                            raise NotImplemented('do we need to do this anymore?')
+                            #raise NotImplementedError(f'do we need to do this anymore? {cam} {filt}')
 
                             ##
                             # Once again, in general need to sub-cycle through z
@@ -2150,6 +2216,10 @@ class LightCone(object): # pragma: no cover
 
         # Create root directory if it doesn't already exist.
         self.build_directory_structure(fov, pix, dryrun=False)
+
+        # Save parameters and key lookup tables or verify consistency with 
+        # `self.kwargs` if this is a re-start.
+        self.check_metadata(fov)
 
         # Must do this after building the directory tree otherwise
         # we'll get errors.

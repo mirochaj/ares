@@ -218,7 +218,7 @@ class NbodySim(LightCone): # pragma: no cover
         ##
         # Possible to not get any hits
         if data is None:
-            return None, None, None, None
+            return None, None, None, None, None
 
         ##
         # Return transpose, so users can run, e.g.,
@@ -227,6 +227,6 @@ class NbodySim(LightCone): # pragma: no cover
         _x_, _y_, _z_, _m_ = data.T
 
         # MiceCAT uses h=0.7
-        data = np.array([_x_, _y_, _z_, 10**_m_ / 0.7])
-
-        return data
+        #data = np.array([_x_, _y_, _z_, 10**_m_ / 0.7])
+        #return data
+        return _x_, _y_, _z_, 10**_m_ / 0.7, None
