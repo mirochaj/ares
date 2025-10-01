@@ -6,7 +6,6 @@ from types import FunctionType
 from ..util import ParameterFile
 from .Global21cm import Global21cm
 from .PowerSpectrum21cm import PowerSpectrum21cm
-from .MetaGalacticBackground import MetaGalacticBackground
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
     erg_per_s_per_nW, h_p, cm_per_m
 
@@ -21,7 +20,7 @@ class Simulation(object):
         self.kwargs = kwargs
 
         if pf is None:
-            self.pf = ParameterFile(**kwargs)
+            self.pf = ParameterFile(is_sim_level=True, **kwargs)
         else:
             self.pf = pf
 
@@ -76,7 +75,6 @@ class Simulation(object):
     @property
     def mean_intensity(self):
         if not hasattr(self, '_mean_intensity'):
-            #self._mean_intensity = MetaGalacticBackground(**self.pf)
             self._mean_intensity = self.sim_gs.medium.field
         return self._mean_intensity
 

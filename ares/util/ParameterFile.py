@@ -61,7 +61,7 @@ def pop_id_num(par):
 
     # Spare us from using re.search if we can.
     if not (par.startswith('pop') or par.startswith('pq') or par.startswith('source')):
-        return par, None
+        return None, None
 
     # Look for integers within curly braces
     m = re.search(r"\{([0-9])\}", par)
@@ -77,6 +77,19 @@ def pop_id_num(par):
     prefix = par.replace(m.group(0), '')
 
     return prefix, int(m.group(1))
+
+def get_pars_for_pop(num, strip_id=0, **kwargs):
+    out = {}
+    for par in kwargs:
+        if f"{{{num}}}" not in par:
+            continue
+        
+        if strip_id:
+            out[par.rstrip(f"{{{num}}}")] = kwargs[par]
+        else:
+            out[par] = kwargs[par]
+
+    return out 
 
 def par_info(par):
     """
@@ -104,16 +117,36 @@ def count_populations(**kwargs):
     """
     Count the number of populations to be used for this calculation.
     """
-    # Count populations
+
+    any_curly_brackets = 0
+    any_missing_IDs = 0
     popIDs = [0]
     for par in kwargs:
 
         prefix, num = pop_id_num(par)
-        if num is None:
+
+        # Not a population parameter. Move on.
+        if prefix is None:
             continue
+        
+        # Population parameter without ID. Allowed, but we need to 
+        # make sure the user didn't provide some without ID numbers and 
+        # some parameters with.
+        if (num is None):
+            num = 0
+            any_missing_IDs += 1
+            assert not any_curly_brackets
+        else:
+            any_curly_brackets = 1
 
         if num not in popIDs:
             popIDs.append(num)
+
+    # Final check that there either (i) weren't any curly brackets or (ii) 
+    # there were, but some parameters didn't have an ID.
+    if any_curly_brackets:
+        assert len(popIDs) == 1
+        assert not any_missing_IDs
 
     return len(popIDs)
 
@@ -156,6 +189,7 @@ def identify_pqs(**kwargs):
     """
 
     Npops = count_populations(**kwargs)
+
     phps = [[] for i in range(Npops)]
 
     for par in kwargs:
@@ -218,7 +252,7 @@ def get_pq_pars(par, pf):
             continue
 
         # This is to prevent unset PQ parameters from causing
-        if not re.search('\[{}\]'.format(phpid), key):
+        if not re.search(r'\[{}\]'.format(phpid), key):
 
             if (pf.Npqs == 1):
                 # In this case, the default for this parameter will
@@ -275,7 +309,7 @@ for key in defaults:
     defaults_pop_indep[key] = defaults[key]
 
 class ParameterFile(dict):
-    def __init__(self, **kwargs):
+    def __init__(self, is_sim_level=True, **kwargs):
         """
         Build parameter file instance.
         """
@@ -283,30 +317,14 @@ class ParameterFile(dict):
         # Keep user-supplied kwargs as attribute
         self._kwargs = kwargs.copy()
 
-        #print len(kwargs), len(defaults)
-        #if len(kwargs) < 0.5 * len(defaults):
-        #    for par in self._kwargs:
-        #        if par not in _cosmo_params:
-        #            continue
-        #
-        #        if self._kwargs[par] == _cosmo_params[par]:
-        #            continue
-        #
-        #        print "WARNING: {!s} is cosmological parameter.".format(par)
-        #        print "       : Must update initial conditions and HMF tables!"
+        print('hello from PF __init__', kwargs)
 
         # Fix up everything
-        self._parse(**kwargs)
-
-        # Check for stuff that'll break...stuff
-        if self['debug']:
-            self._check_for_conflicts(**kwargs)
-
-            #if self.orphans:
-            #    if (rank == 0) and self['verbose']:
-            #        for key in self.orphans:
-            #            print("WARNING: {!s} is an `orphan` parameter.".format(\
-            #                key))
+        if is_sim_level:
+            self._parse(**kwargs)
+        else:
+            for key in kwargs:
+                self[key] = kwargs[key]
 
     @property
     def Npops(self):
@@ -340,15 +358,8 @@ class ParameterFile(dict):
 
     def _parse(self, **kw):
         """
-        Parse kwargs dictionary.
-
-        There has to be a better way...
-
-        If Npops == 1, the master dictionary should *not* have any parameters
-        with curly braces.
-        If Npops > 1, all population-specific parameters *must* be associated
-        with a population, i.e., have curly braces in the name.
-
+        Construct main parameter file in addition to separate parameter files 
+        for each source population.
         """
 
         # Change underscores to brackets in parameter names
@@ -363,144 +374,135 @@ class ParameterFile(dict):
         # Up until this point, just kwargs passed in by the user.
         ##
 
-        pf_base = {}  # Temporary master parameter file
-                      # Should have no {}'s
+        # This is defaults for all non-population-specific parameters.
+        pf_base = defaults_pop_indep.copy()
 
-        pf_base.update(defaults)
+        #pf_base.update(defaults)
 
-        self.pf_base = pf_base.copy()
+        #self.pf_base = pf_base.copy()
 
-        # For single-population calculations, we're done for the moment
-        if self.Npops == 1:
-            has_brackets = check_for_brackets(kwargs)
-
-            if has_brackets:
-                s = "For single population models, must eliminate ID numbers"
-                s += " from parameter names!"
-                raise ValueError(s)
-
-            pfs_by_pop = self.update_pq_pars([pf_base], **kwargs)
-            pfs_by_pop[0].update(kwargs)
-
-            self.pfs = pfs_by_pop
-
-        # Otherwise, we need to go through and make separate dictionaries
-        # for each population
-        else:
-            for par in kwargs:
-                if par in defaults_pop_indep:
+        ##
+        # Loop over parameters passed in by user and update `pf_base`
+        # Focus first on population-agnostic parameters and 
+        for par in kwargs:
+            if par in defaults_pop_indep:
+                pf_base[par] = kwargs[par]
+            else:
+                # This is exclusively to handle the case where
+                # we have a PQ that's NOT attached to a population.
+                prefix, popid, pqpid = par_info(par)
+                if (pqpid is not None) and (popid is None):
                     pf_base[par] = kwargs[par]
-                else:
+        
+        # We now have a parameter file containing all non-pop-specific
+        # parameters, which we can use as a base for all pop-specific
+        # parameter files. 
+        pfs_by_pop = []
+        for i in range(self.Npops):
+            # Start each pop with the base parameter file
+            pf_pop = pf_base.copy()
+            # Update with defaults for populations
+            pf_pop.update(defaults_pop_dep.copy())
+            # Update parameter dict with user-supplied parameters for this pop
+            kw_i = get_pars_for_pop(i, strip_id=1, **kwargs)
 
-                    # This is exclusively to handle the case where
-                    # we have a PQ that's NOT attached to a population.
-                    prefix, popid, phpid = par_info(par)
+            if kw_i == {} and self.Npops == 1:
+                kw_i = kwargs.copy()
 
-                    if (phpid is not None) and (popid is None):
-                        pf_base[par] = kwargs[par]
+            pf_pop.update(kw_i)
 
-            # We now have a parameter file containing all non-pop-specific
-            # parameters, which we can use as a base for all pop-specific
-            # parameter files.
-            pfs_by_pop = [ParameterFile(**pf_base.copy()) \
-                for i in range(self.Npops)]
+            # Store in master list and move on.
+            pfs_by_pop.append(ParameterFile(is_sim_level=False, **pf_pop))
 
-            pfs_by_pop = self.update_pq_pars(pfs_by_pop, **kwargs)
+        #
+        pfs_by_pop = self.update_pq_pars(pfs_by_pop, **kwargs)
 
-            # Some pops are linked together: keep track of them, apply
-            # fixes at the end.
-            linked_pars = []
-
-            # Add population-specific changes
-            for par in kwargs:
-
-                # See if this parameter belongs to a particular population
-                # We DON'T care at this stage about []'s
-                #prefix, popid, phpid = par_info(par)
-                prefix, popid = pop_id_num(par)
-
-                if (popid is None):
-                    # We already handled non-pop-specific parameters
-                    continue
-
-                # If we're here, it means this parameter has a population
-                # or source tag (i.e., an ID number in {}'s or _'s)
-
-                # See if this parameter is linked to another population
-                # OR another parameter within the same population.
-                # The latter only occurs for PHPs.
-                if isinstance(kwargs[par], str):
-                    prefix_link, popid_link, phpid_link = par_info(kwargs[par])
-                    if (popid_link is None) and (phpid_link is None):
-                        # Move-on: nothing to see here
-                        # Just a parameter that can be a string
-                        pass
-
-                    if (phpid_link is None):
-                        pass
-                    # In this case, might have some intra-population link-age
-                    elif kwargs[par] == 'pq[{}]'.format(phpid_link):
-                        # This is the only false alarm I think
-                        prefix_link, popid_link, phpid_link = None, None, None
-                else:
-                    prefix_link, popid_link, phpid_link = None, None, None
-
-                # If it is linked, we'll handle it in just a sec
-                if (popid_link is not None) or (phpid_link is not None):
-                    linked_pars.append(par)
-                    continue
-
-                # Otherwise, save it
-                pfs_by_pop[popid][prefix] = kwargs[par]
-
-            # Update linked parameters
-            for par in linked_pars:
-
-                # Grab info for linker and linkee
-
-                # Info for the parameter whose value is linked to another
-                prefix, popid, phpid = par_info(par)
-
-                # Parameter whose value were taking
+        # Some pops are linked together: keep track of them, apply
+        # fixes at the end.
+        linked_pars = []
+        # Add population-specific changes
+        for par in kwargs:
+            # See if this parameter belongs to a particular population
+            # We DON'T care at this stage about []'s
+            #prefix, popid, phpid = par_info(par)
+            prefix, popid = pop_id_num(par)
+            if (popid is None):
+                # We already handled non-pop-specific parameters
+                continue
+            # If we're here, it means this parameter has a population
+            # or source tag (i.e., an ID number in {}'s or _'s)
+            # See if this parameter is linked to another population
+            # OR another parameter within the same population.
+            # The latter only occurs for PHPs.
+            if isinstance(kwargs[par], str):
                 prefix_link, popid_link, phpid_link = par_info(kwargs[par])
+                if (popid_link is None) and (phpid_link is None):
+                    # Move-on: nothing to see here
+                    # Just a parameter that can be a string
+                    pass
+                if (phpid_link is None):
+                    pass
+                # In this case, might have some intra-population link-age
+                elif kwargs[par] == 'pq[{}]'.format(phpid_link):
+                    # This is the only false alarm I think
+                    prefix_link, popid_link, phpid_link = None, None, None
+            else:
+                prefix_link, popid_link, phpid_link = None, None, None
+            # If it is linked, we'll handle it in just a sec
+            if (popid_link is not None) or (phpid_link is not None):
+                linked_pars.append(par)
+                continue
+            # Otherwise, save it
+            pfs_by_pop[popid][prefix] = kwargs[par]
+        
+        # Update linked parameters
+        for par in linked_pars:
+            # Grab info for linker and linkee
+            # Info for the parameter whose value is linked to another
+            prefix, popid, phpid = par_info(par)
+            # Parameter whose value were taking
+            prefix_link, popid_link, phpid_link = par_info(kwargs[par])
+            # Account for the fact that the parameter name might have []'s
+            if phpid is None:
+                name = prefix
+            else:
+                name = '{0!s}[{1}]'.format(prefix, phpid)
+            if phpid_link is None:
+                name_link = prefix_link
+            else:
+                name_link = '{0!s}[{1}]'.format(prefix_link, phpid_link)
+            # If we didn't supply this parameter for the linked population,
+            # assume default parameter value
+            if name_link not in pfs_by_pop[popid_link]:
+                val = defaults[prefix_link]
+            else:
+                val = pfs_by_pop[popid_link][name_link]
+            pfs_by_pop[popid][name] = val
+        
+        # Save as attribute
+        self.pfs = pfs_by_pop
 
-                # Account for the fact that the parameter name might have []'s
-                if phpid is None:
-                    name = prefix
-                else:
-                    name = '{0!s}[{1}]'.format(prefix, phpid)
-
-                if phpid_link is None:
-                    name_link = prefix_link
-                else:
-                    name_link = '{0!s}[{1}]'.format(prefix_link, phpid_link)
-
-                # If we didn't supply this parameter for the linked population,
-                # assume default parameter value
-                if name_link not in pfs_by_pop[popid_link]:
-                    val = defaults[prefix_link]
-                else:
-                    val = pfs_by_pop[popid_link][name_link]
-
-                pfs_by_pop[popid][name] = val
-
-            # Save as attribute
-            self.pfs = pfs_by_pop
+        if self.Npops == 0:
+            for key in pf_base:
+                self[key] = pf_base[key]
+            
+            return
 
         # Master parameter file
         # Only tag ID number to pop or source parameters
-        for i, poppf in enumerate(self.pfs):
+        for i, pop_pf in enumerate(self.pfs):
 
             # Loop over all population parameters and add them to the
-            # master parameter file with their {ID}.
-            for key in poppf:
+            # master parameter file with their {ID} UNLESS it's a single 
+            # source population, in which case {}'s get left out.
+            for key in pop_pf:
 
                 # Remember, `key` won't have any {}'s
 
-                if self.Npops > 1 and key in defaults_pop_dep:
-                    self['{0!s}{{{1}}}'.format(key, i)] = poppf[key]
+                if (key in defaults_pop_dep) and self.Npops > 1:
+                    self[f'{key}{{{i}}}'] = pop_pf[key]
                 else:
-                    self[key] = poppf[key]
+                    self[key] = pop_pf[key]
 
         # Distribute 'master' parameters.
 
@@ -574,7 +576,7 @@ class ParameterFile(dict):
             if par in old_pars:
                 continue
 
-            if re.search('\[', par):
+            if re.search(r'[', par):
                 continue
 
             if verbose:

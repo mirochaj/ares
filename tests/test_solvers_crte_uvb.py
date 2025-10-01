@@ -19,41 +19,39 @@ alpha = 0.
 
 pars = \
 {
- 'pop_sfr_model': 'sfrd-func',
- 'pop_sfrd': lambda z: 0.1 * (1. + z)**beta,  # for analytic solution to work this must be const
- 'pop_sfrd_units': 'msun/yr/mpc^3',
- 'pop_sed': 'pl',
- 'pop_alpha': alpha,
- 'pop_fesc': 1,
- 'pop_Emin': 1.,
- 'pop_Emax': 1e2,
- 'pop_EminNorm': 13.6,
- 'pop_EmaxNorm': 1e2,
- 'pop_rad_yield': 1e57,
- 'pop_rad_yield_units': 'photons/msun',
+ 'pop_sfr_model{0}': 'sfrd-func',
+ 'pop_sfrd{0}': lambda z: 0.1 * (1. + z)**beta,  # for analytic solution to work this must be const
+ 'pop_sfrd_units{0}': 'msun/yr/mpc^3',
+ 'pop_sed{0}': 'pl',
+ 'pop_alpha{0}': alpha,
+ 'pop_fesc{0}': 1,
+ 'pop_Emin{0}': 1.,
+ 'pop_Emax{0}': 1e2,
+ 'pop_EminNorm{0}': 13.6,
+ 'pop_EmaxNorm{0}': 1e2,
+ 'pop_rad_yield{0}': 1e57,
+ 'pop_rad_yield_units{0}': 'photons/msun',
 
  # Solution method
  "lya_nmax": 8,
- 'pop_solve_rte': True,
+ 'pop_solve_rte{0}': True,
  'tau_redshift_bins': 400,
 
  'initial_redshift': 40.,
  'final_redshift': 10.,
 }
 
+#tol = 1e-2
 def test(tol=1e-2):
 
     # First calculation: no sawtooth
-    mgb = ares.simulations.MetaGalacticBackground(**pars)
+    sim = ares.simulations.Simulation(**pars)
+    mgb = sim.mean_intensity
     mgb.run()
-
     z, E, flux = mgb.get_history(flatten=True)
-
     Jnu = flux[0] * E * erg_per_ev
-
     # Grab GalaxyPopulation
     pop = mgb.pops[0]
-
     # Cosmologically-limited solution to the RTE
     # [Equation A1 in Mirocha (2014)]
     zi, zf = 40., 10.
@@ -67,25 +65,19 @@ def test(tol=1e-2):
     # Compare to analytic solution
     flux_anl = e_nu
     flux_num = flux[0] * E * erg_per_ev
-
     diff = np.abs(flux_anl - flux_num) / flux_anl
-
     assert diff[0] < tol, \
         f"Relative error between analytical and numerical solutions ({diff[0]}) exceeds {tol}."
-
-
     k = np.argmin(np.abs(E - E_LyA))
     Ja = flux[:,k] * E[k] * erg_per_ev
     Ja_anl = e_nu[k]
-
     # Compare to case where line cascade is included
-    mgb = ares.simulations.MetaGalacticBackground(**pars)
-    mgb.run()
-
-    z, E, flux = mgb.get_history(flatten=True)
-
+    sim2 = ares.simulations.Simulation(**pars)
+    mgb2 = sim2.mean_intensity
+    mgb2.run()
+    z, E, flux = mgb2.get_history(flatten=True)
     Jnu_cas = flux[:,k] * E[k] * erg_per_ev
-
-
+    
+    
 if __name__ == '__main__':
     test()

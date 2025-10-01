@@ -39,7 +39,7 @@ class MultiPhaseMedium(object):
         if pf is None:
             assert kwargs is not None, \
                 "Must provide parameters to initialize a Simulation!"
-            self.pf = ParameterFile(**kwargs)
+            self.pf = ParameterFile(is_sim_level=True, **kwargs)
         else:
             self.pf = pf
 
