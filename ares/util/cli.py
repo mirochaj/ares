@@ -958,8 +958,8 @@ def download_files(args):
     # figure out what to download
     if args.dataset.lower() == "all":
         dsets = available_dsets
-    elif args.dataset.lower() in datasets:
-        dsets = datasets[args.dataset.lower()]
+    elif args.dataset.lower() in available_dsets:
+        dsets = available_dsets[args.dataset.lower()]
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "

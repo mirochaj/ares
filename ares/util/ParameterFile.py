@@ -79,6 +79,11 @@ def pop_id_num(par):
     return prefix, int(m.group(1))
 
 def get_pars_for_pop(num, strip_id=0, **kwargs):
+    """
+    Given a full set of parameters via `kwargs`, pluck out those that describe
+    population `num`. The keyword argument `strip_id` can be used to remove the
+    population ID number (`strip_id=1`).
+    """
     out = {}
     for par in kwargs:
         if f"{{{num}}}" not in par:
@@ -145,7 +150,7 @@ def count_populations(**kwargs):
     # Final check that there either (i) weren't any curly brackets or (ii) 
     # there were, but some parameters didn't have an ID.
     if any_curly_brackets:
-        assert len(popIDs) == 1
+        #assert len(popIDs) == 1
         assert not any_missing_IDs
 
     return len(popIDs)
@@ -178,7 +183,7 @@ def count_properties(**kwargs):
 
 def identify_pqs(**kwargs):
     """
-    Count the number of parameterized halo properties in this model.
+    Count the number of ParameterizedQuantity parameters in this model.
 
     Sort them by population ID #.
 
@@ -292,7 +297,7 @@ defaults = SetAllDefaults()
 
 # Defaults w/o all parameters that are population-specific
 # This is to-be-used in reconstructing a master parameter file
-pops_need = 'pop_', 'source_'
+pops_need = 'pop_', 'source_', 
 defaults_pop_dep = {}
 defaults_pop_indep = {}
 for key in defaults:
@@ -312,12 +317,39 @@ class ParameterFile(dict):
     def __init__(self, is_sim_level=True, **kwargs):
         """
         Build parameter file instance.
+
+        This is kind of complicated, but really only a few things happening here:
+            1. Make sure each parameter file gets a full set of defaults before 
+               updating with user's settings (supplied via `kwargs`).
+            2. Make separate parameter file instances for each population that 
+               carry both that population's parameters as well as the full set of 
+               other parameters needed (to later initialize a single population 
+               model, for example).
+            3. Make sure that ParameterizedQuantity parameters also are initialized
+               first with a set of defaults. This is really just taking the defaults 
+               and giving them the appropriate ID number.
+
+        Parameters
+        ----------
+        is_sim_level : bool
+            This parameter exists to avoid an infinite recursion error. When 
+            initializing a parameter file for an ares.simulations.Simulation, 
+            we also create parameter files for each individual source population 
+            by recursively calling this class. For those calls, we set this 
+            parameter to False to avoid re-parsing the user's inputs.
+        kwargs : dict
+            Parameters defining the simulation settings and source properties.
+
+        Returns
+        -------
+        Nothing returned -- resulting ParameterFile object can be used like a 
+        dictionary. Also the `pfs` attribute is initialized, which is a list 
+        containing a separate ParameterFile instance for each population.
+
         """
 
         # Keep user-supplied kwargs as attribute
         self._kwargs = kwargs.copy()
-
-        print('hello from PF __init__', kwargs)
 
         # Fix up everything
         if is_sim_level:
@@ -355,6 +387,22 @@ class ParameterFile(dict):
         if not hasattr(self, '_pqs'):
             tmp = self.Npqs
         return self._pqs
+    
+    def get_pq_pars(self, pq):
+        """
+        Return all the "sub" parameters for a given ParameterizedQuantity.
+
+        For example, `get_pq_pars('pop_fstar{0}')` will yield a dictinonary containing
+        all the parameters that describe pop_fstar, if indeed it is a 
+        ParameterizedQuantity.
+        """
+        return get_pq_pars(pq, self)
+    
+    def get_pars_for_pop(self, num, strip_id=0, kwargs=None):
+        if kwargs is not None:
+            return get_pars_for_pop(num, strip_id=strip_id, **kwargs)
+        else:
+            return get_pars_for_pop(num, strip_id=strip_id, **self)
 
     def _parse(self, **kw):
         """
@@ -362,7 +410,8 @@ class ParameterFile(dict):
         for each source population.
         """
 
-        # Change underscores to brackets in parameter names
+        # Change underscores (enclosing integers) to brackets in parameter names
+        # May deprecate this eventually, not clear that anybody uses this.
         kw = bracketify(**kw)
 
         # Add in user-supplied kwargs
@@ -375,15 +424,14 @@ class ParameterFile(dict):
         ##
 
         # This is defaults for all non-population-specific parameters.
+        # Build from here
         pf_base = defaults_pop_indep.copy()
-
-        #pf_base.update(defaults)
-
-        #self.pf_base = pf_base.copy()
 
         ##
         # Loop over parameters passed in by user and update `pf_base`
-        # Focus first on population-agnostic parameters and 
+        # Focus first on population-agnostic parameters and parameterized 
+        # quantities that aren't associated with a population (e.g., exotic 
+        # cooling, radiation background, etc.)
         for par in kwargs:
             if par in defaults_pop_indep:
                 pf_base[par] = kwargs[par]
@@ -391,7 +439,8 @@ class ParameterFile(dict):
                 # This is exclusively to handle the case where
                 # we have a PQ that's NOT attached to a population.
                 prefix, popid, pqpid = par_info(par)
-                if (pqpid is not None) and (popid is None):
+                if (pqpid is not None) and (popid is None) and \
+                    (not prefix.startswith('pop')):
                     pf_base[par] = kwargs[par]
         
         # We now have a parameter file containing all non-pop-specific
@@ -402,20 +451,28 @@ class ParameterFile(dict):
             # Start each pop with the base parameter file
             pf_pop = pf_base.copy()
             # Update with defaults for populations
-            pf_pop.update(defaults_pop_dep.copy())
+            pf_pop_def = defaults_pop_dep.copy()
+
+            # Create defaults for all PQs here?
+            pf_pop.update(pf_pop_def)
+
             # Update parameter dict with user-supplied parameters for this pop
             kw_i = get_pars_for_pop(i, strip_id=1, **kwargs)
 
+            # For single pop models, there may not be ID numbers. That's OK.
+            # In this case, just update with all kwargs.
             if kw_i == {} and self.Npops == 1:
                 kw_i = kwargs.copy()
 
             pf_pop.update(kw_i)
 
             # Store in master list and move on.
+            # Setting is_sim_level=False avoids re-doing all this parsing 
+            # (and getting an infinite recursion error).
             pfs_by_pop.append(ParameterFile(is_sim_level=False, **pf_pop))
 
         #
-        pfs_by_pop = self.update_pq_pars(pfs_by_pop, **kwargs)
+        #pfs_by_pop = self._update_pq_par_defaults(pfs_by_pop, **kwargs)
 
         # Some pops are linked together: keep track of them, apply
         # fixes at the end.
@@ -477,6 +534,7 @@ class ParameterFile(dict):
                 val = defaults[prefix_link]
             else:
                 val = pfs_by_pop[popid_link][name_link]
+
             pfs_by_pop[popid][name] = val
         
         # Save as attribute
@@ -506,22 +564,26 @@ class ParameterFile(dict):
 
         # Distribute 'master' parameters.
 
-    def update_pq_pars(self, pfs_by_pop, **kwargs):
-        # In a given population, there may be 1+ parameterized halo
-        # properties ('phps') denoted by []'s. We need to update the
-        # defaults to have these square brackets!
-        phps = identify_pqs(**kwargs)
-        php_defs = ParameterizedQuantityParameters()
+    def _update_pq_par_defaults(self, pfs_by_pop, **kwargs):
+        """
+        In a given population, there may be 1+ ParameterizedQuantity parameters 
+        denoted by []'s. We need to update the defaults to have these square brackets!
+        """
+
+        # This is a list, one element per population, containing 
+        # sub-lists of the PQ ID numbers for each population. 
+        pqs = identify_pqs(**kwargs)
+        pq_defs = ParameterizedQuantityParameters()
 
         # Need to do this even for single population runs
         for i, pf in enumerate(pfs_by_pop):
-            if len(phps[i]) < 2:
+            if len(pqs[i]) < 2:
                 continue
 
-            for key in php_defs:
+            for key in pq_defs:
                 del pf[key]
-                for k in range(len(phps[i])):
-                    pf['{0!s}[{1}]'.format(key, k)] = php_defs[key]
+                for k in range(len(pqs[i])):
+                    pf[f'{key}[{k}]'] = pq_defs[key]
 
         return pfs_by_pop
 
@@ -554,30 +616,3 @@ class ParameterFile(dict):
 
         return self._not_default
 
-    def _check_for_conflicts(self, **kwargs):
-        """
-        Run through parsed parameter file looking for conflicts.
-        """
-
-        try:
-            verbose = kwargs['verbose']
-        except KeyError:
-            verbose = defaults['verbose']
-
-        for kwarg in kwargs:
-
-            par, num = pop_id_num(kwarg)
-            if num is None:
-                par = kwarg
-
-            if par in defaults.keys():
-                continue
-
-            if par in old_pars:
-                continue
-
-            if re.search(r'[', par):
-                continue
-
-            if verbose:
-                print('WARNING: Unrecognized parameter: {!s}'.format(par))
