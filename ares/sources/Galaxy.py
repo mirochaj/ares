@@ -141,7 +141,7 @@ class Galaxy(SynthesisModel):
                     pass
 
         else:
-            raise NotImplemented(f'Unrecognized sfh={sfh}')
+            raise NotImplementedError(f'Unrecognized sfh={sfh}')
 
         ##
         # Null SFR for times after time of observation!
@@ -539,7 +539,9 @@ class Galaxy(SynthesisModel):
         merr = abs(np.log10(_mass / mass))
         serr = abs(np.log10(_sfr / sfr))
 
-        if (merr < mtol) and (serr < mtol):
+        if (merr <= mtol) and (serr <= mtol):
+            if self.pf['verbose']:
+                print(f"* Found acceptable solution with kw={kw}")
             return kw
 
         # If we're not allowing a fallback option in the event that this
@@ -548,23 +550,52 @@ class Galaxy(SynthesisModel):
             return kw
 
         if sfh == 'const':
-            print("Failing on const SFH", np.log10(_mass), np.log10(mass), sfr, t)
+            print("Failing on const SFH", np.log10(_mass), np.log10(mass), 
+                np.log10(_sfr), np.log10(sfr), t, merr, serr, merr <= mtol, serr <= mtol)
             kw['sfh'] = 'fail'
 
             return kw
 
-        if kw['sfh'] != self.pf['source_sfh']:
-            #print("Double fail?")
-            #print(err, np.log10(_mass), np.log10(mass), sfr, kw)
-            #input('enter>')
-            sfh_fall = 'const'
-        else:
-            sfh_fall = self.pf['source_sfh_fallback']
+        low_or_high_m = 'low' if _mass < mass else 'high'
+        low_or_high_sfr = 'low' if _sfr < sfr else 'high'
+
+        if (np.isnan(merr) or np.isnan(serr)) and self.pf['verbose']:
+
+            print("WARNING: NaN in mass and/or SFR ratio:")        
+            print(f"Mass requested: {mass:.3e}")
+            print(f"Mass recovered: {_mass:.3e}")
+
+            print(f"SFR requested: {sfr:.3e}")
+            print(f"SFR recovered: {_sfr:.3e}")
+
+            print(kw)
+            
         ##
         # If we're here, we're exploring fallback options.
-        print(f"Retrieved mass is off by {merr:.3f} relative to mtol.")
-        print(f"Let's try this again with sfh={sfh_fall}...")
-        kw = self.get_kwargs(t, mass, sfr, disp=disp, tau_guess=tau_guess,
+        if self.pf['verbose']:
+            print(f"! Summary of recoveries for sfh={sfh}: kw={kw}")
+            print(f"! Retrieved mass is {low_or_high_m} by {np.log10(_mass / mass):.5f} dex (mtol={mtol}).")
+            print(f"! Retrieved SFR  is {low_or_high_sfr} by {np.log10(_sfr / sfr):.5f} dex (stol={mtol}).")
+
+        # If we already tried our fallback option, try a constant SFR as a last resort.
+        # Should always work.
+        if (kw['sfh'] != self.pf['source_sfh']): 
+            if self.pf['source_fallback_last_resort']:
+                #print("Double fail?")
+                #print(err, np.log10(_mass), np.log10(mass), sfr, kw)
+                #input('enter>')
+                sfh_fall = 'const'
+            else:
+                if self.pf['verbose']:
+                    print(f"Failing on sfh={kw['sfh']}, not allowing last resort try.")
+                return kw
+        else:
+            sfh_fall = self.pf['source_sfh_fallback']
+
+        if self.pf['verbose']:
+            print(f"! Let's try this again with sfh={sfh_fall}...")
+        kw = self.get_kwargs(t, mass, sfr, disp=disp, 
+            tau_guess=1,
             mtol=mtol, sfh=sfh_fall, mass_return=mass_return, tarr=tarr,
             **kwargs)
 

@@ -1231,6 +1231,7 @@ def HaloMassFunctionParameters():
         "halo_mf_instance": None,
         "halo_mf_load": True,
         "halo_mf_cache": None,
+        "halo_mf_interp": None,
         "halo_ps_load": True,
         "halo_load_growth": False,
         "halo_use_splined_growth": True,

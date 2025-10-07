@@ -515,12 +515,12 @@ class SynthesisModelBase(Source):
 
         return yield_UV
 
-    def _cache_L_per_sfr(self, wave, window, band, Z, raw, nebular_only, age):
+    def _cache_L_per_sfr(self, wave, window, band, Z, raw, nebular_only, age, units_out):
         if not hasattr(self, '_cache_L_per_sfr_'):
             self._cache_L_per_sfr_ = {}
 
-        if (wave, window, band, Z, raw, nebular_only, age) in self._cache_L_per_sfr_:
-            return self._cache_L_per_sfr_[(wave, window, band, Z, raw, nebular_only, age)]
+        if (wave, window, band, Z, raw, nebular_only, age, units_out) in self._cache_L_per_sfr_:
+            return self._cache_L_per_sfr_[(wave, window, band, Z, raw, nebular_only, age, units_out)]
 
         return None
 
@@ -550,8 +550,10 @@ class SynthesisModelBase(Source):
 
         """
 
-        #cached = self._cache_L_per_sfr(x, window, band, units_out, Z, raw, nebular_only, age)
-
+        #cached = self._cache_L_per_sfr(
+        #    x, window, band, Z, raw, nebular_only, age, units_out
+        #)
+#
         #if cached is not None:
         #    return cached
 
@@ -576,7 +578,7 @@ class SynthesisModelBase(Source):
                 bounds_error=False, left=yield_UV[0], right=yield_UV[-1])
             result = func(t)
 
-        #self._cache_L_per_sfr_[(x, window, band, Z, raw, nebular_only, age)] = result
+        #self._cache_L_per_sfr_[(x, window, band, Z, raw, nebular_only, age, units_out)] = #result
 
         return result
 

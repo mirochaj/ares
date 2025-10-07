@@ -14,6 +14,8 @@ import os
 import gc
 import time
 import h5py
+import shutil
+import pickle
 import numpy as np
 from ..simulations import Simulation
 from ..util.Stats import bin_e2c, bin_c2e
@@ -1099,6 +1101,126 @@ class LightCone(object): # pragma: no cover
         """
         pass
 
+    def _filter_by_fov(self, ok):
+        """
+
+        """
+
+        ids_in = np.arange(ok.size, dtype=int)
+        ids_out = []
+
+        ct = 0
+        for id in ids_in:
+            if ok[id]:
+                ids_out.append((id, ct))
+            else:
+                continue
+
+            ct += 1
+
+        ids_out = np.array(ids_out, dtype=int)
+
+        return ids_out
+
+    def _refresh_sat_ids(self, ids_in, ids_out, parents_in):
+        """
+        Initially we record the parent ID of satellites as the index of the
+        parent in a particular layer BEFORE any FoV filtering. After filtering,
+        we must adjust the indices accordingly. This routine figures out the
+        mapping between indices before and after FoV filtering.
+
+        Parameters
+        ----------
+        ids_in : np.ndarray
+            Indices of central halos BEFORE filtering on FoV.
+        ids_out : np.ndarray
+            Final indices of central halos.
+        parents_in : np.ndarray
+            Indices corresponding to parent ID of each satellite BEFORE
+            the FoV filter.
+
+        Returns
+        -------
+        Tuple containing: (new parent IDs AFTER FoV filter, mask indicating which
+        centrals in original catalog were filtered out by FoV cut). Note that
+        the length of these two arrays will be different anytime some > 0
+        number of halos are filtered out by the FoV cut.
+        """
+
+        p_out = []
+        cen_ok = []
+        for i, p_in in enumerate(parents_in):
+            # Means that the parent of this satellite ended up outside the FoV
+            if p_in not in ids_in:
+                cen_ok.append(0)
+                continue
+
+            i_out = np.argwhere(p_in == ids_in).squeeze()
+            new_id = ids_out[i_out]
+            p_out.append(new_id)
+            cen_ok.append(1)
+
+        return np.array(p_out, dtype=int), np.array(cen_ok)
+    
+    def check_metadata(self, fov):
+        """
+        Check that parameters being used are the same as previous checkpoints 
+        (if restart) or write files if running from scratch.
+        """
+
+        ##
+        # Convention is to save dictionary of ARES parameters in 
+        # the `model_name` subdirectory. Also, copies of SED tables.
+        
+        root_dir = f"{self.base_dir}/fov_{fov:.1f}/box_{self.Lbox:.0f}/dim_{self.dims:.0f}/{self.model_name}"
+
+        # First, parameters
+        is_restart = False
+        fn_pf = f"{root_dir}/params.pkl"
+        if os.path.exists(fn_pf):
+            with open(fn_pf, 'rb') as f:
+                pf_disk = pickle.load(f)
+        
+            assert pf_disk == self.kwargs
+            print(f"* Supplied parameters match `{fn_pf}`.")
+
+            is_restart = True
+        else:
+            with open(fn_pf, 'wb') as f:
+                pickle.dump(self.kwargs, f)
+
+            print(f"! Wrote {fn_pf}.")
+
+        # Second, check SED tables.
+        Npops_max = 10
+        for i in range(Npops_max):
+            par_sed = f'pop_lum_tab{{{i}}}'
+
+            if not par_sed in self.kwargs:
+                continue 
+
+            fn_sed_full = self.kwargs[par_sed]
+            fn_sed = self.kwargs[par_sed][fn_sed_full.rfind('/')+1:]
+
+            ## 
+            # If restart, make sure file contents are the same.
+            if is_restart:
+                orig = fn_sed_full
+                copy = f"{root_dir}/{fn_sed}"
+
+                fc = h5py.File(copy, 'r')
+                with h5py.File(orig, 'r') as f:
+                    for key in f:
+                        assert np.all(np.array(f[key]) == np.array(fc[key])), \
+                            f"Mismatch in {copy} (vs. {orig}) in dataset `{key}`!"
+
+                fc.close()
+                print(f"* Matching lookup tables for `{par_sed}`.")
+
+            else:
+                shutil.copy(fn_sed_full, f"{root_dir}/")
+                print(f"! Copied {fn_sed_full} to {root_dir}")
+
     def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
         suffix=None, fmt='fits', hdr={}, max_sources=None, cat_units='uJy',
@@ -1123,6 +1245,10 @@ class LightCone(object): # pragma: no cover
         # Create root directory if it doesn't already exist.
         base_dir = self.get_output_dir(fov, pix,
             zlim=self.zlim, logmlim=logmlim)
+        
+        # Save parameters and key lookup tables or verify consistency with 
+        # `self.kwargs` if this is a re-start.
+        self.check_metadata(fov)
 
         # At least save halo mass since we get it for free.
         if (channels is None) or (channels == ['Mh']):
@@ -1169,6 +1295,14 @@ class LightCone(object): # pragma: no cover
         # Start doing work.
         ct = 0
 
+        tracker = {int(pid): np.zeros((len(zlayers), len(mlayers)), dtype=int) \
+            for pid in include_pops}
+
+        Nlayers = len(zlayers) * len(mlayers)
+        tracker_flat = {int(pid): [None] * Nlayers for pid in include_pops}
+        for pid in include_pops:
+            tracker_flat[int(pid)][0] = 0
+
         ra = []
         dec = []
         red = []
@@ -1178,8 +1312,26 @@ class LightCone(object): # pragma: no cover
             # Unpack info about this chunk
             popid, channel, chname, zchunk, mchunk = chunk
 
-            # Get number of z chunk
-            iz = zchunks.index(zchunk)
+            chan_mic = self.convert_chan_to_micron(channel, wave_units)
+
+            # Just used for file naming
+            field_names = ['ra', 'dec', 'z', channel]
+            field_units = ['deg', 'deg', '', cat_units]
+
+            # Retrieve info about population:
+            # ARES ID, parent ID (in ARES), `popid` as string
+            pid, pid_par, pid_str = get_pop_info(popid)
+
+            # Short-hand needed below
+            zlo, zhi = zlayer
+
+            # Get number of z layer
+            iz = np.digitize(zlayer.mean(), bins=zlayers[:,0]) - 1
+
+            # Get number of M layer
+            im = np.argmin(np.abs(mlayer[0] - mlayers[:,0]))
+
+            izm = iz * len(mlayers) + im
 
             # See if we already finished this map.
             fn = self.get_cat_fn(fov, pix, channel, popid,
@@ -1251,28 +1403,69 @@ class LightCone(object): # pragma: no cover
                     dec.extend(list(_dec))
                     red.extend(list(_red))
 
+                    if self.sim.pops[pid].is_satellite_pop:
+                        parh.extend(list(_parents))
+                        if len(_parents) != len(_ra):
+                            print('wtf 2', popid, izm, len(_parents), len(_ra))
+                            input('<enter>')
                     ##
                     # Unpack channel info
                     # Could be name of field, e.g., 'Mh', 'SFR', 'Mstell',
                     # photometric info, e.g., ('roman', 'F087'),
                     # or special quantities like Ly-a EW or luminosity.
                     # Note: if pops[popid] is a GalaxyEnsemble object
-                    if channel in ['Mh', 'Ms', 'SFR']:
+                    if type(channel) in [tuple, list, np.ndarray]:
+                        # Internally, these fluxes are always in
+                        # erg/s/cm^2/Ang, but then integrated over channel.
+                        # Will need channel width in Hz to recover specific
+                        # intensities averaged over band.
+                        nu = c * 1e4 / np.mean(chan_mic)
+                        dnu = c * 1e4 * (chan_mic[1] - chan_mic[0]) / np.mean(chan_mic)**2
+                        _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
+                            chan_mic, pid)
+                        _dat *= self.get_map_norm(cat_units) / dnu
+                    elif channel in ['Mh']:
                         _dat = _Mh
+                    elif channel in ['parents']:
+                        _dat = _parents
                     elif channel.lower().startswith('ew'):
                         raise NotImplemented('help')
+                    elif channel.lower() == 'sfr':
+                        _dat = self.sim.pops[pid].get_sfr(z=_red, Mh=_Mh)
+                    elif channel.lower() in ['ms', 'mstell']:
+                        raise NotImplemented('help')
+                    elif channel.lower() in ['ellip', 'nsers', 'pa', 'r50']:
+                        R_sec, nsers, ellip, pa = self._get_size_catalog(zlim,
+                            logmlim, _red, _Mh, pid)
+                        _dat_dict = {'r50': R_sec, 'nsers': nsers,
+                            'ellip': ellip, 'pa': pa}
+                        _dat = _dat_dict[channel.lower()]
                     else:
                         cam, filt = channel.split('_')
-
-                        _filt, mags = self.sim.pops[popid].get_mags(zcent[iz],
-                            absolute=False, cam=cam, filters=[filt],
-                            Mh=_Mh)
-
+                        #raise NotImplementedError(f'do we need to do this anymore? {cam} {filt}')
+                        ##
+                        # Once again, in general need to sub-cycle through z
+                        # to preserve accuracy.
+                        zsub_lo = 1 * zlo
+                        mags = np.inf * np.ones(_Mh.size)
+                        while zsub_lo < zhi:
+                            zsub_hi = min(zsub_lo + self.dz_max, zhi)
+                            zsub_mid = np.mean([zsub_lo, zsub_hi])
+                            okzsub = np.logical_and(_red >= zsub_lo,
+                                                    _red < zsub_hi)
+                            _filt, out = \
+                                self.sim.pops[pid].get_mags(zsub_mid,
+                                absolute=False, cam=cam, filters=[filt],
+                                Mh=_Mh[okzsub==1])
+                            # There's a meaningless second dimension here
+                            # because get_mags can report mags for multiple
+                            # filters at once, we're just not doing that here.
+                            mags[okzsub==1] = out[:,0]
+                            zsub_lo += self.dz_max
                         if cat_units == 'mags':
                             _dat = np.atleast_1d(mags.squeeze())
                         elif 'jy' in cat_units.lower():
                             flux = 3631. * 10**(mags / -2.5)
-
                             if cat_units.lower() == 'jy':
                                 _dat = np.atleast_1d(flux.squeeze())
                             elif cat_units.lower() in ['microjy', 'ujy']:
@@ -1281,17 +1474,31 @@ class LightCone(object): # pragma: no cover
                                 raise NotImplemented('help')
                         else:
                             raise NotImplemented('Unrecognized `cat_units`.')
-
                     ##
                     # Save
-                    self.save_cat(fn, (_ra, _dec, _red, _dat),
-                        channel, zchunk, mchunk,
-                        fov, pix=pix, fmt=fmt, hdr=hdr,
-                        cat_units=cat_units,
-                        clobber=clobber, verbose=verbose)
+                    if keep_layers:
+                        for ff, field in enumerate([_ra, _dec, _red, _dat]):
+                            # e.g., `parents` field for centrals is None
+                            if field in [[], None]:
+                                continue
+                            fn_ff = self.get_cat_fn(fov, pix, field_names[ff],
+                                popid, logmlim=mlayer, zlim=zlayer,
+                                wave_units=wave_units)
+                            self.save_cat(fn_ff, field, field_names[ff],
+                                zlayer, mlayer, fov, pix=pix, fmt=fmt, hdr=hdr,
+                                cat_units=field_units[ff],
+                                clobber=clobber, verbose=verbose)
+                    ##
+                    # This is just because all datasets will be arrays if
+                    # they contain entries. If there are no entries, _dat
+                    # will be either an empty list or None. The latter
+                    # case is what we're trying to avoid here since
+                    # len(None) = error.
+                    if (type(_dat) == np.ndarray):
+                        dat.extend(list(_dat))
+                    else:
+                        pass
 
-
-                    dat.extend(list(_dat))
 
                 # End of else block that generates new catalog if one isn't found.
 
@@ -1437,6 +1644,18 @@ class LightCone(object): # pragma: no cover
 
         # Create root directory if it doesn't already exist.
         self.build_directory_structure(fov, pix, dryrun=False)
+
+        # Save parameters and key lookup tables or verify consistency with 
+        # `self.kwargs` if this is a re-start.
+        self.check_metadata(fov)
+
+        # Must do this after building the directory tree otherwise
+        # we'll get errors.
+        if not clobber:
+            self._check_for_corrupted_files(fov, pix, channels,
+                logmlim=logmlim, dlogm=dlogm,
+                include_pops=include_pops, channel_names=channel_names,
+                include_galaxy_sizes=include_galaxy_sizes)
 
         ##
         # Initialize a README file / see what's in it.
