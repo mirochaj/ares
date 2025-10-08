@@ -640,7 +640,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     @_get_focc.setter
     def _get_focc(self, value):
-        #print('setting _get_focc', self.id_num)
+        print(f'pop={self.id_num} setting _get_focc to {value}')
         self._get_focc_ = value
 
     def get_focc(self, z, Mh):
@@ -648,8 +648,12 @@ class GalaxyCohort(GalaxyAggregate):
         Get occupation fraction.
         """
 
+        print(f'pop={self.id_num} calling get_focc')
+
         if hasattr(self, '_get_focc_'):
             return self._get_focc_(z=z, Mh=Mh)
+        
+        print(f"pop={self.id_num} about to call _get_function")
 
         func = self._get_function('pop_focc')
         result = func(z=z, Mh=Mh)
@@ -2414,10 +2418,16 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 sfr = self.get_sfr_obs(z=z, Mh=self.halos.tab_M)
                 Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
+        except NotImplementedError as err:
+            # For a sfe-func model, stellar mass requires integrating histories.
+            # We haven't added support for that back in, so just catch error.
+            print(f"! {err}")
+            Ms = None
         except Exception as e:
             print(e)
             Ms = None
             raise Exception('help')
+        
 
         ##
         # Manual override: if user supplies L/SFR directly.
@@ -2517,7 +2527,7 @@ class GalaxyCohort(GalaxyAggregate):
             elif (not age_is_num) and src.pf['source_age'].lower() == 'hubble':
                 age = np.array([t_H] * len(Ms))
             else:
-                raise NotImplemented('help')
+                raise NotImplementedError('help')
 
             if isinstance(age, numbers.Number):
                 if age > t_H:
@@ -2893,7 +2903,7 @@ class GalaxyCohort(GalaxyAggregate):
             smhm[Mh > self.get_Mmax(z)] = 0
             Ms = smhm * Mh
         else:
-            raise NotImplemented('help')
+            raise NotImplementedError('help')
         Md = fd * fZy * Ms
         Rd = self.get_dust_scale(z=z, Mh=Mh)
         # Assumes spherical symmetry, uniform dust density
@@ -3985,7 +3995,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                 return self.get_sfr(z=z, Mh=Mh) / Ms
         else:
-            raise NotImplemented('help')
+            raise NotImplementedError('help')
 
     @property
     def tab_ssfr(self):
@@ -4519,7 +4529,7 @@ class GalaxyCohort(GalaxyAggregate):
         if self.pf['pop_sfr_model'] in ['smhm-func']:
             return self.get_fstar(**kwargs)
         else:
-            raise NotImplemented('help')
+            raise NotImplementedError(f'GalaxyCohort only handles pop_sfr_model=smhm-func, no support for {self.pf['pop_sfr_model']}')
 
     def get_sfe(self, **kwargs):
         return self.get_fstar(**kwargs)

@@ -233,9 +233,10 @@ aux_data = {
     "bc03_2013": [
         "https://www.bruzual.org/bc03/Updated_version_2013"
     ] + _bc03_2013_links + [unpack_bc03_2013],
-    "umachine-data": [
+    "universe_machine": [
         "http://halos.as.arizona.edu/UniverseMachine/DR1",
         "umachine-dr1-obs-only.tar.gz",
+        "umachine-dr1.tar.gz",
         None,
     ],
     "euclid": [
@@ -952,14 +953,15 @@ def download_files(args):
     -------
     None
     """
+
     # get list of datasets
     available_dsets = [key.lower() for key in aux_data.keys()]
 
     # figure out what to download
     if args.dataset.lower() == "all":
         dsets = available_dsets
-    elif args.dataset.lower() in datasets:
-        dsets = datasets[args.dataset.lower()]
+    elif args.dataset.lower() in available_dsets:
+        dsets = [args.dataset.lower()]
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "
