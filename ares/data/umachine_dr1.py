@@ -11,7 +11,7 @@ info = \
  'reference': 'Behroozi, Wechsler, Hearin, & Conroy, 2019, MNRAS, 488, 3143',
 }
 
-_input = ARES + '/umachine-data/umachine-dr1'
+_input = ARES + '/universe_machine/umachine-dr1'
 
 def get_data(field, flag=None, sources=None):
     """

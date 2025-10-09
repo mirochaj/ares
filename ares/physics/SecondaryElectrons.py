@@ -43,15 +43,11 @@ class SecondaryElectrons(object):
 
     def _load_data(self):
 
-        if not ARES:
-            raise IOError('Must set $ARES environment variable!')
-
         if os.path.exists(os.path.join(ARES, prefix, 'secondary_electron_data.hdf5')):
             self.fn = os.path.join(ARES, prefix, 'secondary_electron_data.hdf5')
             have_hdf5_file = True
         else:
-            self.fn = os.path.join(ARES, prefix, 'secondary_electron_data.pkl')
-            have_hdf5_file = False
+            raise IOError("Did not find secondary_electron_data.hdf5")
 
         if have_h5py and have_hdf5_file:
             f = h5py.File(self.fn, 'r')

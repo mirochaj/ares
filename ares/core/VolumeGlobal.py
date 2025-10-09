@@ -538,7 +538,7 @@ class GlobalVolume(object):
                     heat = romb(integrand[imin:] * self._E[popid][band][imin:],
                         dx=self.dlogE[popid][band][imin:])[0] * log10
                 elif self.sampled_integrator == 'trapz':
-                    heat = np.trapz(integrand[imin:] * self._E[popid][band][imin:],
+                    heat = np.trapezoid(integrand[imin:] * self._E[popid][band][imin:],
                         x=self.logE[popid][band][imin:]) * log10
                 else:
                     heat = simpson(integrand[imin:] * self._E[popid][band][imin:],
@@ -936,7 +936,7 @@ class GlobalVolume(object):
                 e_ax = romb(integrand[imin:] * self._E[popid][band][imin:],
                     dx=self.dlogE[popid][band][imin:])[0] * log10
             elif self.sampled_integrator == 'trapz':
-                e_ax = np.trapz(integrand[imin:] * self._E[popid][band][imin:],
+                e_ax = np.trapezoid(integrand[imin:] * self._E[popid][band][imin:],
                     x=self.logE[popid][band][imin:]) * log10
             else:
                 e_ax = simpson(integrand[imin:] * self._E[popid][band][imin:],

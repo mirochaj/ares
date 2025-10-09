@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import gzip
+import glob
 import shutil
 import pickle
 import tarfile
@@ -20,6 +21,7 @@ from urllib.error import URLError, HTTPError
 import numpy as np
 import h5py
 
+from pathlib import Path
 from .Math import smooth
 from . import ParameterBundle
 from .. import __version__
@@ -31,6 +33,16 @@ from ..solvers import OpticalDepth
 from ..sources import BlackHole, Galaxy
 from ..simulations import RaySegment
 
+
+try:
+    import gdown
+except ImportError:
+    pass
+
+def _mv_bpass(parent_dir):
+    os.makedirs(f"{parent_dir}/SEDS", exist_ok=True)
+    for fn in glob.glob(f"{parent_dir}/sed.bpass.constant.nocont.sin.z0??.deg100"):
+        shutil.move(fn, f"{parent_dir}/SEDS/")
 
 # define helper function
 def read_FJS10(parent_dir):
@@ -111,11 +123,6 @@ def read_FJS10(parent_dir):
     return
 
 
-# define data sources
-_bpass_v1_links = [
-    f"sed_bpass_z{zval}_tar.gz" for zval in ["001", "004", "008", "020", "040"]
-]
-
 _bc03_orig_links = []
 for imf in ['chabrier', 'salpeter']:
     for tracks in ['padova_1994', 'padova_2000', 'geneva_1994']:
@@ -134,7 +141,7 @@ def gunzip_files(parent_dir):
                 with open(filename[:-3], 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
 
-                print(f"# Unzipped {parent_dir}/{filename}.")
+                print(f"! Unzipped {parent_dir}/{filename}.")
 
 def unpack_files(parent_dir):
     for fn in os.listdir(parent_dir):
@@ -154,10 +161,10 @@ def unpack_files(parent_dir):
                 with open(full_path[:-3], 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
         else:
-            #print(f"# Unrecognized file format: {full_path}.")
+            #print(f"! Unrecognized file format: {full_path}.")
             continue
 
-        print(f"# Unpacked {full_path}.")
+        print(f"! Unpacked {full_path}.")
 
 
 def unpack_bc03(parent_dir):
@@ -172,51 +179,64 @@ def unpack_bc03_2013(parent_dir):
         for imf in os.listdir(f"{path}/{tracks}"):
             unpack_files(f"{path}/{tracks}/{imf}")
 
+def unpack_bpass_v1(parent_dir):
+    path = f"{ARES}/bpass_v1/"
+    for Zstr in ['z001', 'z004', 'z008', 'z020', 'z040']:
+        with tarfile.open(f"{path}/sed_bpass_{Zstr}_tar.gz") as f:
+            f.extractall(parent_dir)
+    
 # Auxiliary data downloads
 # Format: [URL, file1, file2, ..., file to run when done]
 aux_data = {
+    "halos_tests": [
+        "https://drive.google.com/file/d/1k8YG1Z02WQ-bUFqBB6C7W4eb_huwMKxz/view?usp=sharing",
+        "halos_tests.tar.gz",
+        None,
+    ],
     "halos": [
-        "https://www.dropbox.com/s/8df7rsskr616lx5/halos.tar.gz?dl=1",
+        "https://drive.google.com/file/d/1sglCEiO6HrpQJWKcwmBNvRl1lyUQWfNO/view?usp=sharing",
         "halos.tar.gz",
         None,
     ],
     "inits": [
-        "https://www.dropbox.com/s/c6kwge10c8ibtqn/inits.tar.gz?dl=1",
+        "https://drive.google.com/file/d/1RHz-MJ7DD6W7H0TG_kLvFSrZYWBgqgwm/view?usp=sharing",
         "inits.tar.gz",
         None,
     ],
     "optical_depth": [
-        "https://www.dropbox.com/s/ol6240qzm4w7t7d/tau.tar.gz?dl=1",
+        "https://drive.google.com/file/d/1CNuMWQGfVNuz0hmg3KFqduN5u3bVUoEj/view?usp=sharing",
         "tau.tar.gz",
         None,
     ],
     "secondary_electrons": [
-        "https://www.dropbox.com/s/jidsccfnhizm7q2/elec_interp.tar.gz?dl=1",
+        "https://drive.google.com/file/d/1IMxyvPKDS0JiLQ79EDwgMYrSH6umlTPZ/view?usp=sharing",
         "elec_interp.tar.gz",
         read_FJS10,
     ],
     "starburst99": [
-        "http://www.stsci.edu/science/starburst99/data", "data.tar.gz", None
+        "http://www.stsci.edu/science/starburst99/data", 
+        "data.tar.gz", 
+        None
     ],
     "bpass_v1": [
-        "http://bpass.auckland.ac.nz/2/files"
-    ] + _bpass_v1_links + [None],
-    "bpass_v1_tests": [
-        "https://www.dropbox.com/s/8l69msro6n06hjx/sed_degraded.tar.gz?dl=1",
-        "sed_degraded.tar.gz",
-        None],
-    "bpass_v1_stars": [
-        "http://bpass.auckland.ac.nz/1/files", "starsmodels_tar.gz", None
+        "https://drive.google.com/file/d/1iuqKkcjh4fBF8MQS9XtDJvoSb9O9dCI9/view?usp=sharing",
+        "bpass_v1.tar.gz",
+        unpack_bpass_v1,
     ],
+    "bpass_v1_tests": [
+        "https://drive.google.com/file/d/1U5d3cm57Kz_EndkcXkscJForGAvq7jkk/view?usp=drive_link",
+        'bpass_v1_tests.tar.gz',
+        None],
     "bc03": [
         "https://www.bruzual.org/bc03/Original_version_2003"
     ] + _bc03_orig_links + [unpack_bc03],
     "bc03_2013": [
         "https://www.bruzual.org/bc03/Updated_version_2013"
     ] + _bc03_2013_links + [unpack_bc03_2013],
-    "umachine-data": [
+    "universe_machine": [
         "http://halos.as.arizona.edu/UniverseMachine/DR1",
         "umachine-dr1-obs-only.tar.gz",
+        "umachine-dr1.tar.gz",
         None,
     ],
     "euclid": [
@@ -250,8 +270,12 @@ aux_data = {
         None,
     ],
     "wfc": [
-        "https://www.dropbox.com/s/zv8qomgka9fkiek/wfc.tar.gz?dl=1",
-        "wfc.tar.gz",
+        "http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=HST/",
+        'ACS_WFC.F435W',
+        'ACS_WFC.F606W',
+        'ACS_WFC.F775W',
+        'ACS_WFC.F814W',
+        'ACS_WFC.F850LP',
         None,
     ],
     "hsc": [
@@ -345,34 +369,28 @@ aux_data = {
 }
 
 # define which files are needed for which things
-datasets = {
-    "extra": [
-        "nircam",
-        "irac",
-        "roman",
-        "edges",
-        "bpass_v1_stars",
-    ],
+dataset_groups = {
     "tests": [
         "inits",
         "secondary_electrons",
-        "halos",
+        "halos_tests",
         "wfc",
         "wfc3",
         "planck",
         "bpass_v1_tests",
         "optical_depth",
     ],
-    "test_files": [
-        "inits.tar.gz",
-        "elec_interp.tar.gz",
-        "halos.tar.gz",
-        "IR.zip",
-        "wfc.tar.gz",
-        aux_data["planck"][1],
-        "sed_degraded.tar.tz",
-        "tau.tar.gz",
-    ],
+    # Don't think test_files ever gets used, covered by 'tests' above
+    #"test_files": [
+    #    "inits.tar.gz",
+    #    "elec_interp.tar.gz",
+    #    "halos_tests.tar.gz",
+    #    "IR.zip",
+    #    "wfc.tar.gz",
+    #    aux_data["planck"][1],
+    #    "bpass_v1_tests.tar.gz",
+    #    "tau.tar.gz",
+    #],
     "photometry": [
         "nircam",
         "irac",
@@ -383,6 +401,12 @@ datasets = {
         "spherex",
         "wfc",
         "wfc3",
+    ],
+    "basics": [
+       "inits",
+       "halos",
+       "bpass_v1",
+       "bc03_2013",
     ]
 }
 
@@ -490,7 +514,7 @@ def generate_hmf_tables(path, **kwargs):
         "halo_tmin": 30.0,
         "halo_tmax": 13.7e3,  # Myr
 
-        # Cosmology
+        # Cosmology: just set parameter values by hand.
         "cosmology_id": "best",
         "cosmology_name": "planck_TTTEEE_lowl_lowE",
     }
@@ -502,10 +526,12 @@ def generate_hmf_tables(path, **kwargs):
     halos.info
 
     try:
-        halos.save_hmf(fmt="hdf5", clobber=False)
+        fn = halos.save_hmf(fmt="hdf5", clobber=False)
     except IOError as err:
         print(err)
-    return
+        fn = None
+
+    return fn
 
 def generate_halo_histories(path, fn_hmf):
     """
@@ -545,7 +571,7 @@ def generate_halo_histories(path, fn_hmf):
             grp[key].read_direct(buff)
             cosmo_pars[key] = buff[0]
 
-        print(f"Read cosmology from {fn_hmf}")
+        print(f"# Read cosmology from {fn_hmf}")
 
     pars.update(cosmo_pars)
 
@@ -569,7 +595,7 @@ def generate_halo_histories(path, fn_hmf):
 
     fn = "{}.hdf5".format(pref)
     if not os.path.exists(fn):
-        print("# Running new trajectories...")
+        print("! Running new trajectories...")
         zall, hist = pop.get_histories()
 
         with h5py.File(fn, "w") as h5f:
@@ -579,10 +605,10 @@ def generate_halo_histories(path, fn_hmf):
                     continue
                 h5f.create_dataset(key, data=hist[key])
 
-        print("# Wrote {}".format(fn))
+        print("! Wrote {}".format(fn))
     else:
-        print("# File {} exists. Exiting.".format(fn))
-    return
+        print("! File {} exists. Exiting.".format(fn))
+    return fn
 
 def make_halos(path):
     """
@@ -734,6 +760,9 @@ def make_lowres_sps(path):
     generate_lowres_sps(path, degrade_to=100)
 
 def generate_simpl_seds(path, **kwargs):
+
+    make_data_dir(path)
+
     # go to path
     os.chdir(path)
 
@@ -761,7 +790,7 @@ def generate_simpl_seds(path, **kwargs):
         def_kwargs['source_alpha'])
 
     if os.path.exists(fn):
-        print("{!s} already exists.".format(fn))
+        print("! {!s} already exists.".format(fn))
         return
 
     src = BlackHole(**def_kwargs)
@@ -807,7 +836,7 @@ def generate_csfh_tab(path, **kwargs):
     with open(fn, 'wb') as f:
         pickle.dump({'t': tarr, 'waves': waves, 'data': data.T}, f)
     #np.savetxt(fn, data.T)
-    print(f"# Wrote {fn}")
+    print(f"! Wrote {fn}")
 
 
 def generate_rt1d_tabs(path, **kwargs):
@@ -848,7 +877,8 @@ def make_data_dir(path=ARES):
     None
     """
     if not os.path.exists(path):
-        os.mkdir(path)
+        _path = Path(path)
+        _path.mkdir(parents=True)
 
     return
 
@@ -871,8 +901,8 @@ def clean_files(args):
     # figure out what to delete
     if args.dataset.lower() == "all":
         dsets = available_dsets
-    elif args.dataset.lower() in datasets:
-        dsets = datasets[args.dataset.lower()]
+    elif args.dataset.lower() in dataset_groups:
+        dsets = dataset_groups[args.dataset.lower()]
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "
@@ -895,7 +925,14 @@ def clean_files(args):
     return
 
 def _do_download(full_path, dl_link):
+    # Files from Google Drive need special treatment
+    if 'drive' in dl_link:
+        gdown.download(dl_link, full_path, fuzzy=1)
+        return 
+
+    # Otherwise, can use urlretrieve
     try:
+        print(f"Downloading {dl_link} to {full_path}.")
         urlretrieve(dl_link, full_path)
         print(f"Downloaded {dl_link} to {full_path}.")
     except (URLError, HTTPError) as error:
@@ -916,14 +953,15 @@ def download_files(args):
     -------
     None
     """
+
     # get list of datasets
     available_dsets = [key.lower() for key in aux_data.keys()]
 
     # figure out what to download
     if args.dataset.lower() == "all":
         dsets = available_dsets
-    elif args.dataset.lower() in datasets:
-        dsets = datasets[args.dataset.lower()]
+    elif args.dataset.lower() in available_dsets:
+        dsets = [args.dataset.lower()]
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "
@@ -938,14 +976,14 @@ def download_files(args):
             full_path = os.path.join(args.path, dset, aux_data[dset][1])
             if os.path.exists(full_path):
                 if args.fresh:
-                    print(f"Running in dry-run mode; would re-download {full_path}")
+                    print(f"! Running in dry-run mode; would re-download {full_path}")
                 else:
                     print(
-                        f"{full_path} already exists; rerun with --fresh to "
+                        f"! {full_path} already exists; rerun with --fresh to "
                         "force download"
                     )
             else:
-                print(f"Running in dry-run mode; would download {full_path}")
+                print(f"! Running in dry-run mode; would download {full_path}")
     else:
         for dset in dsets:
 
@@ -962,6 +1000,10 @@ def download_files(args):
 
             # Loop over [potentially] several files to download
             for _fn in to_dl:
+                if args.only is not None:
+                    if args.only not in _fn:
+                        continue
+
                 full_path = os.path.join(parent_dir, _fn)
 
                 # Dropbox links are complete, in that the name of the file we
@@ -977,7 +1019,7 @@ def download_files(args):
                         _do_download(full_path, _fn_dl)
                     else:
                         print(
-                            f"{full_path} already exists; rerun with --fresh to "
+                            f"! {full_path} already exists; rerun with --fresh to "
                             "force download"
                         )
                 else:
@@ -1053,10 +1095,71 @@ def generate_data(args):
                 make_simpl(path)
             elif dset == "rt1d":
                 make_rt1d(path)
-            elif dset == "bpass_v1":
+            elif dset in ["bpass_v1"]:
                 make_lowres_sps(path + '/SEDS')
 
     return
+
+def init_ares(args):
+    """
+    This is a bundle of pre-processing steps to simplify things for first-time
+    users.
+    """
+
+    make_data_dir(args.path)
+
+    ##
+    # Add some verbosity to remind users to symlink to $HOME/.ares
+    # if they've provided --path
+    if args.path != ARES:
+        print("\n")
+        print(f"!"*78)
+        print(f"! You have supplied a non-standard path to ARES input data. That's OK!")
+        print(f"! Just be sure to make $HOME/.ares a symbolic link to the provided path, e.g.,")
+        print(f"! ")
+        print(f"! > ln -s {args.path} {ARES}")
+        print(f"!")
+        print(f"!"*78)
+
+    ##
+    # Tell user about how much space this will take and how long.
+    print("")
+    print(f"!"*78)
+    print(f"! This initialization will take a few minutes and ~500 MB of disk space.")
+    print(f"! A complete set of ancillary data used by ARES for broader applications")
+    print(f"! can take several GB of space, so if your $HOME quota is small, <= 10 GB,")
+    print(f"! it is probably a good idea to run `ares init` with the ")
+    print(f"! `--path` flag set. See the README for more details.")
+    print(f"!"*78)
+
+    print(f"! Beginning ARES initialization...")
+
+    args.dataset = 'inits'
+    download_files(args)
+
+    ##
+    # Need to manually add `dataset` to `args` object
+    args.dataset = 'bpass_v1'
+    args.only = '004'
+
+    # Download only the basics: cosmological initial conditions,
+    # BPASS v1 (default for EoR things), BC03 (default for EBL things)
+    download_files(args)
+
+    # Pre-processing: hmf generation, SED degradation, what else?
+
+    # Smooth BPASS v1 spectra to 10 Angstrom resolution since the native
+    # 1 A resolution is overkill for most things we do.
+    generate_lowres_sps(f"{args.path}/bpass_v1/SEDS", degrade_to=10,
+        exact_files=['sed.bpass.constant.nocont.sin.z004'])
+
+    ## Generate default HMFs.
+    make_data_dir(f"{args.path}/halos")
+    generate_hmf_tables(f"{args.path}/halos")
+    generate_halo_histories(
+        f"{args.path}/halos",
+        "halo_mf_Tinker10_logM_1000_6-16_t_971_30-1000.hdf5",
+    )
 
 def config_clean_subparser(subparser):
     """
@@ -1121,9 +1224,16 @@ def config_download_subparser(subparser):
         default="all",
     )
     sp.add_argument(
+        "--only",
+        help="limit downloads to files containing this sub-string",
+        action="store_true",
+        default=None,
+    )
+    sp.add_argument(
         "--fresh",
         help="whether to force a new download or not",
         action="store_true",
+        default=False,
     )
     sp.set_defaults(func=download_files)
 
@@ -1164,6 +1274,49 @@ def config_generate_subparser(subparser):
         action="store_true",
     )
     sp.set_defaults(func=generate_data)
+
+    return
+
+def config_init_subparser(subparser):
+    """
+    Add the subparser for the "init" sub-command.
+
+    Parameters
+    ----------
+    subparser : ArgumentParser subparser object
+        The subparser object to add sub-command options to.
+
+    Returns
+    -------
+    None
+    """
+    doc = """
+    Initialize ARES for basic usage.
+    """
+    hlp = "download and pre-process files needed by ARES "
+    sp = subparser.add_parser(
+        "init",
+        description=doc,
+        help=hlp,
+    )
+    sp.add_argument(
+        "--fresh",
+        help="whether to force a new download or not",
+        action="store_true",
+    )
+    sp.add_argument(
+        "--only",
+        default=None,
+        help="limit downloads to files containing this sub-string",
+        action="store_true",
+    )
+    sp.add_argument(
+        "-p",
+        "--path",
+        default=ARES,
+        help="path to download files to. Defaults to ~/.ares",
+    )
+    sp.set_defaults(func=init_ares)
 
     return
 
@@ -1210,6 +1363,7 @@ def generate_parser():
     config_clean_subparser(sub_parsers)
     config_download_subparser(sub_parsers)
     config_generate_subparser(sub_parsers)
+    config_init_subparser(sub_parsers)
 
     return ap
 

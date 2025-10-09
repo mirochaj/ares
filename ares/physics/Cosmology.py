@@ -12,7 +12,7 @@ Description:
 
 import os
 import numpy as np
-from scipy.misc import derivative
+import numdifftools as nd
 from scipy.optimize import fsolve
 from scipy.integrate import quad, ode
 from functools import cached_property
@@ -43,7 +43,7 @@ class Cosmology(object):
 
         # Load "raw" cosmological parameters
         ########################################################################
-        if self.pf['cosmology_name'] != 'user':
+        if self.pf['cosmology_name'] not in ['user', None]:
             self._load_cosmology()
         else:
             self.omega_m_0 = self.pf['omega_m_0']
@@ -480,7 +480,7 @@ class Cosmology(object):
             ##s
             #func = lambda zz: np.interp(zz, self.inits['z'], self.inits['Tk'])
 
-            dTdz = derivative(self._Tgas_CosmoRec, z, dx=1e-2)
+            dTdz = nd.Derivative(self._Tgas_CosmoRec)(z)
 
             xe = np.interp(z, self.inits['z'], self.inits['xe'])
 
@@ -501,7 +501,7 @@ class Cosmology(object):
             return dTdz + xe_cool * mult
 
         else:
-            return derivative(self.Tgas, z)
+            return nd.Derivative(self.Tgas)(z)
 
     def log_cooling_rate(self, z):
         if self.pf['approx_thermal_history'] == 'exp':
@@ -576,21 +576,8 @@ class Cosmology(object):
 
     def get_lightcone_boundaries(self, zlim, Lbox, rtol=1e-6):
         """
-        Determine line-of-sight bins in both redshift and cMpc.
-
-        Parameters
-        ----------
-        zlim : tuple
-            Redshift range of interest.
-        Lbox : int, float
-            Co-eval box size in cMpc / h.
-
-        Returns
-        -------
-        A tuple containing (chunk edges in redshift, chunk midpoints in redshift,
-            chunk edges in comoving Mpc [NOT cMpc / h, despite input `Lbox`
-            being in cMpc/h!]).
-
+        Based on size of co-eval cubes (in Mpc/h), and redshift limits,
+        determine all of the sub-intervals in redshift along line of sight.
         """
 
         zarr = np.linspace(0.001, 10, 1000)
@@ -741,15 +728,6 @@ class Cosmology(object):
             self._tab_deg_per_cmpc_ = angl
         return self._tab_deg_per_cmpc_
 
-    @property
-    def _tab_deg_per_pmpc(self):
-        if not hasattr(self, '_tab_deg_per_pmpc_'):
-            # arcmin / Mpc -> deg / Mpc
-            angl = np.array([self._get_angle_from_length_comoving(z, 1) \
-                for z in self.tab_z])
-            self._tab_deg_per_cmpc_ = angl
-        return self._tab_deg_per_cmpc_
-
     @cached_property
     def _tab_dist_los_co(self):
         return np.array([self._get_dist_los_comoving(0, _z_) \
@@ -800,8 +778,7 @@ class Cosmology(object):
 
     def CriticalDensityForCollapse(self, z):
         """
-        Generally denoted (in LaTeX format) \Delta_c, fit from
-        Bryan & Norman (1998).
+        Generally denoted Delta_c, fit from Bryan & Norman (1998).
         """
         d = self.OmegaMatter(z) - 1.
         return 18. * np.pi**2 + 82. * d - 39. * d**2
@@ -850,17 +827,8 @@ class Cosmology(object):
         return np.array([self._get_angle_from_length_comoving(_z_, 1) \
             for _z_ in self.tab_z])
 
-    @cached_property
-    def _tab_ang_from_prop(self):
-        return np.array([self._get_angle_from_length_proper(_z_, 1) \
-            for _z_ in self.tab_z])
-
     def _get_angle_from_length_comoving(self, z, R):
         f = lambda ang: self.get_length_comoving_from_angle(z, ang) - R
-        return fsolve(f, x0=0.1)[0]
-
-    def _get_angle_from_length_proper(self, z, R):
-        f = lambda ang: self.get_length_proper_from_angle(z, ang) - R
         return fsolve(f, x0=0.1)[0]
 
     def get_angle_from_length_comoving(self, z, R):
@@ -870,10 +838,7 @@ class Cosmology(object):
             return self._get_angle_from_length_comoving(z, R)
 
     def get_angle_from_length_proper(self, z, R):
-        if self.interpolate and R == 1:
-            return np.interp(z, self.tab_z, self._tab_ang_from_prop)
-        else:
-            return self.get_angle_from_length_comoving(z, R / (1. + z))
+        return self.get_angle_from_length_comoving(z, R / (1. + z))
 
     def get_length_comoving_from_angle(self, z, angle):
         """

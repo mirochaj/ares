@@ -55,7 +55,8 @@ def test(tol=1e-2):
     colors = ['k', 'b']
     for i, pars in enumerate([plpars, aplpars]):
 
-        mgb = ares.simulations.MetaGalacticBackground(**pars)
+        sim = ares.simulations.Simulation(**pars)
+        mgb = sim.background_intensity
         mgb.run()
 
         if np.isfinite(mgb.pf['pop_logN']):

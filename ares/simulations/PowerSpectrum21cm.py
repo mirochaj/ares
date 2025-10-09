@@ -60,7 +60,7 @@ class PowerSpectrum21cm(AnalyzePS): # pragma: no cover
     @property
     def pf(self):
         if not hasattr(self, '_pf'):
-            self._pf = ParameterFile(**self.kwargs)
+            self._pf = ParameterFile(is_sim_level=True, **self.kwargs)
         return self._pf
 
     @pf.setter

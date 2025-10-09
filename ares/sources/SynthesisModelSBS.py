@@ -247,7 +247,7 @@ class SynthesisModelSBS(Source): # pragma: no cover
             Lall = Ls[:,Ly==1]
 
             # Still function of mass
-            self._tab_LUV = np.trapz(Lall, x=self.wavelengths[Ly==1], axis=1)
+            self._tab_LUV = np.trapezoid(Lall, x=self.wavelengths[Ly==1], axis=1)
 
         return self._tab_LUV
 
@@ -360,7 +360,7 @@ class SynthesisModelSBS(Source): # pragma: no cover
 
     def mgtm(self, m):
         cdf_by_m = cumulative_trapezoid(self.tab_imf * self.Ms**2, x=np.log(self.Ms), initial=0.) \
-            / np.trapz(self.tab_imf * self.Ms**2, x=np.log(self.Ms))
+            / np.trapezoid(self.tab_imf * self.Ms**2, x=np.log(self.Ms))
 
         return 1. - np.interp(m, self.Ms, cdf_by_m)
 
@@ -451,7 +451,7 @@ class SynthesisModelSBS(Source): # pragma: no cover
 
             else:
                 self._tab_imf_cdf = cumulative_trapezoid(self.tab_imf, x=self.Ms, initial=0.) \
-                    / np.trapz(self.tab_imf * self.Ms, x=np.log(self.Ms))
+                    / np.trapezoid(self.tab_imf * self.Ms, x=np.log(self.Ms))
 
         return self._tab_imf_cdf
 
@@ -489,10 +489,10 @@ class SynthesisModelSBS(Source): # pragma: no cover
     def avg_sn_delay(self):
         if not hasattr(self, '_avg_sn_delay'):
             ok = self.Ms >= 8.
-            top = np.trapz(self.tab_life[ok==1] * self.tab_imf[ok==1],
+            top = np.trapezoid(self.tab_life[ok==1] * self.tab_imf[ok==1],
                 x=self.Ms[ok==1])
 
-            bot = np.trapz(self.tab_imf[ok==1], x=self.Ms[ok==1])
+            bot = np.trapezoid(self.tab_imf[ok==1], x=self.Ms[ok==1])
 
             self._avg_sn_delay = top / bot
 
@@ -505,7 +505,7 @@ class SynthesisModelSBS(Source): # pragma: no cover
             top = cumulative_trapezoid(self.tab_life[ok==1] * self.tab_imf[ok==1] \
                 * self.Ms[ok==1], x=np.log(self.Ms[ok==1]), initial=0.0)
 
-            bot = np.trapz(self.tab_life[ok==1] * self.tab_imf[ok==1] \
+            bot = np.trapezoid(self.tab_life[ok==1] * self.tab_imf[ok==1] \
                 * self.Ms[ok==1], x=np.log(self.Ms[ok==1]))
 
             self._tab_dtd_cdf = top / bot
@@ -521,10 +521,10 @@ class SynthesisModelSBS(Source): # pragma: no cover
     #def var_sn_delay(self):
     #    if not hasattr(self, '_var_sn_delay'):
     #        ok = self.Ms >= 8.
-    #        top = np.trapz(self.tab_life[ok==1] * self.tab_imf[ok==1],
+    #        top = np.trapezoid(self.tab_life[ok==1] * self.tab_imf[ok==1],
     #            x=self.Ms[ok==1])
     #
-    #        bot = np.trapz(self.tab_imf[ok==1], x=self.Ms[ok==1])
+    #        bot = np.trapezoid(self.tab_imf[ok==1], x=self.Ms[ok==1])
     #
     #        self._avg_sn_delay = top / bot
     #

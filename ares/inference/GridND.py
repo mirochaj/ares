@@ -401,7 +401,7 @@ class GridND(defaultdict):
         shape, maxes = self._marginal_pdf_info(axes)
         for i, axis in enumerate(axes):
             num = self.axis(axis).num
-            pdf = np.trapz(pdf, axis=axes_num.index(num))
+            pdf = np.trapezoid(pdf, axis=axes_num.index(num))
             axes_num.pop(axes_num.index(num))
             
         xyax = [self.axis(ax) for ax in space]                        

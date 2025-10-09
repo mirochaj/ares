@@ -88,7 +88,7 @@ _base['approx_He'] = True
 _base['secondary_ionization'] = 3
 _base['approx_Salpha'] = 3
 _base['clumping_factor'] = 0.
-_base['photon_counting'] = True
+#_base['photon_counting'] = True
 _base['problem_type'] = 101.3
 
 faint_galaxies = _base.copy()

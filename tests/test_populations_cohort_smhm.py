@@ -22,9 +22,12 @@ def test():
     # Low resolution SEDs, HMF tables
     testing_pars = ares.util.ParameterBundle('testing:galaxies')
     testing_pars.num = 0
+    testing_pars2 = ares.util.ParameterBundle('testing:galaxies')
+    testing_pars2.num = 1
 
-    pars = ares.util.ParameterBundle('mirocha2023:setup')
+    pars = ares.util.ParameterBundle('mirocha2025:setup')
     pars.update(testing_pars)
+    pars.update(testing_pars2)
     pars['pop_Z{0}'] = (0.02, 0.02)
 
     sim = ares.simulations.Simulation(**pars)

@@ -13,7 +13,7 @@ Description:
 import ares
 import numpy as np
 
-def test():
+def test(tmp_dir):
     pars = ares.util.ParameterBundle('global_signal:basic')
     sim = ares.simulations.Simulation(**pars)
 
@@ -62,11 +62,21 @@ def test():
     curv2 = sim_gs.dTb2dnu2
 
     # Save, read back in
-    sim_gs.save('test', suffix='pkl', clobber=True)
-    sim_gs.save('test', suffix='hdf5', clobber=True)
+    output = tmp_dir / "test"
+    sim_gs.save(output, suffix='pkl', clobber=True)
+    sim_gs.save(output, suffix='hdf5', clobber=True)
 
-    sim_gs2 = ares.analysis.Global21cm('test')
+    sim_gs2 = ares.analysis.Global21cm(output)
     assert np.all(sim_gs.history['cgm_h_2'] == sim_gs2.history['cgm_h_2'])
 
 if __name__ == '__main__':
-    test()
+    import os 
+
+    if os.environ.get('RUNNER_TEMP') is not None:
+        tmp_dir = os.environ.get('RUNNER_TEMP')
+    else:
+        if not os.path.exists('_tmp_ares_data'):
+            os.mkdir('_tmp_ares_data')
+        tmp_dir = '_tmp_ares_data'
+
+    test(tmp_dir)

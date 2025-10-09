@@ -86,15 +86,10 @@ def get_Reff(z, Ms, quiescent=False, cosm=None):
     if quiescent:
         B_H = 3.8e-4 * np.exp(np.log10(Ms)*0.71) - 0.11
 
-        if type(Ms) in [int, float]:
-            if Ms >= 10**9.75:
-                Beta_H = 1.38e12 * np.exp(-2.87 * np.log10(Ms)) - 1.21
-            else:
-                Beta_H = -0.19
+        if Ms >= 10**9.75:
+            Beta_H = 1.38e12 * np.exp(-2.87 * np.log10(Ms)) - 1.21
         else:
-            Beta_H = -0.19 * np.ones_like(Ms)
-            Beta_H[Ms >= 10**9.75] = 1.38e12 *\
-                np.exp(-2.87 * np.log10(Ms[Ms >= 10**9.75])) - 1.21
+            Beta_H = -0.19
     else:
         B_H = 0.23 * np.log10(Ms) - 1.61
         Beta_H = -0.08 * np.log10(Ms) + 0.25

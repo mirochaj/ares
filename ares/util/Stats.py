@@ -530,31 +530,3 @@ def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None,
     else:
         return quantify_scatter(x, y, xbin_c, weights=weights,
             method_std='std', inclusive=inclusive)
-
-def lognormal(x, mu, sigma):
-    """
-    This is dP/dlnx. Sometimes you'll see an extra factor of x in the denominator, but remember:
-    
-    (i) dn/dlog10x = dn/dlnx / ln(10.)
-    (ii) dn/dlnx = x * dn/dx
-
-    So if you see an extra factor of x in the denominator elsewhere, you're seeing dn/dx.
-
-    If you integrate this function from -inf to inf, you should obtain 0.
-
-    Parameters
-    ----------
-    x : int, float, array 
-        Independent variable [really ln(x)].
-    mu : int, float, array 
-        Mean of log-normal in ln(x).
-    sigma : int, float 
-        Width of distribution.
-
-    Returns
-    -------
-    PDF, i.e., dn/dlnx.
-    
-    """
-    return np.exp(-0.5 * (x - mu)**2 / sigma**2) \
-         / np.sqrt(2. * np.pi) / sigma

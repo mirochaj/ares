@@ -12,7 +12,7 @@ Description:
 
 import ares
 import numpy as np
-
+from scipy.integrate import trapezoid
 
 def test():
     testing_pars = ares.util.ParameterBundle('testing:galaxies')
@@ -41,7 +41,7 @@ def test():
     sfh = galaxy.get_sfr(tarr, tobs, **kw)
 
     # Make sure the integral of the SFH = the mass we asked for
-    m = np.trapz(sfh, x=tarr * 1e6)
+    m = trapezoid(sfh, x=tarr * 1e6)
 
     assert abs(m - mass) / mass < 0.05, \
         "Error in SFH! Recovered mass not accurate to 5%."

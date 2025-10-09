@@ -1124,67 +1124,6 @@ class DoublePowerLawExtendedEvolvingAsB13(BasePQ):
 
         return y
 
-class DoublePowerLawPlusGaussEvolvingAsB13(BasePQ):
-    def __call__(self, **kwargs):
-        x = kwargs[self.x]
-
-        z = self.get_var2(kwargs['z'])
-
-        # Need scale factor
-        a = 1. / (1. + z)
-
-        # Basic idea here is to have parameters that dictate
-        # low-z, medium-z, and high-z behaviour, e.g.,
-        # log10(f_star,10) = p[0] + p[5] * (1 - a) \
-        #                  + p[9] * np.log(1 + z) + p[13] * z
-
-        logp0 = np.log10(self.args[0]) + self.args[5] * (1 - a) \
-              + self.args[9] * np.log(1 + z) \
-              + self.args[13] * z \
-              + self.args[17] * a
-
-        p0 = 10**logp0
-
-        logp1 = np.log10(self.args[1]) + self.args[6] * (1 - a) \
-              + self.args[10] * np.log(1 + z) \
-              + self.args[14] * z \
-              + self.args[18] * a
-
-        p1 = 10**logp1
-
-        normcorr = (((self.args[4] / p1)**-self.args[2] \
-                 +   (self.args[4] / p1)**-self.args[3]))
-
-        s1 = self.args[2] + self.args[7] * (1 - a) \
-              + self.args[11] * np.log(1 + z) \
-              + self.args[15] * z \
-              + self.args[19] * a
-
-        s2 = self.args[3] + self.args[8] * (1 - a) \
-              + self.args[12] * np.log(1 + z) \
-              + self.args[16] * z \
-              + self.args[20] * a
-
-        # This is to conserve memory.
-        xx = x / p1
-        y  = xx**-s1
-        y += xx**-s2
-        np.divide(1., y, out=y)
-
-        y *= normcorr * p0
-
-        mpeak = np.log10(self.args[21])
-
-        amp = self.args[22] + self.args[24] * (1 - a) \
-              + self.args[25] * np.log(1 + z) \
-              + self.args[26] * z
-
-        width = self.args[23]
-
-        y *= (1. + amp * np.exp(-(np.log10(x) - mpeak)**2 / 2 / width**2))
-
-        return y
-
 class Okamoto(BasePQ):
     def __call__(self, **kwargs):
         x = kwargs[self.x]
@@ -1300,33 +1239,6 @@ class LinLogEvolvingNorm(BasePQ):
         y = p0 + self.args[2] * (np.log10(x) - self.args[1])
         return y
 
-class LinLogEvolvingAsB13(BasePQ):
-    def __call__(self, **kwargs):
-        if self.x == "1+z":
-            x = 1. + kwargs["z"]
-        else:
-            x = kwargs[self.x]
-
-        z = self.get_var2(kwargs['z'])
-
-        # Need scale factor
-        a = 1. / (1. + z)
-
-        # Recall that p1 is the mass that we're pinning normalization to
-        p0 = self.args[0] + self.args[3] * (1 - a) \
-              + self.args[5] * np.log(1 + z) \
-              + self.args[7] * z \
-              + self.args[9] * a
-
-        p2 = self.args[2] + self.args[4] * (1 - a) \
-              + self.args[6] * np.log(1 + z) \
-              + self.args[8] * z \
-              + self.args[10] * a
-
-        y = p0 + p2 * (np.log10(x) - self.args[1])
-
-        return y
-
 class LogLinearEvolvingNorm(BasePQ):
     def __call__(self, **kwargs):
         if self.x == "1+z":
@@ -1405,8 +1317,6 @@ class ParameterizedQuantity(object):
             self.func = DoublePowerLawEvolvingAsB13(**kwargs)
         elif kwargs["pq_func"] == "dplx_evolB13":
             self.func = DoublePowerLawExtendedEvolvingAsB13(**kwargs)
-        elif kwargs["pq_func"] == "dpl+gauss_evolB13":
-            self.func = DoublePowerLawPlusGaussEvolvingAsB13(**kwargs)
         elif kwargs["pq_func"] == "exp":
             self.func = Exponential(**kwargs)
         elif kwargs["pq_func"] in ["normal", "gaussian"]:
@@ -1467,8 +1377,6 @@ class ParameterizedQuantity(object):
             self.func = LinLog(**kwargs)
         elif kwargs["pq_func"] in ["linlog_evolN"]:
             self.func = LinLogEvolvingNorm(**kwargs)
-        elif kwargs["pq_func"] in ["linlog_evolB13"]:
-            self.func = LinLogEvolvingAsB13(**kwargs)
         elif kwargs["pq_func"] in ["loglin_evolN"]:
             raise NotImplemented('help')
         elif kwargs["pq_func"] in ["p_linear"]:

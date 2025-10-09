@@ -219,7 +219,7 @@ class BlackHole(Source):
                 integrand = np.array(list(map(nin, Earr))) * np.array(gf) * Earr
 
                 nout.append((1.0 - fsc) * nin(nrg) + fsc \
-                    * np.trapz(integrand, dx=dlogE) * np.log(10.))
+                    * np.trapezoid(integrand, dx=dlogE) * np.log(10.))
 
             nout = np.array(nout)
         else:
@@ -227,7 +227,7 @@ class BlackHole(Source):
             integrand = np.array(list(map(nin, Earr))) * np.array(gf) * Earr
 
             nout = (1.0 - fsc) * nin(E) + fsc \
-                * np.trapz(integrand, dx=dlogE) * np.log(10.)
+                * np.trapezoid(integrand, dx=dlogE) * np.log(10.)
 
         # Output spectrum
         return nout * E

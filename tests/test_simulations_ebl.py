@@ -14,7 +14,7 @@ import ares
 import numpy as np
 
 def test():
-    pars = ares.util.ParameterBundle('mirocha2023:centrals_sf')
+    pars = ares.util.ParameterBundle('mirocha2025:centrals_sf')
     pars.update(ares.util.ParameterBundle('testing:galaxies'))
     pars['pop_Z'] = (0.02, 0.02)
     pars['pop_age'] = (100, 1e4)

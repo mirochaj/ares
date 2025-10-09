@@ -46,14 +46,14 @@ class Global21cm(AnalyzeGlobal21cm):
         if pf is None:
             assert kwargs is not None, \
                 "Must provide parameters to initialize a Simulation!"
-            self.pf = ParameterFile(**kwargs)
+            self.pf = ParameterFile(is_sim_level=True, **kwargs)
         else:
             self.pf = pf
 
         self.is_complete = False
 
         # See if this is a tanh model calculation
-        self.is_phenom = self._check_if_phenom(**kwargs)
+        self.is_phenom = self._check_if_phenom(**self.pf)
 
         self.kwargs = kwargs
 
@@ -141,10 +141,11 @@ class Global21cm(AnalyzeGlobal21cm):
     def _check_if_phenom(self, **kwargs):
         if not kwargs:
             return False
-
+        
         if ('tanh_model' not in kwargs) and ('gaussian_model' not in kwargs)\
            and ('parametric_model' not in kwargs):
             return False
+        
 
         self.is_tanh = False
         self.is_gauss = False
@@ -155,11 +156,12 @@ class Global21cm(AnalyzeGlobal21cm):
                 from ..phenom.Tanh21cm import Tanh21cm as PhenomModel
                 self.is_tanh = True
 
-        elif 'gaussian_model' in kwargs:
+        if 'gaussian_model' in kwargs:
             if kwargs['gaussian_model']:
                 from ..phenom.Gaussian21cm import Gaussian21cm as PhenomModel
                 self.is_gauss = True
-        elif 'parametric_model' in kwargs:
+                print('wtf indeed', self.is_gauss)
+        if 'parametric_model' in kwargs:
             if kwargs['parametric_model']:
                 from ..phenom.Parametric21cm import Parametric21cm as PhenomModel
                 self.is_param = True

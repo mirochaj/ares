@@ -37,28 +37,8 @@ def test():
     pars_ares2['pop_nebular_lookup'] = 'ferland1980'
     pop_ares2 = ares.populations.GalaxyPopulation(**pars_ares2)
 
-    # Setup source with BPASS-generated (CLOUDY) nebular emission
-    pars_sps = ares.util.ParameterBundle('mirocha2017:base').pars_by_pop(0, 1)
-    pars_sps.update(ares.util.ParameterBundle('testing:galaxies'))
-    pars_sps['pop_nebular'] = 1
-    pars_sps['pop_fesc'] = 0.
-    pars_sps['pop_nebular_Tgas'] = 2e4
-    pop_sps = ares.populations.GalaxyPopulation(**pars_sps)
-
     for k, t in enumerate([1, 5, 10, 20, 50]):
         i = np.argmin(np.abs(pop_ares.src.tab_t - t))
-
-        # For some reason, the BPASS+CLOUDY tables only go up to 29999A,
-        # so the degraded tables will be one element shorter than their
-        # pop_nebular=False counterparts. So, interpolate for errors.
-        # (this is really just making shapes the same, since common
-        # wavelengths will be identical)
-        y_ares = np.interp(pop_sps.src.tab_waves_c,
-            pop_ares.src.tab_waves_c, pop_ares.src.tab_sed[:,i])
-        y_ares2 = np.interp(pop_sps.src.tab_waves_c,
-            pop_ares2.src.tab_waves_c, pop_ares2.src.tab_sed[:,i])
-        err = np.abs(y_ares - pop_sps.src.tab_sed[:,i]) / pop_sps.src.tab_sed[:,i]
-        err2 = np.abs(y_ares2 - pop_sps.src.tab_sed[:,i]) / pop_sps.src.tab_sed[:,i]
 
         Lion_H = pop_ares.src._nebula.get_ion_lum(pop_ares.src.tab_sed[:,i], 0)
         Lion_He = pop_ares.src._nebula.get_ion_lum(pop_ares.src.tab_sed[:,i], 1)
@@ -104,7 +84,7 @@ def test():
     err = abs(pop_ares.src.tab_sed[i1000,:] - pop_ares2.src.tab_sed[i1000,:]) \
         / pop_ares.src.tab_sed[i1000,:]
     assert np.all(err <= 1e-2), \
-        "Ferland (1980) results should be closer to Dopita \& Sutherland!"
+        "Ferland (1980) results should be closer to Dopita & Sutherland!"
 
 
 if __name__ == '__main__':

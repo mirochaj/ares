@@ -12,8 +12,8 @@ Description:
 
 import time
 import numpy as np
+import numdifftools as nd
 from ..util import ParameterFile
-from scipy.misc import derivative
 from ..physics import Hydrogen, Cosmology
 from ..physics.Constants import k_B, J21_num, nu_0_mhz
 from ..physics.RateCoefficients import RateCoefficients
@@ -52,7 +52,7 @@ class Tanh21cm(object):
         self.hydr = Hydrogen(cosm=self.cosm, **kwargs)
 
     def dTgas_dz(self, z):
-        return derivative(self.cosm.Tgas, x0=z)
+        return nd.Derivative(self.cosm.Tgas)(z)
 
     def electron_density(self, z):
         return np.interp(z, self.cosm.thermal_history['z'],

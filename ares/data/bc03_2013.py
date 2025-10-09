@@ -64,10 +64,7 @@ def _kwargs_to_fn(**kwargs):
     path += f"/{kwargs['source_imf']}/"
 
     # All files share this prefix
-    if kwargs['source_stellar_lib'] == 'stelib':
-        fn = 'bc2003_hr_stelib'
-    else:
-        fn = 'bc2003_lr_BaSeL'
+    fn = 'bc2003_hr_stelib'
 
     Z = kwargs['source_Z']
     iZ = list(mvals).index(Z)

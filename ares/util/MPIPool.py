@@ -18,13 +18,6 @@ except ImportError:
     rank = 0
     size = 1
 
-try:
-    import pymp
-    have_pymp = True
-except ImportError:
-    have_pymp = False
-
-
 class MPIPool(object): # pragma: no cover
 
     def __init__(self, comm=None, master=0):
@@ -114,58 +107,7 @@ class MPIPool(object): # pragma: no cover
         for worker in self.workers:
             self.comm.send(None, worker, 0)
 
-class WorkerPool(object):
-    def __init__(self, nthreads=None):
-        self.nthreads = nthreads
 
-    @property
-    def pool(self):
-        if not hasattr(self, '_pool_'):
-            assert have_pymp, "Need pymp if nthreads != 0 or None."
-            pymp.config.num_threads = self.nthreads
-            self._pool_ = pymp.Parallel(self.nthreads)
-            self._pool_.__enter__()
-            if self.is_pymp_pool and self.thread_num == 1:
-                print(f"* Initialized pymp worker pool with {self.nthreads} threads")
-        return self._pool_
-
-    def done(self, exc_t=None, exc_val=None, exc_tb=None):
-        if self.is_pymp_pool:
-            self.pool.__exit__(exc_t, exc_val, exc_tb)
-        else:
-            pass
-
-    @property
-    def is_pymp_pool(self):
-        if not hasattr(self, '_is_pymp_pool'):
-            if self.nthreads not in [0, 1, None]:
-                self._is_pymp_pool = True
-            else:
-                self._is_pymp_pool = False
-
-        return self._is_pymp_pool
-
-    @property
-    def thread_num(self):
-        if not hasattr(self, '_thread_num'):
-            if self.is_pymp_pool:
-                self._thread_num = self.pool.thread_num
-            else:
-                self._thread_num = 1
-
-        return self._thread_num
-
-    def xrange(self, N):
-        if self.is_pymp_pool:
-            return self.pool.xrange(0, N)
-        else:
-            return range(0, N)
-
-    def get_buffer(self, shape, dtype):
-        if self.is_pymp_pool:
-            return pymp.shared.array(shape, dtype=dtype)
-        else:
-            return np.zeros(shape, dtype=dtype)
 #if __name__ == '__main__':
 #
 #    pool = Pool(MPI.COMM_WORLD)

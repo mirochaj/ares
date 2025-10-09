@@ -14,7 +14,7 @@ import ares
 import numpy as np
 from ares.physics.Constants import rhodot_cgs, E_LL, cm_per_mpc, ev_per_hz
 
-def test():
+def test(tmp_dir):
     pars = ares.util.ParameterBundle('mirocha2020:univ')
     pars.update(ares.util.ParameterBundle('testing:galaxies'))
     # Can't actually do this test yet because we don't have access to
@@ -23,7 +23,7 @@ def test():
     pop = ares.populations.GalaxyPopulation(**pars)
 
     # Test I/O. Should add more here eventually.
-    pop.save('test_ensemble', clobber=True)
+    pop.save(f'{tmp_dir}/test_ensemble', clobber=True)
 
     z = pop.tab_z
     t = pop.tab_t
@@ -202,4 +202,13 @@ def test():
     assert 1e47 <= np.mean(n_ion) <= 1e51
 
 if __name__ == '__main__':
-    test()
+    import os 
+
+    if os.environ.get('RUNNER_TEMP') is not None:
+        tmp_dir = os.environ.get('RUNNER_TEMP')
+    else:
+        if not os.path.exists('_tmp_ares_data'):
+            os.mkdir('_tmp_ares_data')
+        tmp_dir = '_tmp_ares_data'
+
+    test(tmp_dir)

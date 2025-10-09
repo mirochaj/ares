@@ -18,9 +18,8 @@ import pickle
 from types import FunctionType
 from functools import cached_property
 import numpy as np
-from scipy.misc import derivative
 from scipy.optimize import fsolve
-from scipy.integrate import cumtrapz, simps
+from scipy.integrate import cumulative_trapezoid, simpson
 from scipy.interpolate import (
     UnivariateSpline,
     RectBivariateSpline,
@@ -423,14 +422,14 @@ class HaloMassFunction(object):
                 mf_func = InterpolatedUnivariateSpline(np.log(m), np.log(dndlnm), k=1)
                 mf = mf_func(m_upper)
 
-                int_upper_n = simps(np.exp(mf), dx=m_upper[2] - m_upper[1], even='first')
-                int_upper_m = simps(np.exp(m_upper + mf), dx=m_upper[2] - m_upper[1], even='first')
+                int_upper_n = simpson(np.exp(mf), dx=m_upper[2] - m_upper[1], even='first')
+                int_upper_m = simpson(np.exp(m_upper + mf), dx=m_upper[2] - m_upper[1], even='first')
             else:
                 int_upper_n = 0
                 int_upper_m = 0
 
-            ngtm_ = np.concatenate((cumtrapz(dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
-            mgtm_ = np.concatenate((cumtrapz(m[::-1] * dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
+            ngtm_ = np.concatenate((cumulative_trapezoid(dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
+            mgtm_ = np.concatenate((cumulative_trapezoid(m[::-1] * dndlnm[::-1], dx=np.log(m[1]) - np.log(m[0]))[::-1], np.zeros(1)))
 
             ngtm.append(ngtm_ + int_upper_n)
             mgtm.append(mgtm_ + int_upper_m)
@@ -567,13 +566,13 @@ class HaloMassFunction(object):
 
             for i, z in enumerate(self.tab_z):
                 self.tab_dndm[i,np.argwhere(np.isnan(self.tab_dndm[i]))] = 1e-70
-                ngtm_0 = np.trapz(self.tab_dndm[i] * self.tab_M,
+                ngtm_0 = np.trapezoid(self.tab_dndm[i] * self.tab_M,
                     x=np.log(self.tab_M))
-                mgtm_0 = np.trapz(self.tab_dndm[i] * self.tab_M**2,
+                mgtm_0 = np.trapezoid(self.tab_dndm[i] * self.tab_M**2,
                     x=np.log(self.tab_M))
                 self.tab_ngtm[i,:] = (
                     ngtm_0
-                    - cumtrapz(
+                    - cumulative_trapezoid(
                         self.tab_dndm[i] * self.tab_M,
                         x=np.log(self.tab_M),
                         initial=0.0,
@@ -581,7 +580,7 @@ class HaloMassFunction(object):
                 )
                 self.tab_mgtm[i,:] = (
                     mgtm_0
-                    - cumtrapz(
+                    - cumulative_trapezoid(
                         self.tab_dndm[i] * self.tab_M**2,
                         x=np.log(self.tab_M),
                         initial=0.0,
@@ -619,7 +618,7 @@ class HaloMassFunction(object):
             p = camb.CAMBparams()
             p.set_matter_power(**_transfer_pars)
 
-            self._pars_transfer_ = {'camb_params': p}
+            self._pars_transfer_ = {'camb_params': p, 'extrapolate_with_eh': True}
 
         return self._pars_transfer_
 
@@ -685,14 +684,6 @@ class HaloMassFunction(object):
         return 10**bin_c2e(logM)
 
     @cached_property
-    def tab_log10M_e(self):
-        return np.log10(self.tab_M_e)
-
-    @cached_property
-    def tab_log10M(self):
-        return np.log10(self.tab_M)
-
-    @cached_property
     def dlnm(self):
         lnM = np.log(self.tab_M)
         dlnM = np.diff(lnM)
@@ -728,21 +719,6 @@ class HaloMassFunction(object):
                 self._tab_dndlnm_sub = dndlnm
             else:
                 raise NotImplemented('Only know about Tinker & Wetzel sub-HMF.')
-
-        return self._tab_dndlnm_sub
-
-    @property
-    def tab_ngtm_sub(self):
-        if not hasattr(self, '_tab_dndlnm_sub'):
-            tab_dndlnm_sub = self.tab_dndlnm_sub
-            self._tab_dndlnm_sub = np.zeros([self.halos.tab_M.size]*2)
-
-            m = self.halos.tab_M
-            for i, Mc in enumerate(self.halos.tab_M):
-                dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,:] / Mc
-                self._tab_dndlnm_sub[i,:] = \
-                    cumulative_trapezoid(dndm[-1::-1] * m[-1::-1],
-                        x=-np.log(m[-1::-1]), initial=0)[-1::-1]
 
         return self._tab_dndlnm_sub
 
@@ -869,11 +845,11 @@ class HaloMassFunction(object):
             self._MF.update(z=z)
 
             # Undo little h for all main quantities
-            self.tab_dndm[i] = self._MF.dndm.copy() * self.cosm.h70**4
-            self.tab_mgtm[i] = self._MF.rho_gtm.copy() * self.cosm.h70**2
-            self.tab_ngtm[i] = self._MF.ngtm.copy() * self.cosm.h70**3
+            self.tab_dndm[i] = self._MF.dndm * self.cosm.h70**4
+            self.tab_mgtm[i] = self._MF.rho_gtm * self.cosm.h70**2
+            self.tab_ngtm[i] = self._MF.ngtm * self.cosm.h70**3
 
-            self.tab_ps_lin[i] = self._MF.power.copy() / self.cosm.h70**3
+            self.tab_ps_lin[i] = self._MF.power / self.cosm.h70**3
             self.tab_growth[i] = self._MF.growth_factor * 1.
 
             pb.update(i)
@@ -905,6 +881,7 @@ class HaloMassFunction(object):
             tmp7 = np.zeros_like(self.tab_growth)
             nothing = MPI.COMM_WORLD.Allreduce(self.tab_growth, tmp7)
             self.tab_growth = tmp7
+
         ##
         # Done!
         ##
@@ -944,7 +921,6 @@ class HaloMassFunction(object):
         pb.finish()
 
         self.tab_traj = MM
-
 
         if size > 1: # pragma: no cover
             tmp = np.zeros_like(self.tab_traj)
@@ -1376,11 +1352,6 @@ class HaloMassFunction(object):
         and collapse redshift.
 
         Equation 24 in Barkana & Loeb (2001).
-
-        Returns
-        -------
-        Virial radius in kpc (we eliminate little h here).
-
         """
 
         return (
@@ -1768,4 +1739,4 @@ class HaloMassFunction(object):
 
         print('# Wrote {!s}.'.format(fn))
 
-        return
+        return fn

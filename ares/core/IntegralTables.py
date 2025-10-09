@@ -380,7 +380,7 @@ class IntegralTable(object):
             tau = 0.0
             for absorber in self.grid.absorbers:
                 E = self.E[absorber]
-                tau += np.trapz(self.tau_E_N[absorber][:,ind], E)
+                tau += np.trapezoid(self.tau_E_N[absorber][:,ind], E)
 
         else:
 
@@ -596,7 +596,7 @@ class IntegralTable(object):
                     * np.exp(-self.tau_E_N[absorber][:,ind]) \
                     / self.E[absorber] / self.E_th[absorber]
 
-            integral = np.trapz(integrand, self.E[absorber]) / erg_per_ev
+            integral = np.trapezoid(integrand, self.E[absorber]) / erg_per_ev
 
         # If not, use Gaussian quadrature
         else:
@@ -644,7 +644,7 @@ class IntegralTable(object):
                     * np.exp(-self.tau_E_N) \
                     / self.E_th[absorber]
 
-            integral = np.trapz(integrand, self.E[absorber])
+            integral = np.trapezoid(integrand, self.E[absorber])
 
         else:
             # Otherwise, continuous spectrum

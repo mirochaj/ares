@@ -98,7 +98,7 @@ class ClusterPopulation(Population): # pragma: no cover
             _y = frd * 1e6 * mdist[:,i]
             # Integrate over time for clusters of this mass.
             # Note: we don't not allow clusters to lose mass.
-            y[i] = np.trapz(_y, x=self.tab_ages[:iz])
+            y[i] = np.trapezoid(_y, x=self.tab_ages[:iz])
 
         return y
 
@@ -117,7 +117,7 @@ class ClusterPopulation(Population): # pragma: no cover
 
                 for j, M in enumerate(self.tab_M):
                     #self._tab_agefunc_[i,i:] = self.tab_ages
-                    self._tab_massfunc_[i,j] = np.trapz(frd * mdist[:,j],
+                    self._tab_massfunc_[i,j] = np.trapezoid(frd * mdist[:,j],
                         x=self.tarr[i:] * 1e6)
                     # 1e6 since tarr in Myr and FRD in yr^-1
 
@@ -251,7 +251,7 @@ class ClusterPopulation(Population): # pragma: no cover
                     self._tab_Nc_[i,:,k] = frd[j] * dt * mdist[j,:]
                     self._tab_Lc_[i,:,k] = L[j] * self.tab_M
 
-                    Nc += np.trapz(self._tab_Nc[i,:,k], x=self.tab_M, axis=0)
+                    Nc += np.trapezoid(self._tab_Nc[i,:,k], x=self.tab_M, axis=0)
 
                 # At this point, we have an array Nc_of_M_z that represents
                 # the number of clusters as a function of (mass, age).
@@ -312,9 +312,9 @@ class ClusterPopulation(Population): # pragma: no cover
             if not self.is_aging:
                 y = np.interp(0.0, self.src.times, yield_per_M)
                 N = np.interp(0.0, self.src.times, erg_per_phot)
-                self._tab_rho_L_[i] = np.trapz(self._tab_Nc[i,:,0] * self.tab_M * y,
+                self._tab_rho_L_[i] = np.trapezoid(self._tab_Nc[i,:,0] * self.tab_M * y,
                     x=self.tab_M)
-                self._tab_rho_N_[i] = np.trapz(self._tab_Nc[i,:,0] * self.tab_M * N,
+                self._tab_rho_N_[i] = np.trapezoid(self._tab_Nc[i,:,0] * self.tab_M * N,
                     x=self.tab_M)
                 continue
 
@@ -338,8 +338,8 @@ class ClusterPopulation(Population): # pragma: no cover
 
                 Mc = self._tab_Nc[i,:,k] * self.tab_M
 
-                self._tab_rho_L_[i] += np.trapz(Mc * y, x=self.tab_M)
-                self._tab_rho_N_[i] += np.trapz(Mc * N, x=self.tab_M)
+                self._tab_rho_L_[i] += np.trapezoid(Mc * y, x=self.tab_M)
+                self._tab_rho_N_[i] += np.trapezoid(Mc * N, x=self.tab_M)
 
         # Not as general as it could be right now...
         if (Emin, Emax) == (13.6, 24.6):
@@ -407,7 +407,7 @@ class ClusterPopulation(Population): # pragma: no cover
     def rho_GC(self, z):
         mags, phi = self.LuminosityFunction(z)
 
-        return np.trapz(phi, dx=abs(np.diff(mags)[0]))
+        return np.trapezoid(phi, dx=abs(np.diff(mags)[0]))
 
     @property
     def _mdist_norm(self):
@@ -416,7 +416,7 @@ class ClusterPopulation(Population): # pragma: no cover
             # Wont' work if mdist is redshift-dependent.
             ## HELP
             integ = self._mdist(M=self.tab_M) * self.tab_M
-            self._mdist_norm_ = 1. / np.trapz(integ, x=np.log(self.tab_M))
+            self._mdist_norm_ = 1. / np.trapezoid(integ, x=np.log(self.tab_M))
 
         return self._mdist_norm_
 
@@ -426,7 +426,7 @@ class ClusterPopulation(Population): # pragma: no cover
         """
         integ = self._mdist(M=self.tab_M) * self._mdist_norm
 
-        total = np.trapz(integ * self.tab_M, x=np.log(self.tab_M))
+        total = np.trapezoid(integ * self.tab_M, x=np.log(self.tab_M))
 
         print(total)
 
@@ -501,7 +501,7 @@ class ClusterPopulation(Population): # pragma: no cover
     def Mavg(self, z):
         pdf = self._mdist(z=z, M=self.tab_M) * self._mdist_norm
 
-        return np.trapz(pdf * self.tab_M, x=self.tab_M)
+        return np.trapezoid(pdf * self.tab_M, x=self.tab_M)
 
     @property
     def tab_zobs(self):

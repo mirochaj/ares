@@ -73,7 +73,7 @@ dpl = \
  'secondary_ionization': 3,
  'approx_Salpha': 3,
  'problem_type': 102,
- 'photon_counting': True,
+#'photon_counting': True,
  'cgm_initial_temperature': 2e4,
  'cgm_recombination': 'B',
  'clumping_factor': 3.,

@@ -506,8 +506,6 @@ def PopulationParameters():
 
     "pop_sfr_model": 'fcoll', # or sfrd-func, sfrd-tab, sfe-func, sfh-tab, rates,
 
-    "pop_lum_func": None,
-
     "pop_ham_z": None,
 
     # Mass accretion rate
@@ -538,9 +536,6 @@ def PopulationParameters():
 
     "pop_centrals": True,
     "pop_ihl": None,
-    "pop_ihl_mask": None,
-    "pop_ihl_mask_pix": 6,
-    "pop_ihl_suppression": None,
 
     "pop_focc": 1.0,
     "pop_focc_inv": False,
@@ -569,7 +564,6 @@ def PopulationParameters():
     # For synthesis models
     "pop_Z": 0.02,
     "pop_imf": 2.35,
-    "pop_stellar_lib": 'stelib', # only applies to BC03 models
     "pop_tracks": None,
     "pop_tracks_fn": None,
     "pop_stellar_aging": False,
@@ -599,7 +593,6 @@ def PopulationParameters():
     "pop_sfh": 'const',
     "pop_sfh_degrade": 1,
     "pop_sfh_fallback": None,
-    "pop_fallback_last_resort": False,
     "pop_age_definition": None,
 
 
@@ -880,7 +873,6 @@ def PopulationParameters():
     "pop_fox": 0.03,
 
     "pop_msr": None,
-    "pop_profile_info": None,
 
     "pop_dust_holes": 'big',
     "pop_dust_yield": None,     # Mdust = dust_yield * metal mass
@@ -918,16 +910,11 @@ def PopulationParameters():
     "pop_calib_wave": 1600,
     "pop_calib_lum": None,
     "pop_lum_per_sfr": None,
-    "pop_lum_per_mass": None,
-    
+
     "pop_lum_per_sfr_off_wave": 1,
     "pop_lum_per_sfr_at_wave": None,
     "pop_lum_corr": None,
     "pop_lum_tab": None,
-    "pop_lum_tab_prefix": None,
-    "pop_lum_tab_T0": 1,
-    "pop_lum_tab_T0_alpha": 0,
-
 
     "pop_calib_Z": None,        # not implemented
 
@@ -1060,7 +1047,6 @@ def SourceParameters():
         "source_Z": 0.02,
         "source_imf": 2.35,
         "source_imf_Mmax": 300,
-        "source_stellar_lib": 'stelib',
         "source_tracks": 'Padova1994',
         "source_tracks_fn": None,
         "source_stellar_aging": False,
@@ -1077,7 +1063,6 @@ def SourceParameters():
         "source_prof_1h": None,
         "source_ssp": False,             # a.k.a., continuous SF
         "source_sfh": 'const',
-        "source_fallback_last_resort": False,
         "source_sfh_axes": None,
         "source_sfh_fallback": None,
 
@@ -1369,7 +1354,8 @@ def CosmologyParameters():
         'relativistic_species': 3.04,
         "approx_highz": False,
         "cosmology_id": 'best',
-        "cosmology_name": 'planck_TTTEEE_lowl_lowE',  # Can pass 'named cosmologies'
+        # Can pass 'named cosmologies', e.g., planck_TTTEEE_lowl_lowE
+        "cosmology_name": 'planck_TTTEEE_lowl_lowE', 
         "cosmology_number": None,
         "path_to_CosmoRec": None,
         "interpolate_cosmology_in_z": False,
@@ -1455,7 +1441,7 @@ def ControlParameters():
         "cosmological_ics": False,
         "load_sim": False,
 
-        "cosmological_Mmin": ['filtering', 'tegmark'],
+        "cosmological_Mmin": None, #['filtering', 'tegmark'],
 
         # Timestepping
         "max_timestep": 1.0,

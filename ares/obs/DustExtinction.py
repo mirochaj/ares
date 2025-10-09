@@ -69,6 +69,9 @@ class DustExtinction(object):
     @cached_property
     def is_template(self):
         is_templ = self.pf['pop_dust_template'] is not None
+        if is_templ:
+            assert have_dustext, \
+                "Use of `pop_dust_template` requires `dustextinction` package!"
         return is_templ
 
     @cached_property
@@ -101,7 +104,8 @@ class DustExtinction(object):
     @property
     def _dustext_instance(self):
         if not hasattr(self, '_dustext_instance_'):
-            assert have_dustext, "Need dust_extinction package for this!"
+            assert have_dustext, \
+                "Use of `pop_dust_template` requires `dustextinction` package!"
             mth1, curve = self.method.split(':')
 
             self._dustext_instance_ = WD01(curve)

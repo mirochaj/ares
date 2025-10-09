@@ -408,7 +408,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
             iM = np.argmin(np.abs(Mmin - M_b))
 
-            _Qi = np.trapz(dndm_b[iM:] * M_b[iM:] * V_i[iM:],
+            _Qi = np.trapezoid(dndm_b[iM:] * M_b[iM:] * V_i[iM:],
                 x=np.log(M_b[iM:]))
             Qi = 1. - np.exp(-_Qi)
 
@@ -425,7 +425,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         # Grab heated phase to enforce BC
         #Rs = self.BubbleShellRadius(z, R_i)
         #Vsh = 4. * np.pi * (Rs - R_i)**3 / 3.
-        #Qh = np.trapz(dndm * Vsh * M_b, x=np.log(M_b))
+        #Qh = np.trapezoid(dndm * Vsh * M_b, x=np.log(M_b))
 
         #if lya and self.pf['bubble_pod_size_func'] in [None, 'const', 'linear']:
         #    Rc = self.BubblePodRadius(z, R_i, zeta, zeta_lya)
@@ -436,7 +436,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         #        # not number of photons, but fine for now.
         #        Qc = min(zeta_lya * self.halos.fcoll_2d(z, np.log10(self.Mmin(z))), 1)
         #    else:
-        #        Qc = np.trapz(dndlnm[iM:] * Vc[iM:], x=np.log(M_b[iM:]))
+        #        Qc = np.trapezoid(dndlnm[iM:] * Vc[iM:], x=np.log(M_b[iM:]))
         #
         #    return min(Qc, 1.)
         #
@@ -515,10 +515,10 @@ class FluctuationsRealSpace(object): # pragma: no cover
         if (Q is None):
             Q = self.MeanIonizedFraction(z, zeta)
 
-        denom = np.trapz(dndm_b[iM:] * V[iM:] * M_b[iM:],
+        denom = np.trapezoid(dndm_b[iM:] * V[iM:] * M_b[iM:],
             x=np.log(M_b[iM:]))
 
-        return np.trapz(dndm_b[iM:] * V[iM:] * bHII[iM:] * M_b[iM:],
+        return np.trapezoid(dndm_b[iM:] * V[iM:] * bHII[iM:] * M_b[iM:],
             x=np.log(M_b[iM:])) / Q
 
     #def delta_bubble_mass_weighted(self, z, zeta):
@@ -554,7 +554,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         iM = np.argmin(np.abs(Mmin - self.m))
         B = self._B(z, zeta)
 
-        return np.trapz(B[iM:] * dndm_b[iM:] * V_i[iM:] * M_b[iM:],
+        return np.trapezoid(B[iM:] * dndm_b[iM:] * V_i[iM:] * M_b[iM:],
             x=np.log(M_b[iM:]))
 
    #def mean_bubble_overdensity(self, z, zeta):
@@ -584,7 +584,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         dndm_h = self.halos.tab_dndm[iz_h]
 
-        return np.trapz(M_h * dndm_h, x=np.log(M_h))
+        return np.trapezoid(M_h * dndm_h, x=np.log(M_h))
 
     def spline_cf_mm(self, z):
         if not hasattr(self, '_spline_cf_mm_'):
@@ -682,7 +682,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         if type(zeta) != np.ndarray:
             zeta = np.ones_like(self.halos.tab_M) * zeta
 
-        zeta_fcoll = np.trapz(zeta[iM:] * self.halos.tab_M[iM:]**2 * dndm[iM:],
+        zeta_fcoll = np.trapezoid(zeta[iM:] * self.halos.tab_M[iM:]**2 * dndm[iM:],
             x=np.log(self.halos.tab_M[iM:]))
 
         k = np.argmin(np.abs(zeta_fcoll - 1.))
@@ -861,14 +861,14 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
             # Integrate over BSD
             #integ = dndR * V_i
-            #Qtot = np.trapz(integ[iM:] * R_i[iM:], x=np.log(R_i[iM:]))
+            #Qtot = np.trapezoid(integ[iM:] * R_i[iM:], x=np.log(R_i[iM:]))
             #corr = -np.log(1. - Q) / Qtot
             #_bsd = dndR * corr
             #bsd = _bsd / dmdR
 
             # Easier to integrate dn/dm than dn/dR?
             integ = dndm[iM:] * V_i[iM:]
-            Qtot = np.trapz(integ * M_b[iM:], x=np.log(M_b[iM:]))
+            Qtot = np.trapezoid(integ * M_b[iM:], x=np.log(M_b[iM:]))
             corr = -np.log(1. - Q) / Qtot
 
             _bsd = dndm * corr
@@ -1078,7 +1078,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
         integ = dndm_h * Vvir * M_h
 
-        Q_hal = 1. - np.exp(-np.trapz(integ[imin:imax],
+        Q_hal = 1. - np.exp(-np.trapezoid(integ[imin:imax],
             x=np.log(M_h[imin:imax])))
 
         return Q_hal
@@ -2150,17 +2150,17 @@ class FluctuationsRealSpace(object): # pragma: no cover
                 #
                 #    # Don't truncate at Mmin! Don't need star-forming
                 #    # galaxy, just need mass.
-                #    ixd_inner[k] = np.trapz(integ * M_h, x=np.log(M_h))
+                #    ixd_inner[k] = np.trapezoid(integ * M_h, x=np.log(M_h))
 
 
 
                 #_integrand = dndm_h * (M_h / rho_bar) * bh
-                #fcorr = 1. - np.trapz(_integrand * M_h, x=np.log(M_h))
+                #fcorr = 1. - np.trapezoid(_integrand * M_h, x=np.log(M_h))
 
                 # Just halos *outside* bubbles
-                hal = np.trapz(dndm_h[:iM_h] * V_hal[:iM_h] * (1. + ep_bh[:iM_h]) * M_h[:iM_h],
+                hal = np.trapezoid(dndm_h[:iM_h] * V_hal[:iM_h] * (1. + ep_bh[:iM_h]) * M_h[:iM_h],
                     x=np.log(M_h[:iM_h]))
-                bub = np.trapz(dndm_b[iM:] * V_i[iM:] * self.m[iM:],
+                bub = np.trapezoid(dndm_b[iM:] * V_i[iM:] * self.m[iM:],
                     x=np.log(self.m[iM:]))
 
                 P_ihal = (1. - np.exp(-bub)) * (1. - np.exp(-hal))
@@ -2181,9 +2181,9 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
             elif term == 'idd':
 
-                hal = np.trapz(dndm_h[:iM_h] * V_hal[:iM_h] * (1. + ep_bh[:iM_h]) * M_h[:iM_h],
+                hal = np.trapezoid(dndm_h[:iM_h] * V_hal[:iM_h] * (1. + ep_bh[:iM_h]) * M_h[:iM_h],
                     x=np.log(M_h[:iM_h]))
-                bub = np.trapz(dndm_b[iM:] * V_i[iM:] * self.m[iM:],
+                bub = np.trapezoid(dndm_b[iM:] * V_i[iM:] * self.m[iM:],
                     x=np.log(self.m[iM:]))
 
                 P_ihal = (1. - np.exp(-bub)) * (1. - np.exp(-hal))
@@ -2196,9 +2196,9 @@ class FluctuationsRealSpace(object): # pragma: no cover
 
                 #exc = bh_bar * bb_bar * xi_dd_r
                 #
-                #hal = np.trapz(dndm_h * V_hal * (1. + exc) * M_h,
+                #hal = np.trapezoid(dndm_h * V_hal * (1. + exc) * M_h,
                 #    x=np.log(M_h))
-                #bub = np.trapz(dndm_b[iM:] * V_i[iM:] * self.m[iM:],
+                #bub = np.trapezoid(dndm_b[iM:] * V_i[iM:] * self.m[iM:],
                 #    x=np.log(self.m[iM:]))
                 #
                 #P2[i] = ((1. - np.exp(-hal)) * delta_hal_bar
@@ -2238,7 +2238,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
                 #          * db * dndm_b * V_i \
                 #          * (1. + exc)
                 #
-                #    idd_ii[k] = np.trapz(grand[iM:] * self.m[iM:],
+                #    idd_ii[k] = np.trapezoid(grand[iM:] * self.m[iM:],
                 #        x=np.log(self.m[iM:]))
                 #
                 #    #exc_in = bb[k] * bh * xi_dd_r
@@ -2247,15 +2247,15 @@ class FluctuationsRealSpace(object): # pragma: no cover
                 #    #      #* dh * dndm_h * Vvir \
                 #    #      #* (1. + exc_in)
                 #    #
-                #    #idd_in[k] = np.trapz(grand_in[iM_h:] * M_h[iM_h:],
+                #    #idd_in[k] = np.trapezoid(grand_in[iM_h:] * M_h[iM_h:],
                 #    #    x=np.log(M_h[iM_h:]))
                 #
-                ##idd_in = np.trapz(db[iM:] * dndm_b[iM:] * V_i[iM:] * delta_n_bar * self.m[iM:],
+                ##idd_in = np.trapezoid(db[iM:] * dndm_b[iM:] * V_i[iM:] * delta_n_bar * self.m[iM:],
                 ##    x=np.log(self.m[iM:]))
                 #
                 #
                 #P2[i] = _P_ii_2[i]  \
-                #    * np.trapz(idd_ii[iM:] * self.m[iM:],
+                #    * np.trapezoid(idd_ii[iM:] * self.m[iM:],
                 #        x=np.log(self.m[iM:]))
                 #
                 ## Another term for <x_i x'> possibility. Doesn't really
@@ -2298,11 +2298,11 @@ class FluctuationsRealSpace(object): # pragma: no cover
                           * db * dndm_b * V_i \
                           * (1. + exc)
 
-                    iidd_2[k] = np.trapz(grand[iM:] * self.m[iM:],
+                    iidd_2[k] = np.trapezoid(grand[iM:] * self.m[iM:],
                         x=np.log(self.m[iM:]))
 
                 P2[i] = _P_ii_2[i]  \
-                    * np.trapz(iidd_2[iM:] * self.m[iM:],
+                    * np.trapezoid(iidd_2[iM:] * self.m[iM:],
                         x=np.log(self.m[iM:]))
 
             #elif term == 'cd':
@@ -2310,9 +2310,9 @@ class FluctuationsRealSpace(object): # pragma: no cover
             #    if self.pf['ps_include_xcorr_hot_rho'] == 0:
             #        break
             #    elif self.pf['ps_include_xcorr_hot_rho'] == 1:
-            #        hal = np.trapz(dndm_h * V_hal * (1. + exc) * M_h,
+            #        hal = np.trapezoid(dndm_h * V_hal * (1. + exc) * M_h,
             #            x=np.log(M_h))
-            #        hot = np.trapz(dndm_b[iM:] * V_h[iM:] * self.m[iM:],
+            #        hot = np.trapezoid(dndm_b[iM:] * V_h[iM:] * self.m[iM:],
             #            x=np.log(self.m[iM:]))
             #        P2[i] = ((1. - np.exp(-hal)) * dh_avg + np.exp(-hal) * dnih_avg) \
             #          * (1. - np.exp(-hot)) * avg_c
@@ -2343,11 +2343,11 @@ class FluctuationsRealSpace(object): # pragma: no cover
             elif term == 'cdd':
 
                 raise NotImplemented('help')
-                hal = np.trapz(dndm_h * V_hal * (1. + exc) * M_h,
+                hal = np.trapezoid(dndm_h * V_hal * (1. + exc) * M_h,
                     x=np.log(M_h))
-                hot = np.trapz(dndm_b[iM:] * Vsh[iM:] * self.m[iM:],
+                hot = np.trapezoid(dndm_b[iM:] * Vsh[iM:] * self.m[iM:],
                     x=np.log(self.m[iM:]))
-                hoi = np.trapz(dndm_b[iM:] * Vsh_sph[iM:] * self.m[iM:],
+                hoi = np.trapezoid(dndm_b[iM:] * Vsh_sph[iM:] * self.m[iM:],
                     x=np.log(self.m[iM:]))    # 'hot or ionized'
                 # One point in shell, other point in halo
                 # One point ionized, other point in halo
@@ -2380,11 +2380,11 @@ class FluctuationsRealSpace(object): # pragma: no cover
                           * db * dndm_b * V_i \
                           * (1. + exc)
 
-                    iidd_2[k] = np.trapz(grand[iM:] * self.m[iM:],
+                    iidd_2[k] = np.trapezoid(grand[iM:] * self.m[iM:],
                         x=np.log(self.m[iM:]))
 
                 P2[i] = _P_ii_2[i]  \
-                    * np.trapz(iidd_2[iM:] * self.m[iM:],
+                    * np.trapezoid(iidd_2[iM:] * self.m[iM:],
                         x=np.log(self.m[iM:]))
 
             else:
@@ -2614,7 +2614,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         # One-source term
         integrand = dndm * V * (1. + ep)
 
-        integr = np.trapz(integrand[iM:iM2] * M[iM:iM2], x=np.log(M[iM:iM2]))
+        integr = np.trapezoid(integrand[iM:iM2] * M[iM:iM2], x=np.log(M[iM:iM2]))
 
         # Exponentiate?
         if exp:
@@ -2671,10 +2671,10 @@ class FluctuationsRealSpace(object): # pragma: no cover
         xi_dd = np.interp(np.log(R), np.log(_R_), _cf_)
 
         #ok = _R_ <= R
-        #y = np.trapz(_cf_[ok==1] * _R_[ok==1], x=np.log(_R_[ok==1]))
+        #y = np.trapezoid(_cf_[ok==1] * _R_[ok==1], x=np.log(_R_[ok==1]))
 
 
-        #xi = np.trapz(self.tab_M * dndm * bh, x=np.log(self.tab_M))
+        #xi = np.trapezoid(self.tab_M * dndm * bh, x=np.log(self.tab_M))
 
         print('hey doing hard stuff...')
         # r >> R limit
@@ -2689,7 +2689,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
         #pl.semilogx(R, integrand[np.argmin(np.abs(1e10 - self.tab_M)),:])
         #input('<enter>')
 
-        integ = np.trapz(self.tab_M[:,None] * integrand[:,None],
+        integ = np.trapezoid(self.tab_M[:,None] * integrand[:,None],
             x=np.log(self.tab_M), axis=0)
 
         print(z, integ)
@@ -3102,7 +3102,7 @@ class FluctuationsRealSpace(object): # pragma: no cover
    #     # Integrate over R
    #     func = lambda k: self.halos._integrand_FT_3d_to_1d(cf, k, R)
    #
-   #     return np.array([np.trapz(func(k) * R, x=np.log(R)) \
+   #     return np.array([np.trapezoid(func(k) * R, x=np.log(R)) \
    #         for k in self.halos.tab_k]) / 2. / np.pi
 
     def BubbleContrast(self, z, Th=500., Tk=None, Ts=None, Ja=None):
