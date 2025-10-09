@@ -640,7 +640,6 @@ class GalaxyCohort(GalaxyAggregate):
 
     @_get_focc.setter
     def _get_focc(self, value):
-        print(f'pop={self.id_num} setting _get_focc to {value}')
         self._get_focc_ = value
 
     def get_focc(self, z, Mh):
@@ -648,13 +647,9 @@ class GalaxyCohort(GalaxyAggregate):
         Get occupation fraction.
         """
 
-        print(f'pop={self.id_num} calling get_focc')
-
         if hasattr(self, '_get_focc_'):
             return self._get_focc_(z=z, Mh=Mh)
         
-        print(f"pop={self.id_num} about to call _get_function")
-
         func = self._get_function('pop_focc')
         result = func(z=z, Mh=Mh)
 
