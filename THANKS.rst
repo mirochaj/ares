@@ -36,3 +36,4 @@ ARES has benefited from many helpful contributions, corrections, and suggestions
    * Trey Driskell
    * Judah Luberto
    * Paul La Plante
+   * David Barker

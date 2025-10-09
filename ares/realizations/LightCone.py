@@ -17,6 +17,7 @@ import h5py
 import shutil
 import pickle
 import numpy as np
+from types import FunctionType
 from ..simulations import Simulation
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
@@ -67,12 +68,12 @@ class LightCone(object): # pragma: no cover
             os.mkdir(f"{self.base_dir}/fov_{fov:.1f}")
 
         # pixel scale
-        if dryrun:
-            print(f"# Creating {self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}")
-        elif not os.path.exists(f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}"):
-            os.mkdir(f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}")
+        #if dryrun:
+        #    print(f"# Creating {self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}")
+        #elif not os.path.exists(f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}"):
+        #    os.mkdir(f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}")
 
-        sofar = f"{self.base_dir}/fov_{fov:.1f}/pix_{pix:.1f}"
+        sofar = f"{self.base_dir}/fov_{fov:.1f}/"#pix_{pix:.1f}"
 
         # Co-eval box size and grid zones
         if dryrun:
@@ -1180,14 +1181,33 @@ class LightCone(object): # pragma: no cover
         if os.path.exists(fn_pf):
             with open(fn_pf, 'rb') as f:
                 pf_disk = pickle.load(f)
-        
-            assert pf_disk == self.kwargs
-            print(f"* Supplied parameters match `{fn_pf}`.")
+            
+            try:
+                assert pf_disk == self.kwargs
+                print(f"* Supplied parameters match `{fn_pf}`.")
+            except AssertionError:
+                for par in self.kwargs:
+                    if type(self.kwargs[par]) == FunctionType:
+                        print(f"! Skipping check on parameter={par}.")
+                        continue 
+
+                    assert pf_disk[par] == self.kwargs[par]
 
             is_restart = True
         else:
+            ##
+            # Need to be careful: some parameters may be functions, and so 
+            # are not pickleable. First make a 
+            kw = {}
+            for par in self.kwargs:
+                if type(self.kwargs[par]) == FunctionType:
+                    print(f"! Cannot pickle parameter={par}.")
+                    continue 
+
+                kw[par] = self.kwargs[par]
+
             with open(fn_pf, 'wb') as f:
-                pickle.dump(self.kwargs, f)
+                pickle.dump(kw, f)
 
             print(f"! Wrote {fn_pf}.")
 
@@ -1198,6 +1218,9 @@ class LightCone(object): # pragma: no cover
 
             if not par_sed in self.kwargs:
                 continue 
+
+            if self.kwargs[par_sed] is None:
+                continue
 
             fn_sed_full = self.kwargs[par_sed]
             fn_sed = self.kwargs[par_sed][fn_sed_full.rfind('/')+1:]
@@ -2076,6 +2099,77 @@ class LightCone(object): # pragma: no cover
                 del hdu, hdul
         else:
             raise NotImplementedError(f'No support for fmt={fmt}')
+        
+    def _check_for_corrupted_files(self, fov, pix, channels, logmlim, dlogm,
+        include_pops, channel_names=None, include_galaxy_sizes=False):
+        """
+        When running on a cluster, occasionally we get really unlucky and an
+        output file will be corrupted, (probably) because we hit the wallclock
+        time limit on the job while the file is being written. This routine
+        does a cursory check that pre-existing files all have the same size, as
+        a quick-and-dirty way of rooting out corrupted files.
+        """
+
+
+        # Assemble list of map layers to run.
+        all_layers = self.get_layers(channels, logmlim, dlogm=dlogm,
+            include_pops=include_pops, channel_names=channel_names)
+
+        all_zlayers = np.array(self.get_redshift_layers(self.zlim))
+        all_mlayers = np.array(self.get_mass_layers(logmlim, dlogm))
+
+        # Check status before we start
+        all_sizes = np.zeros(len(all_layers))
+        all_fn = []
+
+        for h, layer in enumerate(all_layers):
+
+            # Unpack info about this layer
+            popid, channel, chname, zlayer, mlayer = layer
+
+            # See if we already finished this map.
+            fn = self.get_map_fn(fov, pix, channel, popid,
+                logmlim=mlayer, zlim=zlayer,
+                include_galaxy_sizes=include_galaxy_sizes)
+            
+            all_fn.append(fn)
+
+            if not os.path.exists(fn):
+                continue
+
+            all_sizes[h] = os.path.getsize(fn)
+
+            # Find
+            usizes = np.unique(all_sizes)
+
+        if len(usizes) > 2:
+            print(f"! WARNING: evidence for corrupted file(s)!")
+            should_be = usizes.max()
+
+            probs = []
+            for h, fn in enumerate(all_fn):
+                if all_sizes[h] in [0, should_be]:
+                    continue
+
+                probs.append(fn)
+
+                print(f"! Problem file for layer={h}: {fn}.")
+
+            ##
+            # Consistent with failed write as job is killed
+            if len(probs) == 1:
+                #os.remove(probs[0])
+                print(f"! Removed corrupted file {fn}.")
+            else:
+                raise IOError('! {len(probs)} corrupted files detected. Help?')
+
+        elif np.all(all_sizes == 0):
+            # Means this is the first time the mock is being run.
+            pass
+        else:
+            ##
+            # Made it here? All good
+            print(f"! No corrupted files detected! All {len(all_layers)} layers look good.")
 
     def _load_map(self, fn):
 
