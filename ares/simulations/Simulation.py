@@ -334,19 +334,17 @@ class Simulation(object):
             px *= 1e17
             ps_z *= 1e17
 
+        ptot = px.sum(axis=0).sum(axis=0)
+
         if pops is None:
             hist = self.history # poke
-            self._history['ps_nirb'] = scales, scales_inv, waves, ps
-
-        if dimensionless:
-            ps *= scales_inv[None,:,None]**2 / 2. / np.pi
-            px *= scales_inv[None,:,None]**2 / 2. / np.pi
+            self._history['ps_nirb'] = scales, waves, ptot, px
 
         self.ps_auto = ps
         self.ps_cross = px
         self.ps_zall = ps_z
 
-        return scales, scales_inv, waves, ps
+        return scales, waves, ptot, px
 
     @property
     def pops(self):

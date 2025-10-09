@@ -40,7 +40,7 @@ class ProgressBar(object):
     def start(self):
         if pb and rank == 0 and self.use:
             self.pbar = progressbar.ProgressBar(widgets=self.widget,
-                max_value=self.maxval, redirect_stdout=False, 
+                maxval=self.maxval, #redirect_stdout=False, 
                 term_width=width+1).start()                
             self.has_pb = True
 
