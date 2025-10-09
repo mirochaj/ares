@@ -566,9 +566,9 @@ class HaloMassFunction(object):
 
             for i, z in enumerate(self.tab_z):
                 self.tab_dndm[i,np.argwhere(np.isnan(self.tab_dndm[i]))] = 1e-70
-                ngtm_0 = np.trapz(self.tab_dndm[i] * self.tab_M,
+                ngtm_0 = np.trapezoid(self.tab_dndm[i] * self.tab_M,
                     x=np.log(self.tab_M))
-                mgtm_0 = np.trapz(self.tab_dndm[i] * self.tab_M**2,
+                mgtm_0 = np.trapezoid(self.tab_dndm[i] * self.tab_M**2,
                     x=np.log(self.tab_M))
                 self.tab_ngtm[i,:] = (
                     ngtm_0

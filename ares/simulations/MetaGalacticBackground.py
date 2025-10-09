@@ -432,7 +432,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
             xok = np.logical_and(xf >= lo, xf < hi)
 
-            fint += np.trapz(flux_today[xok] * nu[xok], x=np.log(nu[xok]))
+            fint += np.trapezoid(flux_today[xok] * nu[xok], x=np.log(nu[xok]))
 
         return fint
 
@@ -1346,7 +1346,7 @@ class MetaGalacticBackground(AnalyzeMGB):
             # Convert to energy units, and per eV to prep for integral
             LW_flux = flux[i,is_LW] * E[is_LW] * erg_per_ev / ev_per_hz
 
-            Jlw[i] = np.trapz(LW_flux, x=E[is_LW]) / dnu
+            Jlw[i] = np.trapezoid(LW_flux, x=E[is_LW]) / dnu
 
         return z, Jc, Ji, Jlw
 

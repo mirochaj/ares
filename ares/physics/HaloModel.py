@@ -316,7 +316,7 @@ class HaloModel(HaloMassFunction):
 
             # Small halo correction. Make use of Cooray & Sheth Eq. 71
             _integrand = dndlnm * (self.tab_M / rho_bar) * bias
-            corr1 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
+            corr1 = 1. - np.trapezoid(_integrand, x=np.log(self.tab_M))
         elif lum1 is not None:
             corr1 = 0.0
             fcoll1 = 1.
@@ -327,7 +327,7 @@ class HaloModel(HaloMassFunction):
         if (mmin2 is None) and (lum2 is None):
             fcoll2 = 1.#self.mgtm[iz,0] / rho_bar
             _integrand = dndlnm * (self.tab_M / rho_bar) * bias
-            corr2 = 1. - np.trapz(_integrand, x=np.log(self.tab_M))
+            corr2 = 1. - np.trapezoid(_integrand, x=np.log(self.tab_M))
         elif lum2 is not None:
             corr2 = 0.0
             fcoll2 = 1.
@@ -359,7 +359,7 @@ class HaloModel(HaloMassFunction):
             integrand = dndlnm * focc1 * weight1 * weight2 \
                 * p1 * p2 / norm1 / norm2
 
-            result = np.trapz(integrand[ok==1], x=np.log(self.tab_M[ok==1]))
+            result = np.trapezoid(integrand[ok==1], x=np.log(self.tab_M[ok==1]))
 
             return result, None
 
@@ -367,9 +367,9 @@ class HaloModel(HaloMassFunction):
             integrand1 = dndlnm * focc1 * weight1 * p1 * bias / norm1
             integrand2 = dndlnm * focc2 * weight2 * p2 * bias / norm2
 
-            integral1 = np.trapz(integrand1[ok==1], x=np.log(self.tab_M[ok==1]),
+            integral1 = np.trapezoid(integrand1[ok==1], x=np.log(self.tab_M[ok==1]),
                 axis=0)
-            integral2 = np.trapz(integrand2[ok==1], x=np.log(self.tab_M[ok==1]),
+            integral2 = np.trapezoid(integrand2[ok==1], x=np.log(self.tab_M[ok==1]),
                 axis=0)
 
             return integral1 + corr1, integral2 + corr2
@@ -466,7 +466,7 @@ class HaloModel(HaloMassFunction):
 
         dndlnm = self.tab_dndlnm[iz]
         integrand = dndlnm * focc1 * lum1 * lum2
-        shot = np.trapz(integrand, x=np.log(self.tab_M), axis=0)
+        shot = np.trapezoid(integrand, x=np.log(self.tab_M), axis=0)
 
         return shot
 
@@ -556,7 +556,7 @@ class HaloModel(HaloMassFunction):
                         scale_units=scale_units, raw=raw,
                         nebular_only=nebular_only, prof=prof)
 
-                ps[h] = np.trapz(integrand * zarr, x=np.log(zarr))
+                ps[h] = np.trapezoid(integrand * zarr, x=np.log(zarr))
 
                 pb.update(h)
 
@@ -572,7 +572,7 @@ class HaloModel(HaloMassFunction):
                     scale_units=scale_units, raw=raw,
                     nebular_only=nebular_only, prof=prof)
 
-            ps = np.trapz(integrand * zarr, x=np.log(zarr))
+            ps = np.trapezoid(integrand * zarr, x=np.log(zarr))
 
         ##
         # Extra factor of nu^2 to eliminate Hz^{-1} units for

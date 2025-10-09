@@ -277,7 +277,7 @@ class NebularEmission(object):
             raise NotImplemented("Do not recognize channel `{}`".format(channel))
 
         if net:
-            return np.trapz(frep[-1::-1] * nu[-1::-1], x=np.log(nu[-1::-1]))
+            return np.trapezoid(frep[-1::-1] * nu[-1::-1], x=np.log(nu[-1::-1]))
         else:
             return frep
 
@@ -294,7 +294,7 @@ class NebularEmission(object):
         gt0 = spec > 0
         ok = np.logical_and(ion, gt0)
 
-        return np.trapz(spec[ok==1][-1::-1] * self.tab_freq_c[ok==1][-1::-1],
+        return np.trapezoid(spec[ok==1][-1::-1] * self.tab_freq_c[ok==1][-1::-1],
             x=np.log(self.tab_freq_c[ok==1][-1::-1]))
 
     def get_ion_num(self, spec, species=0):
@@ -315,7 +315,7 @@ class NebularEmission(object):
 
         integ = spec[ok==1][-1::-1] * freq / erg_per_phot
 
-        return np.trapz(integ, x=np.log(freq))
+        return np.trapezoid(integ, x=np.log(freq))
 
     def get_ion_Eavg(self, spec, species=0):
         return self.get_ion_lum(spec, species) \

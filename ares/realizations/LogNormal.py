@@ -176,7 +176,7 @@ class LogNormal(LightCone): # pragma: no cover
             dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
 
             nall = cumulative_trapezoid(dndm * m, x=np.log(m), initial=0.0)
-            nbar = np.trapz(dndm * m, x=np.log(m)) \
+            nbar = np.trapezoid(dndm * m, x=np.log(m)) \
                  - np.exp(np.interp(np.log(mmin), np.log(m), np.log(nall)))
 
             # Memory to hold (x, y, z, m) for N halos
@@ -226,7 +226,7 @@ class LogNormal(LightCone): # pragma: no cover
         dndm = self.sim.pops[0].halos.tab_dndm[iz,ok==1]
 
         nall = cumulative_trapezoid(dndm * m, x=np.log(m), initial=0.0)
-        nbar = np.trapz(dndm * m, x=np.log(m)) \
+        nbar = np.trapezoid(dndm * m, x=np.log(m)) \
              - np.exp(np.interp(np.log(mmin), np.log(m), np.log(nall)))
 
         # Correct for FOV
@@ -432,7 +432,7 @@ class LogNormal(LightCone): # pragma: no cover
         ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
             initial=0)[-1::-1]
 
-        ntot = np.trapz(dndm * m, x=np.log(m))
+        ntot = np.trapezoid(dndm * m, x=np.log(m))
         nltm = ntot - ngtm
         cdf = nltm / ntot
 

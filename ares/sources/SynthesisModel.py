@@ -154,7 +154,7 @@ class SynthesisModelBase(Source):
         to_int = self.get_spectrum(E)
 
         # Units: erg / s
-        return np.trapz(to_int * E, x=E) / np.trapz(to_int, x=E)
+        return np.trapezoid(to_int * E, x=E) / np.trapezoid(to_int, x=E)
 
     def _cache_spec(self, E):
         if not hasattr(self, '_cache_spec_'):
@@ -266,7 +266,7 @@ class SynthesisModelBase(Source):
             # Remember: energy axis in descending order
             # Note use of sed_at_tsf_raw: need to be careful to normalize
             # to total power before application of fesc.
-            self._norm_ = np.trapz(self.tab_sed_at_age_raw[j2:j1][-1::-1],
+            self._norm_ = np.trapezoid(self.tab_sed_at_age_raw[j2:j1][-1::-1],
                 x=self.tab_energies_c[j2:j1][-1::-1])
 
         return self._norm_
@@ -460,7 +460,7 @@ class SynthesisModelBase(Source):
                         integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
                             / (self.tab_energies_c[i1:i0] * erg_per_ev)
 
-                    yield_UV[i] = np.trapz(integrand,
+                    yield_UV[i] = np.trapezoid(integrand,
                         x=np.log(self.tab_waves_c[i1:i0]))
 
 
@@ -596,9 +596,9 @@ class SynthesisModelBase(Source):
         # [self.tab_sed] = erg / s / A / [depends]
 
         # Must convert units
-        E_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0],
+        E_tot = np.trapezoid(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0],
             x=np.log(self.tab_waves_c[i1:i0]), axis=1)
-        N_tot = np.trapz(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0] \
+        N_tot = np.trapezoid(self.tab_sed[i1:i0,:].T * self.tab_waves_c[i1:i0] \
             / self.tab_energies_c[i1:i0] / erg_per_ev,
             x=np.log(self.tab_waves_c[i1:i0]), axis=1)
 
@@ -692,7 +692,7 @@ class SynthesisModelBase(Source):
     #            integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
     #                / (self.tab_energies_c[i1:i0] * erg_per_ev)
 
-    #        flux[i] = np.trapz(integrand, x=np.log(self.tab_waves_c[i1:i0]))
+    #        flux[i] = np.trapezoid(integrand, x=np.log(self.tab_waves_c[i1:i0]))
 
     #    # Current units:
     #    # if pop_ssp: photons / sec / Msun
@@ -757,7 +757,7 @@ class SynthesisModelBase(Source):
                 phot_per_b = cumulative_trapezoid(photons_per_b_t, x=self.tab_t*s_per_myr,
                     initial=0.0)
             else:
-                phot_per_b = np.trapz(photons_per_b_t, x=self.tab_t*s_per_myr)
+                phot_per_b = np.trapezoid(photons_per_b_t, x=self.tab_t*s_per_myr)
         # Take steady-state result
         else:
             photons_per_b_t = photons_per_s_per_msun * s_per_yr \

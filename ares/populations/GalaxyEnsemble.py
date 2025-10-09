@@ -171,7 +171,7 @@ class GalaxyEnsemble(HaloPopulation):
                 sfrd[k] = np.sum(_sfr[ok==1] * _w[ok==1])
 
             return sfrd
-        #return np.trapz(sfr[0:-1] * dw, dx=np.diff(Mh)) / rhodot_cgs
+        #return np.trapezoid(sfr[0:-1] * dw, dx=np.diff(Mh)) / rhodot_cgs
 
     def _sfrd_func(self, z):
         # This is a cheat so that the SFRD spline isn't constructed
@@ -917,15 +917,15 @@ class GalaxyEnsemble(HaloPopulation):
 
                 LUV = self._stars.tab_LUV
 
-                Lavg = np.trapz(LUV[massive==1] * self._stars.tab_imf[massive==1],
+                Lavg = np.trapezoid(LUV[massive==1] * self._stars.tab_imf[massive==1],
                     x=self._stars.Ms[massive==1]) \
-                     / np.trapz(self._stars.tab_imf[massive==1],
+                     / np.trapezoid(self._stars.tab_imf[massive==1],
                     x=self._stars.Ms[massive==1])
 
                 life = self._stars.tab_life
-                tavg = np.trapz(life[massive==1] * self._stars.tab_imf[massive==1],
+                tavg = np.trapezoid(life[massive==1] * self._stars.tab_imf[massive==1],
                     x=self._stars.Ms[massive==1]) \
-                     / np.trapz(self._stars.tab_imf[massive==1],
+                     / np.trapezoid(self._stars.tab_imf[massive==1],
                     x=self._stars.Ms[massive==1])
 
                 corr = np.minimum(tavg / dt, 1.)
@@ -2764,8 +2764,8 @@ class GalaxyEnsemble(HaloPopulation):
         integ_bot = nh[ok==1]
 
         # Integrate in log-space
-        b = np.trapz(integ_top * tab_M[ok==1]**2, x=np.log(tab_M[ok==1])) \
-          / np.trapz(integ_bot * tab_M[ok==1]**2, x=np.log(tab_M[ok==1]))
+        b = np.trapezoid(integ_top * tab_M[ok==1]**2, x=np.log(tab_M[ok==1])) \
+          / np.trapezoid(integ_bot * tab_M[ok==1]**2, x=np.log(tab_M[ok==1]))
 
 
         if return_funcs:
@@ -3704,7 +3704,7 @@ class GalaxyEnsemble(HaloPopulation):
             # Cumulative surface density of galaxies *brighter than*
             # some corresponding magnitude
             assert Ngal[i,0] == 0, "Broaden binning range?"
-            #ntot = np.trapz(Ngal[i,:], x=x)
+            #ntot = np.trapezoid(Ngal[i,:], x=x)
             nltm[i,:] = cumulative_trapezoid(Ngal[i,:], x=bins, initial=Ngal[i,0])
 
         # Can just return *maximum* number of galaxies detected,

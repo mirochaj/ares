@@ -565,7 +565,7 @@ class GalaxyCohort(GalaxyAggregate):
                     * self.tab_focc[i] * ok[i]
 
 
-            _tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
+            _tot = np.trapezoid(integrand, x=np.log(self.halos.tab_M))
             _cumtot = cumulative_trapezoid(integrand, x=np.log(self.halos.tab_M),
                 initial=0.0)
 
@@ -618,7 +618,7 @@ class GalaxyCohort(GalaxyAggregate):
             integrand = self.tab_sfr[i] * self.halos.tab_dndlnm[i] \
                 * self.tab_focc[i] * N_per_Msun * fesc * ok[i]
 
-            tot = np.trapz(integrand, x=np.log(self.halos.tab_M))
+            tot = np.trapezoid(integrand, x=np.log(self.halos.tab_M))
             cumtot = cumulative_trapezoid(integrand, x=np.log(self.halos.tab_M),
                 initial=0.0)
 
@@ -756,11 +756,11 @@ class GalaxyCohort(GalaxyAggregate):
                             dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:,j] \
                                 * focc[j] * fsurv[j]
 
-                            dndlnm_sat[j] = np.trapz(dndlnm, dx=self.halos.dlnm)
+                            dndlnm_sat[j] = np.trapezoid(dndlnm, dx=self.halos.dlnm)
 
                         integ = smhm * self.halos.tab_M * dndlnm_sat
 
-                    self._tab_smd[i] = np.trapz(integ, dx=self.halos.dlnm)
+                    self._tab_smd[i] = np.trapezoid(integ, dx=self.halos.dlnm)
 
             elif mass_return:
                 tasc = self.halos.tab_t[-1::-1]
@@ -775,7 +775,7 @@ class GalaxyCohort(GalaxyAggregate):
                         * (1 - self.get_freturn(tasc[i] - tasc[k])) \
                             for k, _z_ in enumerate(zasc[0:i])]
 
-                    smd_ret.append(np.trapz(smd_of_z, x=tasc[0:i] * 1e6))
+                    smd_ret.append(np.trapezoid(smd_of_z, x=tasc[0:i] * 1e6))
 
                 self._tab_smd = np.array(smd_ret)[-1::-1]
             else:
@@ -1231,8 +1231,8 @@ class GalaxyCohort(GalaxyAggregate):
                     * self.tab_focc[iz+1,:]
 
 
-                rhoL1 = np.trapz(integ1[ok1==1], dx=self.halos.dlnm)
-                rhoL2 = np.trapz(integ2[ok2==1], dx=self.halos.dlnm)
+                rhoL1 = np.trapezoid(integ1[ok1==1], dx=self.halos.dlnm)
+                rhoL2 = np.trapezoid(integ2[ok2==1], dx=self.halos.dlnm)
             else:
                 assert units_out.lower().startswith('erg/s/hz')
 
@@ -1249,7 +1249,7 @@ class GalaxyCohort(GalaxyAggregate):
                 if np.all(phi1[phi1.mask==0] == 0):
                     rhoL1 = 0
                 else:
-                    rhoL1 = np.trapz(phi1 * bins1, x=np.log(bins1))
+                    rhoL1 = np.trapezoid(phi1 * bins1, x=np.log(bins1))
 
                 if z == z1:
                     return rhoL1
@@ -1260,7 +1260,7 @@ class GalaxyCohort(GalaxyAggregate):
                 if np.all(phi2[phi2.mask==0] == 0):
                     rhoL2 = 0
                 else:
-                    rhoL2 = np.trapz(phi2 * bins2, x=np.log(bins2))
+                    rhoL2 = np.trapezoid(phi2 * bins2, x=np.log(bins2))
 
                 if z == z2:
                     return rhoL2
@@ -1446,7 +1446,7 @@ class GalaxyCohort(GalaxyAggregate):
                         * dlog10mdlog10M[ok==1,None] * pdf[ok==1]
 
                     # Integrate over halo mass axis
-                    phi_tot = np.trapz(integrand,
+                    phi_tot = np.trapezoid(integrand,
                         x=np.log10(Ms_c[ok==1]), axis=0)
 
                     return bins, phi_tot
@@ -1500,7 +1500,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                     # Integrating over central HMF, still dn/dlnm here hence
                     # use of `dx`. Leaves dn_sat/dlog10Mstell
-                    dndlnm_sat[i] = np.trapz(integrand[ok==1],
+                    dndlnm_sat[i] = np.trapezoid(integrand[ok==1],
                         dx=self.halos.dlnm)
 
                 ##
@@ -1510,7 +1510,7 @@ class GalaxyCohort(GalaxyAggregate):
                     # Get integrand as dn/dlog10(Mstell)
                     integrand = dndlnm_sat * np.log(10) * dlog10mdlog10M
                     # Integrate over halo mass axis
-                    phi_tot = np.trapz(integrand[ok==1,None] * pdf[ok==1,:],
+                    phi_tot = np.trapezoid(integrand[ok==1,None] * pdf[ok==1,:],
                         x=np.log10(Ms_c[ok==1]), axis=0)
 
                     return bins, phi_tot
@@ -1912,8 +1912,8 @@ class GalaxyCohort(GalaxyAggregate):
         integ_top = tab_b[ok==1] * tab_n[ok==1] * tab_f[ok==1]
         integ_bot = tab_n[ok==1] * tab_f[ok==1]
 
-        b = np.trapz(integ_top * tab_M[ok==1], x=np.log(tab_M[ok==1])) \
-          / np.trapz(integ_bot * tab_M[ok==1], x=np.log(tab_M[ok==1]))
+        b = np.trapezoid(integ_top * tab_M[ok==1], x=np.log(tab_M[ok==1])) \
+          / np.trapezoid(integ_bot * tab_M[ok==1], x=np.log(tab_M[ok==1]))
 
         return b
 
@@ -2320,7 +2320,7 @@ class GalaxyCohort(GalaxyAggregate):
             * focc[None,:] * fsurv[None,:]
 
         # Integrate over subhalo mass dimension
-        Lh = np.trapz(Lsat[None,ok_s==1] * dndlnm_all[:,ok_s==1],
+        Lh = np.trapezoid(Lsat[None,ok_s==1] * dndlnm_all[:,ok_s==1],
             x=np.log(self.halos.tab_M[ok_s==1]), axis=1)
 
         return Lh
@@ -2652,7 +2652,7 @@ class GalaxyCohort(GalaxyAggregate):
             iw1 = np.argmin(np.abs(min(_band) - ltab_w))
             iw2 = np.argmin(np.abs(max(_band) - ltab_w))
             freqs = c * 1e8 / ltab_w
-            lum = np.trapz(ltab[:,:,iw1:iw2+1], x=-freqs[iw1:iw2+1],
+            lum = np.trapezoid(ltab[:,:,iw1:iw2+1], x=-freqs[iw1:iw2+1],
                 axis=-1)
         elif x is not None:
             wave = self.src.get_ang_from_x(x, units=units)
@@ -3386,7 +3386,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                 _ok = np.logical_and(ok, Lh>0)
                 dndL = dndlog10L * dlog10LdL
-                phi_tot = np.trapz(dndlog10L[_ok==1,None] * pdf[_ok==1,:],
+                phi_tot = np.trapezoid(dndlog10L[_ok==1,None] * pdf[_ok==1,:],
                     x=np.log10(Lh[_ok==1]), axis=0)
 
                 mask = np.logical_not(ok)
@@ -3436,7 +3436,7 @@ class GalaxyCohort(GalaxyAggregate):
                 #dndlog10L = dndlog10L_c * dndm_sub[:,i] * dMh_dlog10L[i] \
                 #    * focc[i] * fsurv[i]
 
-                dndlog10L_sat[i] = np.trapz(integrand[ok==1],
+                dndlog10L_sat[i] = np.trapezoid(integrand[ok==1],
                     dx=self.halos.dlnm)
 
             #
@@ -3457,7 +3457,7 @@ class GalaxyCohort(GalaxyAggregate):
                 _ok = np.logical_and(ok, Lh>0)
 
                 # Integrate over halo mass axis
-                phi_tot = np.trapz(dndlog10L[_ok==1,None] * pdf[_ok==1],
+                phi_tot = np.trapezoid(dndlog10L[_ok==1,None] * pdf[_ok==1],
                     x=np.log10(Lh[_ok==1]), axis=0)
 
                 mask = np.logical_not(ok)
@@ -4206,8 +4206,8 @@ class GalaxyCohort(GalaxyAggregate):
                     tot = 0.5 * b * h
                 else:
                     # This is essentially an integral from Mlo1 to Mhi1
-                    tot = np.trapz(integrand[ok], x=np.log(self.halos.tab_M[ok]))
-                integ_lo = np.trapz(integrand[Mlo2:Mhi1+1],
+                    tot = np.trapezoid(integrand[ok], x=np.log(self.halos.tab_M[ok]))
+                integ_lo = np.trapezoid(integrand[Mlo2:Mhi1+1],
                     x=np.log(self.halos.tab_M[Mlo2:Mhi1+1]))
 
                 # Interpolating over lower integral bound
@@ -4218,7 +4218,7 @@ class GalaxyCohort(GalaxyAggregate):
                 if Mhi2 >= self.halos.tab_M.size:
                     sfrd_hi = 0.0
                 else:
-                    integ_hi = np.trapz(integrand[Mlo1:Mhi2+1],
+                    integ_hi = np.trapezoid(integrand[Mlo1:Mhi2+1],
                         x=np.log(self.halos.tab_M[Mlo1:Mhi2+1]))
                     sfrd_hi = np.interp(self._tab_logMmax[i],
                         [np.log(self.halos.tab_M[Mhi1]), np.log(self.halos.tab_M[Mhi2])],
@@ -4261,7 +4261,7 @@ class GalaxyCohort(GalaxyAggregate):
                     break
 
                 if self.is_central_pop:
-                    tot = np.trapz(integrand[i], x=np.log(self.halos.tab_M))
+                    tot = np.trapezoid(integrand[i], x=np.log(self.halos.tab_M))
                     cumtot = cumulative_trapezoid(integrand[i], x=np.log(self.halos.tab_M),
                         initial=0.0)
                 else:
@@ -4282,11 +4282,11 @@ class GalaxyCohort(GalaxyAggregate):
                         dndlnm = dndlnm_c * self.halos.tab_dndlnm_sub[:,j] \
                             * focc[j] * fsurv[j]
 
-                        dndlnm_sat[j] = np.trapz(dndlnm, dx=self.halos.dlnm)
+                        dndlnm_sat[j] = np.trapezoid(dndlnm, dx=self.halos.dlnm)
 
                     integ = self.tab_sfr[i,:] * dndlnm_sat
 
-                    tot = np.trapz(integ, dx=self.halos.dlnm)
+                    tot = np.trapezoid(integ, dx=self.halos.dlnm)
                     cumtot = cumulative_trapezoid(integ, dx=self.halos.dlnm,
                         initial=0.0)
 
@@ -4432,11 +4432,11 @@ class GalaxyCohort(GalaxyAggregate):
             zlo = self.halos.tab_z[iz]
             zhi = self.halos.tab_z[iz+1]
 
-            _sfrd_lo = np.trapz(integrand[iz,ilo:ihi+1],
+            _sfrd_lo = np.trapezoid(integrand[iz,ilo:ihi+1],
                 x=np.log(self.halos.tab_M[ilo:ihi+1]))
 
             if not exact_match:
-                _sfrd_hi = np.trapz(integrand[iz+1,ilo:ihi+1],
+                _sfrd_hi = np.trapezoid(integrand[iz+1,ilo:ihi+1],
                     x=np.log(self.halos.tab_M[ilo:ihi+1]))
 
                 _sfrd = np.interp(z, [zlo, zhi], [_sfrd_lo, _sfrd_hi])
@@ -4466,10 +4466,10 @@ class GalaxyCohort(GalaxyAggregate):
                         * focc * fsurv
 
                     # SFR contains mass cut off
-                    sfr_sat[j] = np.trapz(dndlnm * self.tab_sfr[_iz,:],
+                    sfr_sat[j] = np.trapezoid(dndlnm * self.tab_sfr[_iz,:],
                         x=np.log(self.halos.tab_M))
 
-                _sfrd_.append(np.trapz(dndlnm_cen * sfr_sat,
+                _sfrd_.append(np.trapezoid(dndlnm_cen * sfr_sat,
                     x=np.log(self.halos.tab_M)))
 
             # Interpolate maybe
@@ -5777,13 +5777,13 @@ class GalaxyCohort(GalaxyAggregate):
             #for i, Mc in enumerate(self.halos.tab_M):
             #    dndlnm = self.halos.tab_dndlnm_sub[i,:] * focc * fsurv
             #    integrand = lum1 * lum2 * dndlnm
-            #    sat_shot[i] = np.trapz(integrand[ok==1],
+            #    sat_shot[i] = np.trapezoid(integrand[ok==1],
             #        x=np.log(self.halos.tab_M[ok==1]))
 
             integrand_2d = self.halos.tab_dndlnm_sub[:,:] \
                 * focc[None,:] * fsurv[None,:] * lum1[None,:] * lum2[None,:]
 
-            sat_shot = np.trapz(integrand_2d[:,ok==1],
+            sat_shot = np.trapezoid(integrand_2d[:,ok==1],
                 x=np.log(self.halos.tab_M[ok==1]), axis=1)
 
             # Last step, integrate over central halo abundance
@@ -5800,7 +5800,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 okc = np.ones_like(self.halos.tab_M)
 
-            ps = np.trapz(integrand[okc==1],
+            ps = np.trapezoid(integrand[okc==1],
                 x=np.log(self.halos.tab_M[okc==1]))
 
         return ps
@@ -6148,7 +6148,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                 self._ps_obs_integrand[h,:] = integrand.copy()
 
-                ps[h] = np.trapz(integrand[zok] * zarr[zok],
+                ps[h] = np.trapezoid(integrand[zok] * zarr[zok],
                     x=np.log(zarr[zok]))
 
                 pb.update(h)
@@ -6171,7 +6171,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             self._ps_obs_integrand = integrand.copy()
 
-            ps = np.trapz(integrand[zok] * zarr[zok],
+            ps = np.trapezoid(integrand[zok] * zarr[zok],
                 x=np.log(zarr[zok]))
 
 
