@@ -100,7 +100,7 @@ class MetaGalacticBackground(AnalyzeMGB):
         self.kwargs = kwargs
 
         if pf is None:
-            self.pf = ParameterFile(**self.kwargs)
+            self.pf = ParameterFile(is_sim_level=True, **self.kwargs)
         else:
             self.pf = pf
 

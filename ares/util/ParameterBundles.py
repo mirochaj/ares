@@ -856,12 +856,13 @@ class ParameterBundle(dict):
         tmp = {}
         for par in self:
             prefix, idnum = pop_id_num(par)
-            if (idnum == num) or prefix.startswith('halo_') \
-                or prefix.startswith('dustcorr') or prefix.startswith('sam_') \
-                or prefix.startswith('feedback_') or prefix.startswith('tau_') \
-                or prefix.startswith('master') or (prefix in keepers):
 
-                if strip_id:
+            if (idnum == num) or par.startswith('halo_') \
+                or par.startswith('dustcorr') or par.startswith('sam_') \
+                or par.startswith('feedback_') or par.startswith('tau_') \
+                or par.startswith('master') or (par in keepers):
+
+                if strip_id and (prefix is not None):
                     tmp[prefix] = self[par]
                 else:
                     tmp[par] = self[par]

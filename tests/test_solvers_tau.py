@@ -63,7 +63,7 @@ def test(tmp_path, tol=1e-1):
 
         # Tabulate tau
         tau = igm.TabulateOpticalDepth()
-        prefix = str(tmp_path / "tau_test")
+        prefix = f"{tmp_path}/tau_test"
         igm.save(prefix=prefix, suffix='pkl', clobber=True)
 
         # Run radiation background calculation
@@ -89,7 +89,7 @@ def test(tmp_path, tol=1e-1):
 
             # Tabulate tau
             tau = igm.TabulateOpticalDepth()
-            prefix = tmp_path / "tau_test"
+            prefix = f"{tmp_path}/tau_test"
             igm.save(prefix=prefix, suffix='pkl', clobber=True)
 
             pars['tau_table'] = prefix + ".pkl"
@@ -143,4 +143,13 @@ def test(tmp_path, tol=1e-1):
 
 
 if __name__ == '__main__':
-    test()
+    import os 
+
+    if os.environ.get('RUNNER_TEMP') is not None:
+        tmp_dir = os.environ.get('RUNNER_TEMP')
+    else:
+        if not os.path.exists('_tmp_ares_data'):
+            os.mkdir('_tmp_ares_data')
+        tmp_dir = '_tmp_ares_data'
+
+    test(tmp_dir)

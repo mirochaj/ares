@@ -778,8 +778,7 @@ class Cosmology(object):
 
     def CriticalDensityForCollapse(self, z):
         """
-        Generally denoted (in LaTeX format) \Delta_c, fit from
-        Bryan & Norman (1998).
+        Generally denoted Delta_c, fit from Bryan & Norman (1998).
         """
         d = self.OmegaMatter(z) - 1.
         return 18. * np.pi**2 + 82. * d - 39. * d**2
