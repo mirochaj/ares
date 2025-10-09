@@ -111,7 +111,6 @@ def normalize_sed(pop):
 
 class Population(object):
     def __init__(self, pf=None, grid=None, cosm=None, **kwargs):
-        print('greetings from Population')
         if pf is None:
             assert kwargs is not None, \
                 "Must provide parameters to initialize a Simulation!"
