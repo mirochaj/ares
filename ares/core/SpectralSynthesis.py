@@ -623,7 +623,7 @@ class SpectralSynthesis(object):
                 integrand = -1. * flux_obs * T_regrid
                 _yphot = np.sum(integrand[0:-1] * np.diff(freq_obs))
 
-                #_yphot = np.trapz(integrand, x=freq_obs)
+                #_yphot = np.trapezoid(integrand, x=freq_obs)
 
             corr = np.sum(T_regrid[0:-1] * -1. * np.diff(freq_obs), axis=-1)
 

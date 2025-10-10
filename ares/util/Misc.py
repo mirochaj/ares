@@ -19,6 +19,46 @@ from ..physics.Constants import c, erg_per_ev, h_p, E_LL, E_LyA
 
 numeric_types = [int, float, np.int64, np.int32, np.float64, np.float32]
 
+def get_pop_info(popid):
+    """
+    Parse `popid`, as we (as of March 2025) allow non-integer IDs.
+
+    Parameters
+    ----------
+    popid : int, str, tuple
+        For old-school ARES calculations (burn), this would just be an integer
+        used to index some ares.simulations.Simulation.pops list. Now, we can
+        pass things like '2a', which generally means 'satellite galaxies that
+        belong to population 0' (the 'a' maps back to pop 0, 'b' to pop 1, etc).
+        This is a little confusing mixing numbers and letters, but I think it's
+        less confusing than indicating '2a' as '20', or requiring users to
+        provide a tuple, e.g., (2, 0) or (2, 'a').
+
+    Returns
+    -------
+    Tuple containing (ARES popid, parent popid [if applicable], pop name as str).
+
+    """
+
+    # In this case, 'classic' behavior: just an integer, i.e.,
+    # central galaxies.
+    if (type(popid) == int) or popid.isnumeric():
+        return int(popid), int(popid), str(popid)
+
+    if type(popid) == tuple:
+        assert popid[1] < popid[0]
+        if type(popid[1]) == str:
+            s = letters.index(popid[1])
+        else:
+            s = letters[popid[1]]
+
+        return popid[0], popid[1], f'{int(popid[0])}{s}'
+
+    if type(popid) == str:
+        return int(popid[0]), int(letters.index(popid[1])), popid
+
+    raise NotImplemented('help')
+
 def get_cmd_line_kwargs(argv):
 
     cmd_line_kwargs = {}
