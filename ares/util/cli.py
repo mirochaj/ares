@@ -398,9 +398,13 @@ dataset_groups = {
         "rubin",
         "2mass",
         "wise",
+        "sdss",
         "spherex",
         "wfc",
         "wfc3",
+        "dirbe",
+        "euclid",
+        "hsc",
     ],
     "basics": [
        "inits",
@@ -708,6 +712,7 @@ def generate_nfw_ukm_tables(path, **kwargs):
     -------
     None
     """
+    
     # go to path
     os.chdir(path)
 
@@ -742,6 +747,12 @@ def generate_nfw_ukm_tables(path, **kwargs):
     def_kwargs.update(kwargs)
 
     halos = HaloModel(fmt='hdf5', halo_mf_load=True, **def_kwargs)
+
+    fn = f'./{halos.tab_prefix_prof()}.hdf5'
+
+    if os.path.exists(fn):
+        print(f"! Found {fn}. Moving on...")
+        return
 
     try:
         halos.generate_halo_prof(clobber=False,
@@ -861,6 +872,12 @@ def make_simpl(path):
             generate_simpl_seds(path, source_alpha=alpha, source_fsc=fsc)
 
 def generate_csfh_tab(path, **kwargs):
+    fn = f"{path}_csfh"
+
+    if os.path.exists(fn):
+        print(f"! Found {fn}. Moving on...")
+        return
+
     def_kwargs = {}
     def_kwargs['source_aging'] = True
     def_kwargs['source_ssp'] = True
@@ -1020,6 +1037,8 @@ def download_files(args):
         dsets = available_dsets
     elif args.dataset.lower() in available_dsets:
         dsets = [args.dataset.lower()]
+    elif args.dataset.lower() in dataset_groups:
+        dsets = dataset_groups[args.dataset.lower()]
     elif args.dataset.lower() not in available_dsets:
         raise ValueError(
             f"dataset {args.dataset} is not available. Possible options are: "
@@ -1084,6 +1103,11 @@ def download_files(args):
                     make_data_dir(parent_dir)
                     _do_download(full_path, _fn_dl)
 
+                ##
+                # Check that download succeeded before trying to unpack
+                if not os.path.exists(full_path):
+                    continue
+            
                 # Check to see if we need to un-tar and/or un-zip.
                 # If it's a zip, unzip and move on.
                 if _fn.endswith('tar.gz'):
@@ -1162,6 +1186,10 @@ def init_ares(args):
     """
     This is a bundle of pre-processing steps to simplify things for first-time
     users.
+
+    This is kind of like the `ares download <whatever>` option, except there 
+    may also be some pre-processing, e.g., generating new halo mass function 
+    tables, constant SFH SED tables, etc.
     """
 
     make_data_dir(args.path)
@@ -1181,43 +1209,90 @@ def init_ares(args):
 
     ##
     # Tell user about how much space this will take and how long.
-    print("")
-    print(f"!"*78)
-    print(f"! This initialization will take a few minutes and ~500 MB of disk space.")
-    print(f"! A complete set of ancillary data used by ARES for broader applications")
-    print(f"! can take several GB of space, so if your $HOME quota is small, <= 10 GB,")
-    print(f"! it is probably a good idea to run `ares init` with the ")
-    print(f"! `--path` flag set. See the README for more details.")
-    print(f"!"*78)
+    if args.mode == 'basic':
+        print("")
+        print(f"!"*78)
+        print(f"! This initialization will take a few minutes and ~500 MB of disk space.")
+        print(f"! A complete set of ancillary data used by ARES for broader applications")
+        print(f"! can take several GB of space, so if your $HOME quota is small, <= 10 GB,")
+        print(f"! it is probably a good idea to run `ares init` with the ")
+        print(f"! `--path` flag set. See the README for more details.")
+        print(f"!"*78)
+    
+        print(f"! Beginning ARES initialization...")
 
-    print(f"! Beginning ARES initialization...")
+        args.dataset = 'inits'
+        download_files(args)
 
-    args.dataset = 'inits'
-    download_files(args)
+        ##
+        # Need to manually add `dataset` to `args` object
+        args.dataset = 'bpass_v1'
+        args.only = '004'
 
-    ##
-    # Need to manually add `dataset` to `args` object
-    args.dataset = 'bpass_v1'
-    args.only = '004'
+        # Download only the basics: cosmological initial conditions,
+        # BPASS v1 (default for EoR things), BC03 (default for EBL things)
+        download_files(args)
 
-    # Download only the basics: cosmological initial conditions,
-    # BPASS v1 (default for EoR things), BC03 (default for EBL things)
-    download_files(args)
+        # Pre-processing: hmf generation, SED degradation, what else?
 
-    # Pre-processing: hmf generation, SED degradation, what else?
+        # Smooth BPASS v1 spectra to 10 Angstrom resolution since the native
+        # 1 A resolution is overkill for most things we do.
+        generate_lowres_sps(f"{args.path}/bpass_v1/SEDS", degrade_to=10,
+            exact_files=['sed.bpass.constant.nocont.sin.z004'])
 
-    # Smooth BPASS v1 spectra to 10 Angstrom resolution since the native
-    # 1 A resolution is overkill for most things we do.
-    generate_lowres_sps(f"{args.path}/bpass_v1/SEDS", degrade_to=10,
-        exact_files=['sed.bpass.constant.nocont.sin.z004'])
+        ## Generate default HMFs.
+        #make_data_dir(f"{args.path}/halos")
+        generate_hmf_tables(f"{args.path}/halos")
+        generate_halo_histories(
+            f"{args.path}/halos",
+            "halo_mf_Tinker10_logM_1000_6-16_t_971_30-1000.hdf5",
+        )
+    elif args.mode == 'ebl':
+        print(f"! Beginning ARES initialization for EBL applications...")
 
-    ## Generate default HMFs.
-    make_data_dir(f"{args.path}/halos")
-    generate_hmf_tables(f"{args.path}/halos")
-    generate_halo_histories(
-        f"{args.path}/halos",
-        "halo_mf_Tinker10_logM_1000_6-16_t_971_30-1000.hdf5",
-    )
+        ##
+        # 
+        ## Generate default HMFs.
+        make_data_dir(f"{args.path}/bc03_2013")
+        args.dataset = 'bc03_2013'
+        download_files(args)
+
+        # Generate CSFH tab 
+        generate_csfh_tab(
+            f"{args.path}/bc03_2013/bc03/Padova1994/chabrier/bc2003_hr_stelib_m62_chab_ssp.ised", 
+            source_sed='bc03_2013')
+        
+        # Eventually, download a best-fit SED table
+
+        # Halos 
+        ## Generate default HMFs.
+        make_data_dir(f"{args.path}/halos")
+        generate_hmf_tables(f"{os.environ.get('HOME')}/.ares/halos",
+            halo_mf='Tinker10', halo_dt=100, halo_tmin=100)
+        generate_hmf_tables(f"{os.environ.get('HOME')}/.ares/halos",
+            halo_mf='Tinker10', halo_dt=10, halo_tmin=30)
+
+        generate_nfw_ukm_tables(f"{os.environ.get('HOME')}/.ares/halos",
+            halo_mf='Tinker10', halo_dt=100, halo_tmin=100)
+        generate_nfw_ukm_tables(f"{os.environ.get('HOME')}/.ares/halos",
+            halo_mf='Tinker10', halo_dt=10, halo_tmin=30)
+
+        # Nice to have UniverseMachine for comparison and for 
+        # all the included datasets
+        args.dataset = 'universe_machine'
+        download_files(args)
+
+        # Nice to make sure we've got transmission curves for common filters
+        args.dataset = 'photometry'
+        download_files(args)
+
+    elif args.mode == 'mocks': 
+        raise NotImplementedError('help')
+    elif args.mode == '21cm': 
+        raise NotImplementedError('help') 
+    else: 
+        raise NotImplementedError(f'No option for `ares initialize {args.mode}') 
+
 
 def config_clean_subparser(subparser):
     """
@@ -1353,9 +1428,16 @@ def config_init_subparser(subparser):
     """
     hlp = "download and pre-process files needed by ARES "
     sp = subparser.add_parser(
-        "init",
+        "initialize",
         description=doc,
         help=hlp,
+    )
+    sp.add_argument(
+        "mode",
+        metavar="MODE",
+        type=str,
+        help="ARES mode to initialize",
+        default="all",
     )
     sp.add_argument(
         "--fresh",
