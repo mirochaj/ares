@@ -35,7 +35,7 @@ except ImportError:
 #
 #    @njit
 #    def _trapz(x, y):
-#        return np.trapz(y, x=x)
+#        return np.trapezoid(y, x=x)
 #except ImportError:
 #    pass
 
@@ -182,7 +182,7 @@ class LogNormal(LightCone): # pragma: no cover
             dndm = self.halos.tab_dndm[iz,ok==1]
 
             nall = cumulative_trapezoid(dndm * m, x=np.log(m), initial=0.0)
-            nbar = np.trapz(dndm * m, x=np.log(m)) \
+            nbar = np.trapezoid(dndm * m, x=np.log(m)) \
                  - np.exp(np.interp(np.log(mmin), np.log(m), np.log(nall)))
 
             # Memory to hold (x, y, z, m) for N halos
@@ -230,7 +230,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         m = self.halos.tab_M
         dndlnm = self.halos.tab_dndlnm[iz,:]
-        nbar = np.trapz(dndlnm[ok==1], x=np.log(m[ok==1]))
+        nbar = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
 
         # Correct for FOV
         if (fov is not None) and (dz is not None):
@@ -574,7 +574,7 @@ class LogNormal(LightCone): # pragma: no cover
                     dndm = self.halos.tab_dndm[iz,ok==1]
                     ngtm = self.halos.tab_ngtm[iz,ok==1]
 
-                ntot = np.trapz(dndm * m, x=np.log(m))
+                ntot = np.trapezoid(dndm * m, x=np.log(m))
                 self._cache_mgtm[key_id] = m, dndm, ngtm, ntot
 
             nltm = ntot - ngtm
@@ -933,7 +933,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         # Expected number of subhalos vs. central halo mass.
         # Just need to do this once per `logmlim`.
-        Nexp = np.trapz(hmf_sub[:,ok_sub==1],
+        Nexp = np.trapezoid(hmf_sub[:,ok_sub==1],
             x=np.log(self.halos.tab_M[ok_sub==1]), axis=1)
 
         # Array of radial separations [cMpc]

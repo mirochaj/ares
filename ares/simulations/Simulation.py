@@ -171,7 +171,7 @@ class Simulation(object):
 
     def get_ebl_ps(self, scales, waves, waves2=None, wave_units='mic',
         scale_units='ell', flux_units='SI', dimensionless=False, pops=None,
-        include_inter_pop=True, **kwargs):
+        include_inter_pop=True, cache_ipop_mtx=None, **kwargs):
         """
         Compute power spectrum of EBL at some observed wavelength(s).
 
@@ -283,6 +283,15 @@ class Simulation(object):
                 if i not in pops:
                     continue
 
+            if (cache_ipop_mtx is not None) and include_inter_pop:
+                _px, _pz = cache_ipop_mtx
+                _npops = _px.shape[0]
+                # If we're covered by the cache, use it
+                if i < _npops:
+                    px[i,j,:,:] = _px[i,j,:,:].copy()
+                    ps_z[i,j,:,:,:] = _pz[i,j,:,:,:].copy()
+                    continue
+
             for j, popx in enumerate(self.pops):
                 # Avoid double counting
                 if j > i:
@@ -321,16 +330,16 @@ class Simulation(object):
         # Increment `ps` with cross terms.
         # Convention is that fluctuations for population `i` includes
         # all crosses with
-        ps += px.sum(axis=1)
+
+        self.px_natu = px.copy()
+        self.pz_natu = ps_z.copy()
 
         ##
         # Modify PS units before return
         if flux_units.lower() == 'si':
-            ps *= cm_per_m**4 / erg_per_s_per_nW**2
             px *= cm_per_m**4 / erg_per_s_per_nW**2
             ps_z *= cm_per_m**4 / erg_per_s_per_nW**2
         elif flux_units.lower() == 'mjy':
-            ps *= 1e17
             px *= 1e17
             ps_z *= 1e17
 
