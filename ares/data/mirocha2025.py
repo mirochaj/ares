@@ -820,6 +820,60 @@ _base = \
 'pop_sys_sfr_a{0}': 1.7007e-02, 
 }
 
+_base_univ_smhm = \
+{
+'pq_func_par0[0]{0}': 4.1344e-04, 
+'pq_func_par1[0]{0}': 4.6176e+12, 
+'pq_func_par2[0]{0}': 1.0287e+00, 
+'pq_func_par3[0]{0}': -8.0203e-01, 
+'pq_func_par0[10]{1}': 1.5550e-06, 
+'pq_func_par1[10]{1}': 3.0276e+12, 
+'pq_func_par2[10]{1}': 1.7588e+00, 
+'pq_func_par3[10]{1}': -4.5801e-01, 
+'pq_func_par0[2]{0}': 7.2475e-02, 
+'pq_func_par1[2]{0}': 8.7340e-01, 
+'pq_func_par2[2]{0}': 1.2265e+01, 
+'pq_func_par3[2]{0}': -8.9691e-02, 
+'pq_func_par4[2]{0}': -3.3459e+00, 
+'pq_func_par8[2]{0}': 1.5762e+00, 
+'pq_func_par5[2]{0}': -1.7336e+00, 
+'pq_func_par9[2]{0}': 8.6541e-01, 
+'pq_func_par6[2]{0}': 1.7445e-02, 
+'pq_func_par10[2]{0}': 1.9731e-02, 
+'pq_func_par7[2]{0}': -2.1212e-01, 
+'pq_func_par11[2]{0}': 8.3941e-02, 
+'pq_func_par0[1]{0}': 8.1157e-04, 
+'pq_func_par1[1]{0}': 1.5696e+11, 
+'pq_func_par2[1]{0}': 2.3651e+00, 
+'pq_func_par3[1]{0}': 1.2051e+00, 
+'pq_func_par5[1]{0}': -9.4907e-01, 
+'pq_func_par9[1]{0}': 9.4990e-01, 
+'pq_func_par6[1]{0}': 1.9524e+00, 
+'pq_func_par10[1]{0}': -4.8817e-01, 
+'pq_func_par7[1]{0}': 8.1975e-01, 
+'pq_func_par11[1]{0}': -7.1957e-01, 
+'pq_func_par8[1]{0}': -4.5588e+00, 
+'pq_func_par12[1]{0}': 1.9760e+00, 
+'pq_func_par0[4]{0}': 3.5993e-01, 
+'pq_func_par1[4]{0}': 6.8483e+10, 
+'pq_func_par2[4]{0}': 5.4738e-01, 
+'pq_func_par3[4]{0}': -6.6320e-02, 
+'pq_func_par5[4]{0}': -1.9962e-01, 
+'pq_func_par9[4]{0}': -1.1622e-01, 
+'pq_func_par6[4]{0}': 2.2691e+00, 
+'pq_func_par10[4]{0}': -4.9084e-01, 
+'pq_func_par7[4]{0}': 2.2633e+00, 
+'pq_func_par11[4]{0}': -1.0507e+00, 
+'pq_func_par8[4]{0}': -1.7708e+00, 
+'pq_func_par12[4]{0}': 8.7189e-01, 
+'pop_scatter_sfh{0}': 4.7545e-01, 
+'pop_sfr_below_ms{1}': 2.9503e+03, 
+'pop_sys_mstell_now{0}': -2.6852e-01, 
+'pop_sys_mstell_a{0}': 8.6942e-02, 
+'pop_sys_sfr_now{0}': 3.7096e-03, 
+'pop_sys_sfr_a{0}': 1.7693e-03,
+}
+
 sed_modeling = \
 {
  'pop_lum_tab{0}': f"{HOME}/.ares/ares_ebl_data/sedtab_pop_0_best.hdf5",
@@ -868,3 +922,10 @@ base.update(dust_dplx)
 base.update(_base)
 base.update(sed_modeling)
 #base.update(lines_wprof)
+
+univ_smhm = setup.copy()
+univ_smhm.update(smhm_Q)
+univ_smhm.update(dust_dplx)
+univ_smhm.update(_base_univ_smhm)
+univ_smhm.update(sed_modeling)
+univ_smhm.update(lines_wprof)
