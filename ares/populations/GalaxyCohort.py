@@ -870,7 +870,7 @@ class GalaxyCohort(GalaxyAggregate):
         return self._func_smd[mass_return](z)
 
     def get_mar(self, z, Mh):
-        MAR = np.maximum(self.get_mass_accretion_rate(z, Mh), 0.)
+        MAR = np.maximum(self.halos.get_mass_accretion_rate(z, Mh), 0.)
         eta = self.eta(z, Mh)
         return eta * MAR
 
@@ -892,10 +892,6 @@ class GalaxyCohort(GalaxyAggregate):
     def _tab_eta(self):
         """
         Correction factor for MAR.
-
-        \eta(z) \int_{M_{\min}}^{\infty} \dot{M}_{\mathrm{acc}}(z,M) n(z,M) dM
-            = \bar{\rho}_m^0 \frac{df_{\mathrm{coll}}}{dt}|_{M_{\min}}
-
         """
 
         # Prepare to compute eta
@@ -1052,9 +1048,9 @@ class GalaxyCohort(GalaxyAggregate):
 
         The error is defined as:
 
-            error = \log_{10} [Observed mass] - \log_{10} [True mass]
+            error = log10 Observed mass - log10 True mass
 
-        i.e., the true mass is the \log_{10} [Observed mass] - this error.
+        i.e., the true mass is the log10 Observed mass - this error.
 
         """
 
@@ -1087,9 +1083,9 @@ class GalaxyCohort(GalaxyAggregate):
 
         The error is defined as:
 
-            error = \log_{10} [Observed SFR] - \log_{10} [True SFR]
+            error = log10 Observed SFR - log10 True SFR
 
-        i.e., the true SFR is the \log_{10} [Observed SFR] - this error.
+        i.e., the true SFR is the log10 Observed SFR - this error.
 
         """
 
