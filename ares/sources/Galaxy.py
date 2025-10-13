@@ -777,7 +777,7 @@ class Galaxy(SynthesisModel):
                     * (1 - self._get_freturn(tasc[i] - tasc[k])) \
                         for k, _tt_ in enumerate(tasc[0:i])]
 
-                smd_ret.append(np.trapz(smd_of_t, x=tasc[0:i] * 1e6))
+                smd_ret.append(np.trapezoid(smd_of_t, x=tasc[0:i] * 1e6))
 
             if flip:
                 return np.array(smd_ret)[-1::-1]
