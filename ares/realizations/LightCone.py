@@ -536,9 +536,10 @@ class LightCone(object): # pragma: no cover
 
         # Much faster to interpolate from table than generate angle/pMpc
         # on the fly. Interpolant automatically used if provided R is 1
-        arcsec_per_pmpc = 60 * self.sim.cosm.get_angle_from_length_proper(
-            red, 1.
-        )
+        arcsec_per_pmpc = np.array([60 * self.sim.cosm.get_angle_from_length_proper(
+            zz, 1.
+        ) for zz in red])
+        
         R_sec = arcsec_per_pmpc * Rkpc * 1e-3
 
         zlo, zhi = zlim
@@ -1538,6 +1539,7 @@ class LightCone(object): # pragma: no cover
             # Unpack info about this layer
             popid, channel, chname, zlayer, mlayer = layer
 
+            # Need channel in microns for internal routines
             chan_mic = self.convert_chan_to_micron(channel, wave_units)
 
             # Just used for file naming
@@ -1687,7 +1689,7 @@ class LightCone(object): # pragma: no cover
                         ##
                         # Done with satellites
                         if len(_parents) != len(_ra):
-                            print('wtf', popid, izm, len(_parents), len(_ra))
+                            print('problem with _parents 1', popid, izm, len(_parents), len(_ra))
                             input('<enter>')
 
                     ct += ok.sum()
@@ -1701,8 +1703,7 @@ class LightCone(object): # pragma: no cover
                             parh.extend(list(_parents))
 
                             if len(_parents) != len(_ra):
-                                print('wtf 2', popid, izm, len(_parents), len(_ra))
-                                input('<enter>')
+                                print('problem with _parents 2', popid, izm, len(_parents), len(_ra))
 
                         ##
                         # Unpack channel info
@@ -1842,11 +1843,12 @@ class LightCone(object): # pragma: no cover
                     # e.g., `parents` field for centrals is None
                     if field in [[], None]:
                         continue
-
-                    if field_names[ff] == 'parents':
-                        if len(field) != len(ra):
-                            print('wtf 3', popid, logmlim, len(parents), len(ra))
-                            input('<enter>')
+                    
+                    if type(field_names[ff]) == str:
+                        if field_names[ff] == 'parents':
+                            if len(field) != len(ra):
+                                print('problem with _parents 3', popid, logmlim, len(parents), len(ra))
+                                #input('<enter>')
 
                     _fn_ff = self.get_cat_fn(fov, pix, field_names[ff], popid,
                         logmlim=logmlim, zlim=self.zlim, fmt=fmt, wave_units=wave_units)
