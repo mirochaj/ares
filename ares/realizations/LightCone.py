@@ -49,7 +49,7 @@ class LightCone(object): # pragma: no cover
     This should be inherited by the other classes in this submodule.
     """
 
-    def build_directory_structure(self, fov, pix, logmlim=None, dryrun=False):
+    def build_directory_structure(self, fov, logmlim=None, dryrun=False):
         """
         Setup file system!
         """
@@ -1275,8 +1275,8 @@ class LightCone(object): # pragma: no cover
         if self.mem_concious:
             gc.collect()
 
-    def get_output_dir(self, fov, pix, zlim, logmlim=None, force_chunk=False):
-        fn = f"{self.base_dir}/fov_{fov:.1f}"#/pix_{pix:.1f}"
+    def get_output_dir(self, fov, zlim, logmlim=None, force_chunk=False):
+        fn = f"{self.base_dir}/fov_{fov:.1f}"
         fn += f"/box_{self.Lbox:.0f}/dim_{self.dims:.0f}"
         fn += f"/{self.model_name}"
         fn += f"/zmin_{self.zmin:.3f}"
@@ -1320,12 +1320,12 @@ class LightCone(object): # pragma: no cover
         Return filename expected for map with given properties.
         """
 
-        save_dir = self.get_output_dir(fov=fov, pix=pix,
+        save_dir = self.get_output_dir(fov=fov, 
             zlim=zlim, logmlim=logmlim, force_chunk=force_chunk)
 
         pid, pid_parent, pid_str = get_pop_info(popid)
 
-        fn = f'{save_dir}/map_{channel[0]:.3f}_{channel[1]:.3f}_{wave_units}_pop_{pid_str}'
+        fn = f'{save_dir}/map_pix_{pix:.1f}_{channel[0]:.3f}_{channel[1]:.3f}_{wave_units}_pop_{pid_str}'
 
         if include_galaxy_sizes:
             if popid in [4, '4']:
@@ -1343,7 +1343,7 @@ class LightCone(object): # pragma: no cover
         Return filename expected for catalog with given properties.
         """
 
-        save_dir = self.get_output_dir(fov=fov, pix=pix,
+        save_dir = self.get_output_dir(fov=fov, 
             zlim=zlim, logmlim=logmlim)
 
         pid, pid_parent, pid_str = get_pop_info(popid)
@@ -1355,7 +1355,7 @@ class LightCone(object): # pragma: no cover
 
         return fn + '.' + fmt
 
-    def get_README(self, fov, pix, zlim=None, logmlim=None,
+    def get_README(self, fov, zlim=None, logmlim=None,
         is_map=True, verbose=False):
         """
 
@@ -1363,7 +1363,7 @@ class LightCone(object): # pragma: no cover
 
         assert is_map
 
-        base_dir = self.get_output_dir(fov, pix, zlim=zlim, logmlim=logmlim)
+        base_dir = self.get_output_dir(fov, zlim=zlim, logmlim=logmlim)
 
         hdr = "#" * 78
         hdr += '\n# README\n'
@@ -1475,11 +1475,10 @@ class LightCone(object): # pragma: no cover
         """
 
         # Create root directory if it doesn't already exist.
-        self.build_directory_structure(fov, pix, dryrun=False)
+        self.build_directory_structure(fov, dryrun=False)
 
         # Create root directory if it doesn't already exist.
-        base_dir = self.get_output_dir(fov, pix,
-            zlim=self.zlim, logmlim=logmlim)
+        base_dir = self.get_output_dir(fov, zlim=self.zlim, logmlim=logmlim)
 
         # At least save halo mass since we get it for free.
         if (channels is None):
@@ -1743,7 +1742,7 @@ class LightCone(object): # pragma: no cover
                         else:
                             cam, filt = channel.split('_')
 
-                            raise NotImplemented('do we need to do this anymore?')
+                            #raise NotImplemented('do we need to do this anymore?')
 
                             ##
                             # Once again, in general need to sub-cycle through z
@@ -2151,7 +2150,7 @@ class LightCone(object): # pragma: no cover
         pix_deg = pix / 3600.
 
         # Create root directory if it doesn't already exist.
-        self.build_directory_structure(fov, pix, dryrun=False)
+        self.build_directory_structure(fov, dryrun=False)
 
         # Must do this after building the directory tree otherwise
         # we'll get errors.
@@ -2163,11 +2162,11 @@ class LightCone(object): # pragma: no cover
 
         ##
         # Initialize a README file / see what's in it.
-        README = self.get_README(fov=fov, pix=pix, zlim=self.zlim,
+        README = self.get_README(fov=fov, zlim=self.zlim,
             logmlim=logmlim)
 
         # For final outputs
-        final_dir = self.get_output_dir(fov=fov, pix=pix, zlim=self.zlim,
+        final_dir = self.get_output_dir(fov=fov, zlim=self.zlim,
             logmlim=logmlim)
 
         # Only reason this may not exist yet is because build_directory_structure
@@ -2466,8 +2465,7 @@ class LightCone(object): # pragma: no cover
                 if self.mem_concious:
                     gc.collect()
 
-                base_dir = self.get_output_dir(fov, pix,
-                    zlim=self.zlim, logmlim=logmlim)
+                base_dir = self.get_output_dir(fov, zlim=self.zlim, logmlim=logmlim)
 
                 write_README = True
 
