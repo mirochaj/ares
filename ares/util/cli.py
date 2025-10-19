@@ -9,6 +9,7 @@ import argparse
 import os
 import re
 import sys
+import ssl
 import gzip
 import glob
 import shutil
@@ -1007,6 +1008,10 @@ def _do_download(full_path, dl_link):
 
     # Otherwise, can use urlretrieve
     try:
+        # This is to avoid a certificate verify failed error that 
+        # started cropping up in newer Python versions (>3.9) when 
+        # pulling down WISE transmission curves. 
+        ssl._create_default_https_context = ssl._create_unverified_context
         print(f"Downloading {dl_link} to {full_path}.")
         urlretrieve(dl_link, full_path)
         print(f"Downloaded {dl_link} to {full_path}.")
