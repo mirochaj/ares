@@ -43,7 +43,15 @@ except ImportError:
 def _mv_bpass(parent_dir):
     os.makedirs(f"{parent_dir}/SEDS", exist_ok=True)
     for fn in glob.glob(f"{parent_dir}/sed.bpass.constant.nocont.sin.z0??.deg100"):
-        shutil.move(fn, f"{parent_dir}/SEDS/")
+        fn_new = f"{parent_dir}/SEDS/"
+        shutil.move(fn, fn_new)
+        print(f"! Moved {fn} to {fn_new}")
+
+def _mv_halosurf(parent_dir):
+    for fn in glob.glob(f"{parent_dir}/"):
+        fn_new = f"{parent_dir.replace('halo_surf', 'halos')}"
+        shutil.move(fn, fn_new)
+        print(f"! Moved {fn} to {fn_new}")
 
 # define helper function
 def read_FJS10(parent_dir):
@@ -223,6 +231,11 @@ aux_data = {
         "https://drive.google.com/file/d/1_W2otC-ZWy8Fve4jjCTO7bwB12qqNg45/view?usp=sharing",
         "sedtabs.tar.gz",
         None,
+    ],
+    "halo_surf": [
+        "https://drive.google.com/file/d/1YoCJ0G5y9yo-qUrg_4_npf46_tSuLTg9/view?usp=sharing",
+        "halo_surf.tar.gz",
+        _mv_halosurf,
     ],
     "bpass_v1": [
         "https://drive.google.com/file/d/1iuqKkcjh4fBF8MQS9XtDJvoSb9O9dCI9/view?usp=sharing",
@@ -1298,6 +1311,10 @@ def init_ares(args):
 
         # Pre-computed SED tables for typical models (currently just best univ_smhm model)
         args.dataset = 'sedtabs'
+        download_files(args)
+
+        # Pre-computed halo surface density profiles needed for mocks
+        args.dataset = 'halo_surf'
         download_files(args)
 
     elif args.mode == 'mocks': 
