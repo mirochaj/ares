@@ -93,7 +93,7 @@ class Simulation(object):
 
         return None
 
-    def get_ebl(self, wave_units='mic', flux_units='SI', pops=None,
+    def get_ebl_intensity(self, wave_units='mic', flux_units='SI', pops=None,
         zlow=None):
         """
         Return the extragalactic background light (EBL) over all wavelengths.
