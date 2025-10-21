@@ -17,6 +17,7 @@ from ..data import ARES
 from .Stats import bin_e2c
 from ..physics.Constants import c, erg_per_ev, h_p, E_LL, E_LyA
 
+letters = list('abcdefg')
 numeric_types = [int, float, np.int64, np.int32, np.float64, np.float32]
 
 def get_pop_info(popid):
