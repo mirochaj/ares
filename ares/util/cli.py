@@ -217,7 +217,12 @@ aux_data = {
     "starburst99": [
         "http://www.stsci.edu/science/starburst99/data", 
         "data.tar.gz", 
-        None
+        None,
+    ],
+    "sedtabs": [
+        "https://drive.google.com/file/d/1_W2otC-ZWy8Fve4jjCTO7bwB12qqNg45/view?usp=sharing",
+        "sedtabs.tar.gz",
+        None,
     ],
     "bpass_v1": [
         "https://drive.google.com/file/d/1iuqKkcjh4fBF8MQS9XtDJvoSb9O9dCI9/view?usp=sharing",
@@ -1289,6 +1294,10 @@ def init_ares(args):
 
         # Nice to make sure we've got transmission curves for common filters
         args.dataset = 'photometry'
+        download_files(args)
+
+        # Pre-computed SED tables for typical models (currently just best univ_smhm model)
+        args.dataset = 'sedtabs'
         download_files(args)
 
     elif args.mode == 'mocks': 
