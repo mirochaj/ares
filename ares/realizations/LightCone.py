@@ -1520,13 +1520,32 @@ class LightCone(object): # pragma: no cover
         ##
         # Start doing work.
         ct = 0
-        tracker = {int(pid): np.zeros((len(zlayers), len(mlayers)), dtype=int) \
-            for pid in include_pops}
 
         Nlayers = len(zlayers) * len(mlayers)
-        tracker_flat = {int(pid): [None] * Nlayers for pid in include_pops}
-        for pid in include_pops:
-            tracker_flat[int(pid)][0] = 0
+
+        # The `tracker` keeps track of central halos. This is because we 
+        # use indices to keep track of the parents of satellites, so from
+        # one iteration to the next we need a running tally to get our 
+        # indices right.
+        tracker = {}
+        tracker_flat = {}
+        for popid in include_pops:
+            pid, pid_par, pid_str = get_pop_info(popid)
+            if pid not in tracker:
+                tracker[pid] = np.zeros((len(zlayers), len(mlayers)), dtype=int)
+                tracker_flat[pid] = [None] * Nlayers
+                tracker_flat[pid][0] = 0
+            if pid_par not in tracker:
+                tracker[pid_par] = np.zeros((len(zlayers), len(mlayers)), dtype=int)
+                tracker_flat[pid_par] = [None] * Nlayers
+                tracker_flat[pid_par][0] = 0
+
+        #tracker = {str(pid): np.zeros((len(zlayers), len(mlayers)), dtype=int) \
+        #    for pid in include_pops}
+
+        #tracker_flat = {str(pid): [None] * Nlayers for pid in include_pops}
+        #for pid in include_pops:
+        #    tracker_flat[str(pid)][0] = 0
 
         ra = []
         dec = []

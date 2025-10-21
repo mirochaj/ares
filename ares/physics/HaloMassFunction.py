@@ -729,6 +729,22 @@ class HaloMassFunction(object):
                 raise NotImplemented('Only know about Tinker & Wetzel sub-HMF.')
 
         return self._tab_dndlnm_sub
+    
+    @property
+    def tab_ngtm_sub(self):
+        if not hasattr(self, '_tab_dndlnm_sub'):
+            tab_dndlnm_sub = self.tab_dndlnm_sub
+            self._tab_dndlnm_sub = np.zeros([self.halos.tab_M.size]*2)
+
+            m = self.halos.tab_M
+            for i, Mc in enumerate(self.halos.tab_M):
+                dndm = self.sim.pops[0].halos.tab_dndlnm_sub[iM,:] / Mc
+                self._tab_dndlnm_sub[i,:] = \
+                    cumulative_trapezoid(dndm[-1::-1] * m[-1::-1],
+                        x=-np.log(m[-1::-1]), initial=0)[-1::-1]
+
+        return self._tab_dndlnm_sub
+
 
     @cached_property
     def tab_dndlnm(self):

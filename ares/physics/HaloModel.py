@@ -9,6 +9,7 @@ from types import FunctionType, MethodType
 import numpy as np
 import scipy.special as sp
 from scipy.integrate import quad
+from functools import cached_property
 
 from ..data import ARES
 from ..util.ProgressBar import ProgressBar
@@ -160,6 +161,7 @@ class HaloModel(HaloMassFunction):
             if os.path.exists(fn):
                 with h5py.File(fn, 'r') as f:
                     self._tab_Sigma_nfw = np.array(f[('tab_Sigma_nfw')])
+                    self._tab_Sigma_nfw_cdf = np.array(f[('tab_Sigma_nfw_cdf')])
 
                 if self.pf['verbose'] and rank == 0:
                     print(f"# Loaded {fn}.")
@@ -169,6 +171,12 @@ class HaloModel(HaloMassFunction):
                     print(f"# Did not find {fn}.")
 
         return self._tab_Sigma_nfw
+    
+    @property
+    def tab_Sigma_nfw_cdf(self):
+        if not hasattr(self, '_tab_Sigma_nfw_cdf'):
+            poke = self.tab_Sigma_nfw
+        return self._tab_Sigma_nfw_cdf
 
     def get_u_isl(self, z, Mh, k, rmax=1e2):
         """
@@ -898,7 +906,7 @@ class HaloModel(HaloMassFunction):
                 iz = np.argmin(np.abs(_z_ - self.tab_z))
                 self._tab_ps_mm[i,:] = self._get_ps_lin(self.tab_k, iz)
                 R, cf = get_cf_from_ps_tab(self.tab_k, self._tab_ps_mm[i,:])
-                self._tab_cf_mm[i,:] = np.interp(np.log(R), np.log(self.tab_R),
+                self._tab_cf_mm[i,:] = np.interp(np.log(self.tab_R), np.log(R), 
                     cf)
 
             return
@@ -966,9 +974,9 @@ class HaloModel(HaloMassFunction):
 
         zstr = self.get_table_zstr()
 
-        # Hard-coded for now, change this.
-        Rmi, Rma = -3, 1
-        dlogR = 0.05
+        Rall = self.tab_R_nfw
+        Rmi, Rma = np.log10(self.tab_R_nfw.min()), np.log10(self.tab_R_nfw.max())
+        dlogR = np.diff(np.log10(self.tab_R_nfw))[0]
 
         logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
             / self.pf['halo_dlogM']
@@ -983,8 +991,6 @@ class HaloModel(HaloMassFunction):
         return 'halo_surf_%s_logM_%i_%i-%i_%s_logR_%.1f-%.1f_dlnR_%.3f' \
             % (self.pf['halo_cmr'],
                 logMsize, M1, M2, zstr, Rmi, Rma, dlogR)
-
-
 
     def tab_prefix_ps(self, with_size=True):
         """
@@ -1366,6 +1372,13 @@ class HaloModel(HaloMassFunction):
             print(f"# Wrote {fn}.")
 
         return
+    
+    @cached_property
+    def tab_R_nfw(self):
+        Rmi, Rma = -3, 1
+        dlogR = 0.25
+        R = 10**np.arange(Rmi, Rma+dlogR, dlogR)
+        return R
 
     def get_halo_surface_dens(self, z, Mh, R):
         model_nfw = lambda MM, rr: self.get_rho_nfw(z, Mh=MM, r=rr,
