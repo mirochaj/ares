@@ -876,10 +876,10 @@ _base_univ_smhm = \
 
 sed_modeling = \
 {
- 'pop_lum_tab{0}': f"{HOME}/.ares/ares_ebl_data/sedtab_pop_0_best.hdf5",
- 'pop_lum_tab{1}': f"{HOME}/.ares/ares_ebl_data/sedtab_pop_1_best.hdf5",
- 'pop_lum_tab{2}': f"{HOME}/.ares/ares_ebl_data/sedtab_pop_0_best.hdf5",
- 'pop_lum_tab{3}': f"{HOME}/.ares/ares_ebl_data/sedtab_pop_1_best.hdf5",
+ 'pop_lum_tab{0}': f"{HOME}/.ares/sedtabs/sedtab_pop_0_best.hdf5",
+ 'pop_lum_tab{1}': f"{HOME}/.ares/sedtabs/sedtab_pop_1_best.hdf5",
+ 'pop_lum_tab{2}': f"{HOME}/.ares/sedtabs/sedtab_pop_0_best.hdf5",
+ 'pop_lum_tab{3}': f"{HOME}/.ares/sedtabs/sedtab_pop_1_best.hdf5",
 }
 
 no_sed_modeling = \
