@@ -45,13 +45,13 @@ def _mv_bpass(parent_dir):
     for fn in glob.glob(f"{parent_dir}/sed.bpass.constant.nocont.sin.z0??.deg100"):
         fn_new = f"{parent_dir}/SEDS/"
         shutil.move(fn, fn_new)
-        print(f"! Moved {fn} to {fn_new}")
+        print(f"# Moved {fn} to {fn_new}")
 
 def _mv_halosurf(parent_dir):
     for fn in glob.glob(f"{parent_dir}/"):
         fn_new = f"{parent_dir.replace('halo_surf', 'halos')}"
         shutil.move(fn, fn_new)
-        print(f"! Moved {fn} to {fn_new}")
+        print(f"# Moved {fn} to {fn_new}")
 
 # define helper function
 def read_FJS10(parent_dir):
@@ -150,7 +150,7 @@ def gunzip_files(parent_dir):
                 with open(filename[:-3], 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
 
-                print(f"! Unzipped {parent_dir}/{filename}.")
+                print(f"# Unzipped {parent_dir}/{filename}.")
 
 def unpack_files(parent_dir):
     for fn in os.listdir(parent_dir):
@@ -161,7 +161,6 @@ def unpack_files(parent_dir):
             f.extractall(parent_dir)
             f.close()
         elif fn.endswith('.zip'):
-            print('hi', full_path)
             zip_ref = zipfile.ZipFile(full_path, 'r')
             zip_ref.extractall(parent_dir)
             zip_ref.close()
@@ -173,7 +172,7 @@ def unpack_files(parent_dir):
             #print(f"! Unrecognized file format: {full_path}.")
             continue
 
-        print(f"! Unpacked {full_path}.")
+        print(f"# Unpacked {full_path}.")
 
 
 def unpack_bc03(parent_dir):
@@ -628,9 +627,9 @@ def generate_halo_histories(path, fn_hmf):
                     continue
                 h5f.create_dataset(key, data=hist[key])
 
-        print("! Wrote {}".format(fn))
+        print("# Wrote {}".format(fn))
     else:
-        print("! File {} exists. Exiting.".format(fn))
+        print("# File {} exists. Exiting.".format(fn))
     return fn
 
 def make_halos(path):
@@ -770,7 +769,7 @@ def generate_nfw_ukm_tables(path, **kwargs):
     fn = f'./{halos.tab_prefix_prof()}.hdf5'
 
     if os.path.exists(fn):
-        print(f"! Found {fn}. Moving on...")
+        print(f"# Found {fn}. Moving on...")
         return
 
     try:
@@ -839,7 +838,7 @@ def generate_lowres_sps(path, degrade_to, exact_files=None):
             new_data[:,i] = ys
 
         np.savetxt(out_fn, new_data)
-        print("Wrote {}".format(out_fn))
+        print("# Wrote {}".format(out_fn))
 
         del data, wave
 
@@ -894,7 +893,7 @@ def generate_csfh_tab(path, **kwargs):
     fn = f"{path}_csfh"
 
     if os.path.exists(fn):
-        print(f"! Found {fn}. Moving on...")
+        print(f"# Found {fn}. Moving on...")
         return
 
     def_kwargs = {}
@@ -930,7 +929,7 @@ def generate_csfh_tab(path, **kwargs):
     with open(fn, 'wb') as f:
         pickle.dump({'t': tarr, 'waves': waves, 'data': data.T}, f)
     #np.savetxt(fn, data.T)
-    print(f"! Wrote {fn}")
+    print(f"# Wrote {fn}")
 
 
 def generate_rt1d_tabs(path, **kwargs):
@@ -1009,11 +1008,11 @@ def clean_files(args):
     if args.dry_run:
         for dset in dsets:
             full_path = os.path.join(args.path, dset, aux_dsets[dset][1])
-            print(f"Running in dry-run mode; would remove {full_path}")
+            print(f"# Running in dry-run mode; would remove {full_path}")
     else:
         for dset in dsets:
             full_path = os.path.join(args.path, dset, aux_dsets[dset][1])
-            print(f"Removing {full_path}...")
+            print(f"# Removing {full_path}...")
             os.remove(full_path)
 
     return
@@ -1030,12 +1029,12 @@ def _do_download(full_path, dl_link):
         # started cropping up in newer Python versions (>3.9) when 
         # pulling down WISE transmission curves. 
         ssl._create_default_https_context = ssl._create_unverified_context
-        print(f"Downloading {dl_link} to {full_path}.")
+        print(f"# Downloading {dl_link} to {full_path}.")
         urlretrieve(dl_link, full_path)
-        print(f"Downloaded {dl_link} to {full_path}.")
+        print(f"# Downloaded {dl_link} to {full_path}.")
     except (URLError, HTTPError) as error:
-        print(f"Error downloading file {dl_link} to {full_path}")
-        print(f"error: {error}")
+        print(f"! Error downloading file {dl_link} to {full_path}")
+        print(f"! error: {error}")
     return
 
 def download_files(args):
@@ -1076,14 +1075,14 @@ def download_files(args):
             full_path = os.path.join(args.path, dset, aux_data[dset][1])
             if os.path.exists(full_path):
                 if args.fresh:
-                    print(f"! Running in dry-run mode; would re-download {full_path}")
+                    print(f"# Running in dry-run mode; would re-download {full_path}")
                 else:
                     print(
                         f"! {full_path} already exists; rerun with --fresh to "
                         "force download"
                     )
             else:
-                print(f"! Running in dry-run mode; would download {full_path}")
+                print(f"# Running in dry-run mode; would download {full_path}")
     else:
         for dset in dsets:
 
@@ -1271,7 +1270,15 @@ def init_ares(args):
             "halo_mf_Tinker10_logM_1000_6-16_t_971_30-1000.hdf5",
         )
     elif args.mode == 'ebl':
-        print(f"! Beginning ARES initialization for EBL applications...")
+        print(f"# Beginning ARES initialization for EBL applications...")
+
+        # Most things needs cosmological parameters
+        args.dataset = 'planck'
+        download_files(args)
+
+        # And cosmological initial conditions
+        args.dataset = 'inits'
+        download_files(args)
 
         ##
         # 

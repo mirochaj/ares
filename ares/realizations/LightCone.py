@@ -19,7 +19,6 @@ from pathlib import Path
 from scipy.stats import truncnorm
 from ..simulations import Simulation
 from scipy.special import gammaincinv
-from ..util.WorkerPools import WorkerPool
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
 from scipy.spatial.transform import Rotation
