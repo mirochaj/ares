@@ -177,19 +177,19 @@ def unpack_files(parent_dir):
 
 
 def unpack_bc03(parent_dir):
-    path = f"{ARES}/bc03/bc03/models"
+    path = f"{parent_dir}/bc03/models"
     for tracks in os.listdir(path):
         for imf in os.listdir(f"{path}/{tracks}"):
             unpack_files(f"{path}/{tracks}/{imf}")
 
 def unpack_bc03_2013(parent_dir):
-    path = f"{ARES}/bc03_2013/bc03/"
+    path = f"{parent_dir}/bc03/"
     for tracks in os.listdir(path):
         for imf in os.listdir(f"{path}/{tracks}"):
             unpack_files(f"{path}/{tracks}/{imf}")
 
 def unpack_bpass_v1(parent_dir):
-    path = f"{ARES}/bpass_v1/"
+    path = f"{parent_dir}/"
     for Zstr in ['z001', 'z004', 'z008', 'z020', 'z040']:
         with tarfile.open(f"{path}/sed_bpass_{Zstr}_tar.gz") as f:
             f.extractall(parent_dir)
@@ -955,7 +955,7 @@ def make_rt1d(path):
     generate_rt1d_tabs(path, include_helium=0, problem_type=2)
     generate_rt1d_tabs(path, include_helium=1, problem_type=12)
 
-def make_data_dir(path=ARES):
+def make_data_dir(path):
     """
     Make a data directory at the specified path.
 
@@ -972,7 +972,10 @@ def make_data_dir(path=ARES):
     """
     if not os.path.exists(path):
         _path = Path(path)
-        _path.mkdir(parents=True)
+        # Don't actually need parents=True, and it screws up 
+        # if we're useing a symlink to point HOME/.ares elsewhere 
+        # to avoid a low quota.
+        _path.mkdir(parents=False, exist_ok=True)
 
     return
 
@@ -1215,7 +1218,7 @@ def init_ares(args):
     tables, constant SFH SED tables, etc.
     """
 
-    make_data_dir(args.path)
+    #make_data_dir(args.path)
 
     ##
     # Add some verbosity to remind users to symlink to $HOME/.ares
@@ -1224,11 +1227,19 @@ def init_ares(args):
         print("\n")
         print(f"!"*78)
         print(f"! You have supplied a non-standard path to ARES input data. That's OK!")
-        print(f"! Just be sure to make $HOME/.ares a symbolic link to the provided path, e.g.,")
+        print(f"! You need to first make $HOME/.ares a symbolic link that points to the provided path, e.g.,")
         print(f"! ")
         print(f"! > ln -s {args.path} {ARES}")
         print(f"!")
-        print(f"!"*78)
+        
+        if os.path.islink(ARES):
+            print(f"! Looks like you already did it! Well done :)")
+            print(f"!"*78)
+        else:
+            print(f"! Looks like you haven't yet set this up. We'll stop here for now.")
+            print(f"! Re-run `ares initialize {args.mode} --path={args.path}` once you're done.")
+            print(f"!"*78)
+            sys.exit(0)
 
     ##
     # Tell user about how much space this will take and how long.
@@ -1298,14 +1309,14 @@ def init_ares(args):
         # Halos 
         ## Generate default HMFs.
         make_data_dir(f"{args.path}/halos")
-        generate_hmf_tables(f"{os.environ.get('HOME')}/.ares/halos",
+        generate_hmf_tables(f"{args.path}/halos",
             halo_mf='Tinker10', halo_dt=100, halo_tmin=100)
-        generate_hmf_tables(f"{os.environ.get('HOME')}/.ares/halos",
+        generate_hmf_tables(f"{args.path}/halos",
             halo_mf='Tinker10', halo_dt=10, halo_tmin=30)
 
-        generate_nfw_ukm_tables(f"{os.environ.get('HOME')}/.ares/halos",
+        generate_nfw_ukm_tables(f"{args.path}/halos",
             halo_mf='Tinker10', halo_dt=100, halo_tmin=100)
-        generate_nfw_ukm_tables(f"{os.environ.get('HOME')}/.ares/halos",
+        generate_nfw_ukm_tables(f"{args.path}/halos",
             halo_mf='Tinker10', halo_dt=10, halo_tmin=30)
 
         # Nice to have UniverseMachine for comparison and for 

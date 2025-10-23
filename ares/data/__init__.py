@@ -5,8 +5,10 @@ HOME = os.getenv("HOME")
 ARES = f"{HOME}/.ares"
 
 # check that directory exists
-if not os.path.exists(ARES):
-    raise IOError("The directory ~/.ares does not exist. Please make it, or re-run package installation.")
+if os.path.islink(ARES):
+    pass
+elif not os.path.exists(ARES):
+    raise IOError(f"The directory {ARES} does not exist. Please make it, or re-run package installation.")
 
 def read(prefix, path=None, verbose=True):
     """
