@@ -3830,9 +3830,7 @@ class GalaxyCohort(GalaxyAggregate):
         dMh_dlog10L = np.diff(self.halos.tab_M_e) \
                 / np.concatenate(([dlog10L.min()], np.abs(dlog10L)))
         dMh_dlog10L[np.isnan(dMh_dlog10L)] = 0
-        dlog10LdL = np.concatenate(([dlog10L[0]], np.abs(dlog10L))) \
-            / np.concatenate(([[dL[0]], np.abs(dL)]))
-
+        
         ##
         # Central pops first
         if self.is_central_pop:
@@ -3856,8 +3854,8 @@ class GalaxyCohort(GalaxyAggregate):
 
                 # Integrate over halo mass (or really, <Lh>) axis
                 _ok = np.logical_and(ok, Lh>0)
-                phi_tot = np.trapezoid(dndlnL[_ok==1,None] * pdf[_ok==1,:], x=lnL[_ok==1],  
-                    axis=0)
+                phi_tot = np.trapezoid(dndlnL[_ok==1,None] * pdf[_ok==1,:], 
+                    x=lnL[_ok==1], axis=0)
 
                 lum = np.ma.array(Lh, mask=mask)
                 phi = np.ma.array(phi_tot, mask=mask, fill_value=-np.inf)
@@ -3876,7 +3874,7 @@ class GalaxyCohort(GalaxyAggregate):
             if use_tabs:
                 fsurv = self.tab_fsurv[iz,:]
             else:
-                fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M[0:1])
+                fsurv = self.get_fsurv(z=z, Mh=self.halos.tab_M)
                 if type(fsurv) in numeric_types:
                     fsurv = np.ones_like(self.halos.tab_M) * fsurv
 
@@ -3884,14 +3882,13 @@ class GalaxyCohort(GalaxyAggregate):
             # of subhalo mass. Need to sum up all subhalos over central
             # population
 
-            #dndlog10L_c = dndm * dMh_dlog10L
             dndlnm_cen = dndm * self.halos.tab_M
 
             # Shape of dndlnm_sub (centrals, satellites)
             dndm_sub = self.halos.tab_dndlnm_sub[:,:] / self.halos.tab_M
 
             #
-            dndlog10L_sat = np.zeros_like(self.halos.tab_M)
+            dndlnL_sat = np.zeros_like(self.halos.tab_M)
             for i, Msat in enumerate(self.halos.tab_M):
 
                 # Opposite of what we usually do. Integrating over central
@@ -3899,11 +3896,11 @@ class GalaxyCohort(GalaxyAggregate):
 
                 # focc independent of central galaxy
                 integrand = self.halos.tab_dndlnm[iz,:] * focc[i] * fsurv[i] \
-                    * dndm_sub[:,i] * dMh_dlog10L[i]
+                    * dndm_sub[:,i] * dmdlnL[i]#dMh_dlog10L[i]
                 #dndlog10L = dndlog10L_c * dndm_sub[:,i] * dMh_dlog10L[i] \
                 #    * focc[i] * fsurv[i]
 
-                dndlog10L_sat[i] = np.trapezoid(integrand[ok==1], dx=self.halos.dlnm)
+                dndlnL_sat[i] = np.trapezoid(integrand[ok==1], dx=self.halos.dlnm)
 
             #
             if (self.pf['pop_scatter_sfh'] > 0) or (self.pf['pop_scatter_sfr'] > 0):
@@ -3926,7 +3923,7 @@ class GalaxyCohort(GalaxyAggregate):
                 _ok = np.logical_and(ok, Lh>0)
 
                 # Integrate over halo mass axis
-                phi_tot = np.trapezoid(dndlog10L_sat[_ok==1,None] * pdf[_ok==1],
+                phi_tot = np.trapezoid(dndlnL_sat[_ok==1,None] * pdf[_ok==1],
                     x=np.log(Lh[_ok==1]), axis=0)
 
                 mask = np.logical_not(ok)
@@ -3939,7 +3936,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 ##
                 # Replace dndm
-                dndm = dndlog10L_sat / dMh_dlog10L
+                dndm = dndlnL_sat / dmdlnL
 
         ##
         # If we made it here, there's no scatter. Life is a bit easier.

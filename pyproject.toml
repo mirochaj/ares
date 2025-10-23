@@ -42,10 +42,12 @@ hmf = ["hmf", "camb"]
 math = ["mpmath", "mcfit"]
 progressbar = ["progressbar"]
 doc = ["sphinx", "numpydoc", "nbsphinx"]
+mocks = ["powerbox"]
+inference = ["emcee", "schwimmbad"]
 sed_modeling = ["dust_extinction", 
   "dust_attenuation @ git+https://github.com/karllark/dust_attenuation.git@main"]
 tests = ["pytest", "coverage", "pytest-cov", "ares[hmf,math,sed_modeling]"]
-all = ["ares[hmf,math,progressbar,doc,sed_modeling,tests]"]
+all = ["ares[hmf,math,progressbar,doc,sed_modeling,tests,mocks,inference]"]
 
 [project.scripts]
 ares = "ares.util.cli:main"
