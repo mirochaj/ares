@@ -48,10 +48,11 @@ def _mv_bpass(parent_dir):
         print(f"# Moved {fn} to {fn_new}")
 
 def _mv_halosurf(parent_dir):
-    for fn in glob.glob(f"{parent_dir}/"):
-        fn_new = f"{parent_dir.replace('halo_surf', 'halos')}"
-        shutil.move(fn, fn_new)
-        print(f"# Moved {fn} to {fn_new}")
+    for fn in os.listdir(f"{parent_dir}/"):
+        fn_pre = f"{parent_dir}/{fn}"
+        fn_new = f"{parent_dir.replace('halo_surf', 'halos')}/{fn}"
+        shutil.move(fn_pre, fn_new)
+        print(f"# Moved {fn_pre} to {fn_new}")
 
 # define helper function
 def read_FJS10(parent_dir):
