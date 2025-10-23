@@ -1227,7 +1227,7 @@ def init_ares(args):
         print("\n")
         print(f"!"*78)
         print(f"! You have supplied a non-standard path to ARES input data. That's OK!")
-        print(f"! You need to first make $HOME/.ares a symbolic link that points to the provided path, e.g.,")
+        print(f"! You need to first make $HOME/.ares a symbolic link:")
         print(f"! ")
         print(f"! > ln -s {args.path} {ARES}")
         print(f"!")
@@ -1237,7 +1237,8 @@ def init_ares(args):
             print(f"!"*78)
         else:
             print(f"! Looks like you haven't yet set this up. We'll stop here for now.")
-            print(f"! Re-run `ares initialize {args.mode} --path={args.path}` once you're done.")
+            print(f"! Once you're done, run:")
+            print(f"! `ares initialize {args.mode} --path={args.path}`")
             print(f"!"*78)
             sys.exit(0)
 
