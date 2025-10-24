@@ -12,9 +12,7 @@ Description:
 
 import os
 import re
-
 import numpy as np
-
 from ..data import ARES
 
 try:
