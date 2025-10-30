@@ -816,7 +816,7 @@ class LightCone(object): # pragma: no cover
 
         ##
         # First, check for a pre-existing catalog in this channel.
-        fn_cat_ch = self.get_cat_fn(fov, pix, channel, popid,
+        fn_cat_ch = self.get_cat_fn(fov, channel, popid,
             logmlim=logmlim, zlim=(zlo, zhi), wave_units=wave_units)
         
         if os.path.exists(fn_cat_ch):
@@ -1336,7 +1336,7 @@ class LightCone(object): # pragma: no cover
 
         return fn + '.' + fmt
 
-    def get_cat_fn(self, fov, pix, channel, popid, logmlim=None, zlim=None,
+    def get_cat_fn(self, fov, channel, popid, logmlim=None, zlim=None,
         fmt='fits', wave_units='um'):
         """
         Return filename expected for catalog with given properties.
@@ -1454,7 +1454,7 @@ class LightCone(object): # pragma: no cover
 
         return np.array(p_out, dtype=int), np.array(cen_ok)
 
-    def generate_cats(self, fov, pix, channels, logmlim, dlogm=0.5, zlim=None,
+    def generate_cats(self, fov, channels, logmlim, dlogm=0.5, zlim=None,
         include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
         suffix=None, fmt='fits', hdr={}, wave_units='um',
         cat_units='uJy', keep_layers=False, logmlim_sats=(11,15),
@@ -1468,8 +1468,7 @@ class LightCone(object): # pragma: no cover
         fov : int, float
             Field of view (single dimension) in degrees, so total area is
             FOV^2/deg^2.
-        pix : int, float
-            Pixel scale in arcseconds.
+        
 
         """
 
@@ -1498,10 +1497,6 @@ class LightCone(object): # pragma: no cover
         if zlim is None:
             zlim = self.zlim
 
-        assert fov * 3600 / pix % 1 == 0, \
-            "FOV must be integer number of pixels wide!"
-
-        npix = int(fov * 3600 / pix)
         zlayers = self.get_redshift_layers(self.zlim)
         zcent, ze, Re = self.get_domain_info(self.zlim)
         mlayers = self.get_mass_layers(logmlim, dlogm)
@@ -1581,7 +1576,7 @@ class LightCone(object): # pragma: no cover
             # See if we already finished this map.
             # Note that if this file exists, it's guaranteed that the
             # corresponding ra, dec, and redshift catalogs are done too.
-            fn = self.get_cat_fn(fov, pix, channel, popid,
+            fn = self.get_cat_fn(fov, channel, popid,
                 logmlim=mlayer, zlim=zlayer, wave_units=wave_units)
 
             pb.update(h)
@@ -1811,11 +1806,11 @@ class LightCone(object): # pragma: no cover
                                 if field in [[], None]:
                                     continue
 
-                                fn_ff = self.get_cat_fn(fov, pix, field_names[ff],
+                                fn_ff = self.get_cat_fn(fov, field_names[ff],
                                     popid, logmlim=mlayer, zlim=zlayer,
                                     wave_units=wave_units)
                                 self.save_cat(fn_ff, field, field_names[ff],
-                                    zlayer, mlayer, fov, pix=pix, fmt=fmt, hdr=hdr,
+                                    zlayer, mlayer, fov, fmt=fmt, hdr=hdr,
                                     cat_units=field_units[ff],
                                     clobber=clobber, verbose=verbose)
 
@@ -1867,12 +1862,12 @@ class LightCone(object): # pragma: no cover
                                 print('problem with _parents 3', popid, logmlim, len(parents), len(ra))
                                 #input('<enter>')
 
-                    _fn_ff = self.get_cat_fn(fov, pix, field_names[ff], popid,
+                    _fn_ff = self.get_cat_fn(fov, field_names[ff], popid,
                         logmlim=logmlim, zlim=self.zlim, fmt=fmt, wave_units=wave_units)
 
                     self.save_cat(_fn_ff, field,
                         field_names[ff], self.zlim, logmlim,
-                        fov, pix=pix, fmt=fmt, hdr=hdr, cat_units=field_units[ff],
+                        fov, fmt=fmt, hdr=hdr, cat_units=field_units[ff],
                         clobber=clobber, verbose=verbose)
 
                 del ra, dec, red, dat, parh
@@ -2659,7 +2654,7 @@ class LightCone(object): # pragma: no cover
                         pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
                         verbose=verbose, clobber=clobber)
 
-    def save_cat(self, fn, cat, channel, zlim, logmlim, fov, pix=1, fmt='fits',
+    def save_cat(self, fn, cat, channel, zlim, logmlim, fov, fmt='fits',
         hdr={}, clobber=False, verbose=False, cat_units=''):
         """
         Save galaxy catalog.

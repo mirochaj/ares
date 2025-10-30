@@ -15,11 +15,13 @@ import gc
 import numpy as np
 from ..util import ProgressBar
 from .LightCone import LightCone
-from scipy.integrate import cumtrapz
 from ..simulations import Simulation
+from ..util.Misc import get_pop_info
 from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
+from scipy.integrate import cumulative_trapezoid as cumtrapz
+
 
 try:
     import powerbox as pbox
@@ -111,6 +113,8 @@ class NbodySim(LightCone): # pragma: no cover
 
         """
 
+        pid, pid_par, pid_str = get_pop_info(popid)
+
         ##
         # First, figure out bounding redshift chunks.
         if zlim is not None:
@@ -184,19 +188,19 @@ class NbodySim(LightCone): # pragma: no cover
 
             ##
             # Apply occupation fraction cut
-            if self.sim.pops[popid].pf['pop_focc'] != 1:
-                seed_kwargs = self.get_seed_kwargs(i, logmlim, popid)
+            if self.sim.pops[pid].pf['pop_focc'] != 1:
+                seed_kwargs = self.get_seed_kwargs(i, logmlim, pid)
 
                 np.random.seed(seed_kwargs['seed_occ'])
 
                 r = np.random.rand(numh)
-                focc = self.sim.pops[popid].get_focc(z=z, Mh=10**_data[:,3])
+                focc = self.sim.pops[pid].get_focc(z=z, Mh=10**_data[:,3])
 
                 oko = np.ones(numh)
                 oko[r > focc] = 0
 
                 if verbose:
-                    print(f"# Applied occupation fraction cut for pop #{popid} at z={z:.2f} in {logmlim[0]:.1f}-{logmlim[1]:.1f} mass range.")
+                    print(f"# Applied occupation fraction cut for pop #{pid} at z={z:.2f} in {logmlim[0]:.1f}-{logmlim[1]:.1f} mass range.")
                     print(f"# [reduced number of halos by {100*(1-oko.sum()/float(oko.size)):.2f}%]")
 
             else:
