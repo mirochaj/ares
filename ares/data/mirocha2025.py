@@ -266,6 +266,7 @@ ihl_scaled['pq_func_par1[50]'] = 1e12
 ihl_scaled['pq_func_par2[50]'] = 1.  # Linear Mh dependence
 ihl_scaled['pq_func_par3[50]'] = 1.  # Anchored to z=0
 ihl_scaled['pq_func_par4[50]'] = 0   # No evolution by default [illustrative]
+ihl_scaled['pq_val_ceil[50]'] = 0.999
 
 ihl_scaled['pop_include_1h'] = True
 ihl_scaled['pop_include_2h'] = True
@@ -273,6 +274,7 @@ ihl_scaled['pop_include_shot'] = False
 ihl_scaled['pop_Mmin'] = 1e10
 #ihl_scaled['pop_Mmax'] = 1e15
 ihl_scaled['pop_Tmin'] = None
+
 
 # These numbers are Purcell-like
 ihl_tanh = ihl_scaled.copy()

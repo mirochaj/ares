@@ -764,7 +764,7 @@ class LightCone(object): # pragma: no cover
         postage_stamp : int, float
             If provided, and `include_galaxy_sizes==True`, this is the size of
             image (in units of R_eff) on which we'll create each galaxy's
-            surface brightness profile, to then by slotted into the full image.
+            surface brightness profile, to then be slotted into the full image.
 
         Returns
         -------
@@ -1313,7 +1313,7 @@ class LightCone(object): # pragma: no cover
         return fn
 
     def get_map_fn(self, fov, pix, channel, popid, logmlim=None, zlim=None,
-        fmt='fits', wave_units='um', force_chunk=False, 
+        fmt='fits', wave_units='um', force_chunk=False, suffix=None,
         include_galaxy_sizes=False):
         """
         Return filename expected for map with given properties.
@@ -1334,10 +1334,13 @@ class LightCone(object): # pragma: no cover
         else:
             fn += '_prof_delt'
 
+        if suffix is not None:
+            fn += f'_{suffix}'
+
         return fn + '.' + fmt
 
     def get_cat_fn(self, fov, channel, popid, logmlim=None, zlim=None,
-        fmt='fits', wave_units='um'):
+        fmt='fits', wave_units='um', suffix=None):
         """
         Return filename expected for catalog with given properties.
         """
@@ -1351,6 +1354,9 @@ class LightCone(object): # pragma: no cover
             fn = f'{save_dir}/cat_{channel[0]:.3f}_{channel[1]:.3f}_{wave_units}_pop_{pid_str}'
         else:
             fn = f'{save_dir}/cat_{channel}_pop_{pid_str}'
+
+        if suffix is not None:
+            fn += f'_{suffix}'
 
         return fn + '.' + fmt
 
@@ -1863,7 +1869,8 @@ class LightCone(object): # pragma: no cover
                                 #input('<enter>')
 
                     _fn_ff = self.get_cat_fn(fov, field_names[ff], popid,
-                        logmlim=logmlim, zlim=self.zlim, fmt=fmt, wave_units=wave_units)
+                        logmlim=logmlim, zlim=self.zlim, fmt=fmt, wave_units=wave_units,
+                        suffix=suffix)
 
                     self.save_cat(_fn_ff, field,
                         field_names[ff], self.zlim, logmlim,
@@ -2270,7 +2277,7 @@ class LightCone(object): # pragma: no cover
             # Check first for final map.
             fn = self.get_map_fn(fov, pix, channel, popid,
                 logmlim=logmlim, zlim=self.zlim,
-                wave_units=wave_units,
+                wave_units=wave_units, suffix=suffix,
                 include_galaxy_sizes=include_galaxy_sizes)
 
             if os.path.exists(fn) and (not clobber):
@@ -2281,6 +2288,7 @@ class LightCone(object): # pragma: no cover
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
                 logmlim=mlayer, zlim=zlayer, wave_units=wave_units,
+                suffix=suffix,
                 include_galaxy_sizes=include_galaxy_sizes)
 
             if os.path.exists(fn) and (not clobber):
@@ -2335,6 +2343,7 @@ class LightCone(object): # pragma: no cover
             # See if we already finished this map.
             fn = self.get_map_fn(fov, pix, channel, popid,
                 logmlim=mlayer, zlim=zlayer, wave_units=wave_units,
+                suffix=suffix,
                 include_galaxy_sizes=include_galaxy_sizes)
 
             pb.update(h)
@@ -2413,6 +2422,7 @@ class LightCone(object): # pragma: no cover
                 if iz in _keep_layers_custom:
                     _fn = self.get_map_fn(fov, pix, channel, popid,
                         logmlim=mlayer, zlim=zlayer, wave_units=wave_units,
+                        suffix=suffix,
                         fmt=fmt, include_galaxy_sizes=include_galaxy_sizes)
                     self.save_map(_fn, buffer * f_norm / dnu,
                         channel, zlayer, logmlim, fov,
@@ -2459,6 +2469,7 @@ class LightCone(object): # pragma: no cover
             # (note use of self.zlim, not zlayer, and logmlim, not mlayer)
             _fn = self.get_map_fn(fov, pix, channel, popid,
                 logmlim=logmlim, zlim=self.zlim, fmt=fmt, wave_units=wave_units,
+                suffix=suffix,
                 include_galaxy_sizes=include_galaxy_sizes)
 
             _fn_exists = os.path.exists(_fn)
