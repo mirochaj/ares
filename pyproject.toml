@@ -43,7 +43,7 @@ math = ["mpmath", "mcfit"]
 progressbar = ["progressbar"]
 doc = ["sphinx", "numpydoc", "nbsphinx"]
 mocks = ["powerbox"]
-inference = ["emcee", "schwimmbad", "mpi4py]
+inference = ["emcee", "schwimmbad", "mpi4py"]
 sed_modeling = ["dust_extinction", 
   "dust_attenuation @ git+https://github.com/karllark/dust_attenuation.git@main"]
 tests = ["pytest", "coverage", "pytest-cov", "ares[hmf,math,sed_modeling]"]
