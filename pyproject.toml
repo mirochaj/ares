@@ -14,7 +14,7 @@ dependencies = [
   "gdown<6",
 ]
 dynamic = ["version"]
-requires-python = ">= 3.7"
+requires-python = ">= 3.9"
 authors = [
   {name = "Jordan Mirocha", email = "mirochaj@gmail.com"}
 ]
