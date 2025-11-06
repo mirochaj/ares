@@ -430,7 +430,7 @@ class LightCone(object): # pragma: no cover
                 * np.arange(1, len(zmid)+1) * fmh
             seed_focc = self.seed_halo_occ \
                 * np.arange(1, len(zmid)+1) * fmh
-
+            
             # These seeds uniquely determine the locations and masses
             # of star-forming and quiescent centrals.
             self._seeds = {'seed_box': seed_rho,
@@ -453,11 +453,18 @@ class LightCone(object): # pragma: no cover
                     * np.arange(1, len(zmid)+1) * fmh
                 self._seeds['seed_sats'] = seed_sats
 
+            if self.sim.pops[pid].pf['pop_scatter_sfh'] > 0:
+                seed_lum = self.seed_lum \
+                    * np.arange(1, len(zmid)+1) * fmh
+                self._seeds['seed_lum'] = seed_lum
+            else:
+                self._seeds['seed_lum'] = None
+
         i = layer
         # Done
         return {key:self._seeds[key][i] for key in self._seeds.keys()}
 
-    def _get_flux_catalog(self, zlim, logmlim, red, Mh, channel, pid):
+    def _get_flux_catalog(self, zlim, logmlim, red, Mh, channel, pid, seed=None):
         """
         Compute flux from catalog of sources in given redshift range.
 
@@ -472,6 +479,8 @@ class LightCone(object): # pragma: no cover
             Halo masses [Msun] of galaxies in catalog.
         channel : tuple
             Spectral channel edges in microns.
+        seed : int, None
+            Random seed used to generate luminosity scatter.
 
         Returns
         -------
@@ -481,6 +490,8 @@ class LightCone(object): # pragma: no cover
         """
         zlo, zhi = zlim
         zsub_lo = 1 * zlo
+
+        np.random.seed(seed)
 
         flux = np.zeros_like(Mh)
         while zsub_lo < zhi:
@@ -497,6 +508,17 @@ class LightCone(object): # pragma: no cover
             _flux_ = self.sim.pops[pid].get_lum(zsub_mid, x=None,
                 Mh=Mh[okzsub==1], units='Ang',
                 units_out='erg/s/Ang', band=tuple(band))
+            
+            ##
+            # Add luminosity scatter here!
+            sigma = self.sim.pops[pid].pf['pop_scatter_sfh']
+            if sigma > 0:
+                lognoise = np.random.normal(scale=sigma, size=_flux_.size)
+                noise = np.power(10, 
+                    np.log10(_flux_) + np.reshape(lognoise, _flux_.shape)) \
+                    - _flux_
+                
+                _flux_ += noise
 
             # Frequency "squashing", i.e., our 'per Angstrom' interval is
             # different in the observer frame by a factor of 1+z.
@@ -837,7 +859,7 @@ class LightCone(object): # pragma: no cover
             dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
 
             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
-                channel, pid)
+                channel, pid, seed=seed_kw['seed_lum'])
             flux *= 1. / (self.get_map_norm(cat_units) / dnu)
         else:
             # Run fresh if we didn't find anything

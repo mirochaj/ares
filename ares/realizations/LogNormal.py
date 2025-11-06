@@ -44,6 +44,7 @@ class LogNormal(LightCone): # pragma: no cover
     def __init__(self, model_name, Lbox=256, dims=128, zmin=0.05, zmax=2, verbose=True,
         seed_rho=None, seed_halo_mass=None, seed_halo_pos=None, seed_halo_occ=None,
         seed_rot=None, seed_trans=None, seed_profile=None, seed_sats=None,
+        seed_lum=None,
         apply_rotations=False, apply_translations=False,
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
         randomise_in_cell=True, base_dir='ares_mock', mem_concious=0,
@@ -85,6 +86,7 @@ class LogNormal(LightCone): # pragma: no cover
         self.seed_profile = seed_profile
         self.profile_info = profile_info
         self.seed_sats = seed_sats
+        self.seed_lum = seed_lum
         self.apply_rotations = apply_rotations
         self.apply_translations = apply_translations
         self.distribute_sats_spatially = distribute_sats_spatially

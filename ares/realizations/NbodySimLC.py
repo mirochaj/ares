@@ -32,6 +32,7 @@ class NbodySim(LightCone): # pragma: no cover
     def __init__(self, model_name, catalog, verbose=True, base_dir='nbody_mock',
         fxy=None, fov=None, Lbox=999, dims=999, mem_concious=False,
         seed_halo_occ=None, seed_nsers=None, seed_pa=None, dz_max=0.1,
+        seed_lum=None,
         zmin=0.07, zmax=1.4, zchunks=None, include_satellites=0,
         seed_profile=None, seed_sats=None, profile_info=None, **kwargs):
         """
@@ -84,6 +85,7 @@ class NbodySim(LightCone): # pragma: no cover
         self.seed_profile = seed_profile
         self.profile_info = profile_info
         self.seed_sats = seed_sats
+        self.seed_lum = seed_lum
 
         self.prefix, self.indices, self.zchunks = catalog
 
