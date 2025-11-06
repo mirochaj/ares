@@ -4,10 +4,11 @@ import pickle
 import numpy as np
 from types import FunctionType
 from ..util import ParameterFile
+from ..util.Stats import bin_c2e
 from .Global21cm import Global21cm
 from .PowerSpectrum21cm import PowerSpectrum21cm
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
-    erg_per_s_per_nW, h_p, cm_per_m
+    erg_per_s_per_nW, h_p, cm_per_m, sqdeg_per_std
 
 class Simulation(object):
     def __init__(self, pf=None, pf_updates=None, **kwargs):
@@ -82,19 +83,20 @@ class Simulation(object):
     def background_intensity(self):
         return self.mean_intensity
 
-    def _cache_ebl(self, wave_units='mic', flux_units='SI', zlow=None):
+    def _cache_ebl(self, wave_units='mic', flux_units='SI', zlow=None, 
+        compute_via_counts=False):
         if not hasattr(self, '_cache_ebl_'):
             self._cache_ebl_ = {}
 
         # Could be clever and convert units here.
-        if (wave_units, flux_units, zlow) in self._cache_ebl_:
-            _data = self._cache_ebl_[(wave_units, flux_units, zlow)]
+        if (wave_units, flux_units, zlow, compute_via_counts) in self._cache_ebl_:
+            _data = self._cache_ebl_[(wave_units, flux_units, zlow, compute_via_counts)]
             return _data
 
         return None
 
     def get_ebl_intensity(self, wave_units='mic', flux_units='SI', pops=None,
-        zlow=None):
+        zlow=None, bands=None, magbins=None, compute_via_counts=False, **kwargs):
         """
         Return the extragalactic background light (EBL) over all wavelengths.
 
@@ -111,6 +113,17 @@ class Simulation(object):
         zlow : int, float
             If provided, will truncate integral over redshift so that the EBL
             includes only emission from sources at z >= zlow.
+        bands : np.ndarray
+            If provided, a 2-D array defining a series of band edges (in 
+            microns). In this case, rather than integrating RTE to obtain 
+            mean EBL intensity, we will first generate galaxy number counts 
+            in these `bands`, and subsequently integrate to obtain the mean
+            EBL intensity. This is a useful cross-check and should yield 
+            consistent results with the `bands=None` solution.
+        magbins : np.ndarray 
+            If `bands` is not None, also need to decide on magnitude bins.
+            These are bin centers in *apparent* AB mags.
+
 
         .. note :: 'SI' units means nW / m^2 / sr, 'cgs' means erg/s/Hz/sr.
 
@@ -123,13 +136,13 @@ class Simulation(object):
 
         """
 
-        cached_result = self._cache_ebl(wave_units, flux_units, zlow)
+        cached_result = self._cache_ebl(wave_units, flux_units, zlow, compute_via_counts)
         if cached_result is not None:
             data = cached_result
         else:
             data = {}
 
-        if not self.background_intensity._run_complete:
+        if (not self.background_intensity._run_complete) and (not compute_via_counts):
             self.background_intensity.run()
 
         for i in range(len(self.pops)):
@@ -147,25 +160,53 @@ class Simulation(object):
 
             assert self.pops[i].pf['pop_mask'] is None, \
                 "Turn off mask (via `pop_mask`) before computing mean EBL!"
+            
+            if compute_via_counts:
+                assert bands is not None, "Must provide `bands`."
+                assert bands.ndim == 2, "Must provide `bands` as 2-D array of band edges."
+                assert magbins is not None, "Must provide `magbins`."
 
-            x, flux = self.mean_intensity.get_spectrum(zf=zf, popids=i,
-                units=flux_units, xunits=wave_units)
+                magbins_e = bin_c2e(magbins)
 
-            #if wave_units.lower() == 'ev':
-            #    x = E
-            #elif wave_units.lower().startswith('mic'):
-            #    x = 1e4 * c / (E * erg_per_ev / h_p)
-            #elif wave_units.lower().startswith('ang'):
-            #    x = 1e8 * c / (E * erg_per_ev / h_p)
-            #else:
-            #    raise NotImplemented('Unrecognized `wave_units`={}'.format(
-            #        wave_units
-            #    ))
+                fbins = 10**((magbins + 48.60) / -2.5)
+                
+                ##
+                # Loop over bands, integrate galaxy counts
+                x = np.mean(bands, axis=1)
+                flux = np.zeros(bands.shape[0])
+                for j, band in enumerate(bands):
+
+                    nu = c / (np.mean(band) * 1e-4)
+
+                    num = self.get_galaxy_number_counts(band, magbins, popid=i,
+                        **kwargs)
+
+                    # Cumulative flux [convert to nW m^-2 sr^-1 Hz^-1]
+                    tot_Jy = np.trapezoid(num[i] * fbins, x=magbins) / 1e-23
+                    flux[j] = tot_Jy * 1e-23 * nu * (1e2)**2 \
+                        * sqdeg_per_std / erg_per_s_per_nW
+                    
+                # In this case, x and flux are always in ascending wavelength
+
+            else:
+                _x, _flux = self.mean_intensity.get_spectrum(zf=zf, popids=i,
+                    units=flux_units, xunits=wave_units)
+                
+                # Need to flip
+                _x = _x[-1::-1]
+                _flux = _flux[-1::-1]
+
+                if bands is None:
+                    x = _x
+                    flux = _flux
+                else:
+                    x = bands.mean(axis=1)
+                    flux = np.interp(x, _x, _flux)            
 
             data[i] = x, flux
 
         # Cache
-        self._cache_ebl_[(wave_units, flux_units, zlow)] = data
+        self._cache_ebl_[(wave_units, flux_units, zlow, compute_via_counts)] = data
 
         return data
 
@@ -305,9 +346,10 @@ class Simulation(object):
                 for k, wave in enumerate(waves):
                     # Will default to 1h + 2h + shot
                     if j == i:
-                        ps[i,:,k] = pop.get_ps_obs(scales,
+                        px[i,j,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=wave, wave_obs2=waves2[k],
                             scale_units=scale_units, **kwargs)
+                        ps[i,:,k] = px[i,j,:,k]
                         ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
                         continue
 
@@ -354,6 +396,51 @@ class Simulation(object):
         self.ps_zall = ps_z
 
         return scales, waves, ptot, px
+    
+    def get_galaxy_number_counts(self, band, magbins,popid=None,
+        dlam=10, zmin=None, zmax=None, zbin=0.01):
+        """
+        Compute the number of galaxies per square degree for each source populations.
+
+        Parameters
+        ----------
+        band 
+        """
+
+        # Put band in terms that internal routines understand
+        x = np.mean(band) * 1e4
+        dx = (band[1] - band[0]) * 1e4
+        
+        assert dx > 3 * dlam
+        
+        # Loop over populations and save results for each one separately
+        num_by_pop = {}
+        for i, pop in enumerate(self.pops):
+
+            if popid is not None:
+                if i != popid:
+                    continue
+
+            # Check zmin, zmax values 
+            if zmin is None:
+                _zmin = max(pop.zdead, pop.halos.tab_z.min())
+            else:
+                _zmin = zmin
+            
+            # Check zmin, zmax values 
+            if zmax is None:
+                _zmax = min(pop.zform, pop.halos.tab_z.max())
+            else:
+                _zmax = zmax
+
+            # Farm out the real work to the `pop` object.
+            num_pop = pop.get_number_counts(magbins, 
+                x=x, units='Angstroms', window=dx, dlam=dlam, 
+                zmin=_zmin, zmax=_zmax, zbin=zbin)
+            
+            num_by_pop[i] = num_pop
+        
+        return num_by_pop
 
     @property
     def pops(self):
