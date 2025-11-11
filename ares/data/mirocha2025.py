@@ -306,16 +306,14 @@ ihl_c24['pq_func_par1[50]'] = 1e12
 ihl_c24['pq_func_par2[50]'] = 0.25
 ihl_c24['pq_val_ceil[50]'] = 0.99
 
-ihl_p07 = ihl_scaled.copy()
-ihl_p07['pq_func[50]'] = 'logtanh_abs'
+ihl_p07 = ihl_tanh.copy()
 ihl_p07['pq_func_par0[50]'] = 0.7
 ihl_p07['pq_func_par1[50]'] = 0.0
 ihl_p07['pq_func_par2[50]'] = 13.6
 ihl_p07['pq_func_par3[50]'] = -1.
 ihl_p07['pq_val_ceil[50]'] = 0.99
 
-ihl_b19 = ihl_scaled.copy()
-ihl_b19['pq_func[50]'] = 'logtanh_abs'
+ihl_b19 = ihl_tanh.copy()
 ihl_b19['pq_func_par0[50]'] = 0.7
 ihl_b19['pq_func_par1[50]'] = 3e-3
 ihl_b19['pq_func_par2[50]'] = 14.1
@@ -822,66 +820,66 @@ _base = \
 'pop_sys_sfr_a{0}': 1.7007e-02, 
 }
 
-_base_univ_smhm = \
+_base_smhm_univ = \
 {
-'pq_func_par0[0]{0}': 3.6493e-04, 
-'pq_func_par1[0]{0}': 3.7358e+12, 
-'pq_func_par2[0]{0}': 1.0732e+00, 
-'pq_func_par3[0]{0}': -8.9069e-01, 
-'pq_func_par0[10]{1}': 2.3440e-06, 
-'pq_func_par1[10]{1}': 3.3170e+12, 
-'pq_func_par2[10]{1}': 1.6578e+00, 
-'pq_func_par3[10]{1}': -4.5541e-01, 
-'pq_func_par0[2]{0}': 9.8458e-02, 
-'pq_func_par1[2]{0}': 9.1700e-01, 
-'pq_func_par2[2]{0}': 1.2286e+01, 
-'pq_func_par3[2]{0}': -1.2700e-01, 
-'pq_func_par4[2]{0}': 4.1349e-02, 
-'pq_func_par8[2]{0}': -2.9356e+00, 
-'pq_func_par5[2]{0}': -2.1094e+00, 
-'pq_func_par9[2]{0}': 1.0232e+00, 
-'pq_func_par6[2]{0}': -6.0785e-01, 
-'pq_func_par10[2]{0}': 4.3145e-01, 
-'pq_func_par7[2]{0}': 6.6206e-01, 
-'pq_func_par11[2]{0}': -3.4990e-01, 
-'pq_func_par0[1]{0}': 8.4369e-04, 
-'pq_func_par1[1]{0}': 1.3213e+11, 
-'pq_func_par2[1]{0}': 2.4288e+00, 
-'pq_func_par3[1]{0}': 8.4696e-01, 
-'pq_func_par5[1]{0}': -1.6244e+00, 
-'pq_func_par9[1]{0}': 1.1773e+00, 
-'pq_func_par6[1]{0}': 2.5549e+00, 
-'pq_func_par10[1]{0}': -7.2926e-01, 
-'pq_func_par7[1]{0}': 2.4777e-01, 
-'pq_func_par11[1]{0}': -5.0943e-01, 
-'pq_func_par8[1]{0}': -4.3184e+00, 
-'pq_func_par12[1]{0}': 1.9970e+00, 
-'pq_func_par0[4]{0}': 1.0608e+00, 
-'pq_func_par1[4]{0}': 7.3673e+11, 
-'pq_func_par2[4]{0}': 4.6268e-02, 
-'pq_func_par3[4]{0}': -6.3631e-01, 
-'pq_func_par5[4]{0}': 6.9982e-01, 
-'pq_func_par9[4]{0}': -2.0423e-01, 
-'pq_func_par6[4]{0}': -6.5912e-01, 
-'pq_func_par10[4]{0}': 7.0018e-01, 
-'pq_func_par7[4]{0}': 2.2645e+00, 
-'pq_func_par11[4]{0}': -8.3938e-01, 
-'pq_func_par8[4]{0}': -2.8310e+00, 
-'pq_func_par12[4]{0}': 1.6025e+00, 
-'pop_scatter_sfh{0}': 4.6276e-01, 
-'pop_sfr_below_ms{1}': 2.3087e+02, 
-'pop_sys_mstell_now{0}': -2.8860e-01, 
-'pop_sys_mstell_a{0}': 1.4445e-01, 
-'pop_sys_sfr_now{0}': 1.0133e-02, 
-'pop_sys_sfr_a{0}': 8.8552e-03,
+'pq_func_par0[0]{0}': 0.00036576972411987284,
+ 'pq_func_par1[0]{0}': 3586042344255.609,
+ 'pq_func_par2[0]{0}': 1.0690516910828674,
+ 'pq_func_par3[0]{0}': -0.8683520472189735,
+ 'pq_func_par0[10]{1}': 2.4537458934777302e-06,
+ 'pq_func_par1[10]{1}': 3423628037955.847,
+ 'pq_func_par2[10]{1}': 1.6434698264070247,
+ 'pq_func_par3[10]{1}': -0.4733780759504128,
+ 'pq_func_par0[2]{0}': 0.19912659563862484,
+ 'pq_func_par1[2]{0}': 0.9079166445906448,
+ 'pq_func_par2[2]{0}': 12.295770966429185,
+ 'pq_func_par3[2]{0}': -0.1327008519287325,
+ 'pq_func_par4[2]{0}': -4.639056446096568,
+ 'pq_func_par8[2]{0}': -0.1410681180954496,
+ 'pq_func_par5[2]{0}': -2.0089755644145693,
+ 'pq_func_par9[2]{0}': 0.9828167246323941,
+ 'pq_func_par6[2]{0}': -0.5344995205096565,
+ 'pq_func_par10[2]{0}': 0.39167747042370904,
+ 'pq_func_par7[2]{0}': 0.5026449692594634,
+ 'pq_func_par11[2]{0}': -0.26101109136692957,
+ 'pq_func_par0[1]{0}': 0.0008233525187367075,
+ 'pq_func_par1[1]{0}': 146999154470.56808,
+ 'pq_func_par2[1]{0}': 2.54526789136891,
+ 'pq_func_par3[1]{0}': 0.7737154573134529,
+ 'pq_func_par5[1]{0}': -2.653825334571936,
+ 'pq_func_par9[1]{0}': 1.523091483007643,
+ 'pq_func_par6[1]{0}': 2.5077317578238354,
+ 'pq_func_par10[1]{0}': -0.7093149884797,
+ 'pq_func_par7[1]{0}': -0.35668875527315697,
+ 'pq_func_par11[1]{0}': -0.2986135081605227,
+ 'pq_func_par8[1]{0}': -4.320736441708885,
+ 'pq_func_par12[1]{0}': 2.0618527004109737,
+ 'pq_func_par0[4]{0}': 1.2817054222133069,
+ 'pq_func_par1[4]{0}': 993540967796.7826,
+ 'pq_func_par2[4]{0}': 0.03298877241207199,
+ 'pq_func_par3[4]{0}': -0.6800918415574786,
+ 'pq_func_par5[4]{0}': 0.4561503842789619,
+ 'pq_func_par9[4]{0}': -0.10749626733006643,
+ 'pq_func_par6[4]{0}': -1.3814962026103803,
+ 'pq_func_par10[4]{0}': 1.013289813196224,
+ 'pq_func_par7[4]{0}': 2.544550329691066,
+ 'pq_func_par11[4]{0}': -0.9819717814214239,
+ 'pq_func_par8[4]{0}': -2.8234501553108116,
+ 'pq_func_par12[4]{0}': 1.643708817087465,
+ 'pop_scatter_sfh{0}': 0.44007987837757934,
+ 'pop_sfr_below_ms{1}': 182.33182699547618,
+ 'pop_sys_mstell_now{0}': -0.28159237932347375,
+ 'pop_sys_mstell_a{0}': 0.09152500543348921,
+ 'pop_sys_sfr_now{0}': 0.0013009416539419326,
+ 'pop_sys_sfr_a{0}': 0.008643024161763914
 }
 
 sed_modeling = \
 {
- 'pop_lum_tab{0}': f"{HOME}/.ares/sedtabs/sedtab_pop_0_best.hdf5",
- 'pop_lum_tab{1}': f"{HOME}/.ares/sedtabs/sedtab_pop_1_best.hdf5",
- 'pop_lum_tab{2}': f"{HOME}/.ares/sedtabs/sedtab_pop_0_best.hdf5",
- 'pop_lum_tab{3}': f"{HOME}/.ares/sedtabs/sedtab_pop_1_best.hdf5",
+ 'pop_lum_tab{0}': f"{HOME}/.ares/sedtabs/sedtab_pop_0_smhm_univ_best.hdf5",
+ 'pop_lum_tab{1}': f"{HOME}/.ares/sedtabs/sedtab_pop_1_smhm_univ_best.hdf5",
+ 'pop_lum_tab{2}': f"{HOME}/.ares/sedtabs/sedtab_pop_0_smhm_univ_best.hdf5",
+ 'pop_lum_tab{3}': f"{HOME}/.ares/sedtabs/sedtab_pop_1_smhm_univ_best.hdf5",
 }
 
 no_sed_modeling = \
@@ -925,9 +923,9 @@ base.update(_base)
 base.update(sed_modeling)
 #base.update(lines_wprof)
 
-univ_smhm = setup.copy()
-univ_smhm.update(smhm_Q)
-univ_smhm.update(dust_dplx)
-univ_smhm.update(_base_univ_smhm)
-univ_smhm.update(sed_modeling)
-univ_smhm.update(lines_wprof)
+smhm_univ = setup.copy()
+smhm_univ.update(smhm_Q)
+smhm_univ.update(dust_dplx)
+smhm_univ.update(_base_smhm_univ)
+smhm_univ.update(sed_modeling)
+smhm_univ.update(lines_wprof)

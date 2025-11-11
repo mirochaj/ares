@@ -10,6 +10,7 @@ import numpy as np
 import scipy.special as sp
 from scipy.integrate import quad
 from functools import cached_property
+from scipy.integrate import cumulative_trapezoid
 
 from ..data import ARES
 from ..util.ProgressBar import ProgressBar
@@ -167,6 +168,7 @@ class HaloModel(HaloMassFunction):
                     print(f"# Loaded {fn}.")
             else:
                 self._tab_Sigma_nfw = None
+                self._tab_Sigma_nfw_cdf = None
                 if self.pf['verbose'] and rank == 0:
                     print(f"# Did not find {fn}.")
 
@@ -1375,8 +1377,8 @@ class HaloModel(HaloMassFunction):
     
     @cached_property
     def tab_R_nfw(self):
-        Rmi, Rma = -3, 1
-        dlogR = 0.25
+        Rmi, Rma = -3, 1.
+        dlogR = 0.2
         R = 10**np.arange(Rmi, Rma+dlogR, dlogR)
         return R
 
@@ -1413,13 +1415,12 @@ class HaloModel(HaloMassFunction):
         if rank == 0:
             print(f"# Will save to {fn}.")
 
-        # Hard-coded for now, change this.
-        Rmi, Rma = -3, 1
-        dlogR = 0.25
-        R = 10**np.arange(Rmi, Rma+dlogR, dlogR)
+        # Radii that we tabulate over
+        R = self.tab_R_nfw
 
         shape = (self.tab_z.size, self.tab_M.size, R.size)
         self._tab_sigma_nfw = np.zeros(shape)
+        self._tab_sigma_nfw_cdf = np.zeros(shape)
         if self._tab_sigma_nfw.nbytes / 1e9 > 8:
             print(f"WARNING: Size of profile table projected to be >8 GB!")
 
@@ -1439,7 +1440,6 @@ class HaloModel(HaloMassFunction):
             # and halo mass
 
             dlogm = self.pf['halo_dlogM']
-            Sall = np.zeros((self.tab_M.size, R.size))
 
             for ii, _M_ in enumerate(self.tab_M):
                 rho = lambda rr: model_nfw(_M_, rr)
@@ -1448,6 +1448,12 @@ class HaloModel(HaloMassFunction):
                     R, np.inf)[0]
                 for jj, _R_ in enumerate(R):
                     self._tab_sigma_nfw[i,ii,jj] = Sigma(_R_)
+                
+                self._tab_sigma_nfw_cdf[i,ii,:] = \
+                    cumulative_trapezoid(self._tab_sigma_nfw[i,ii,:], x=R, initial=0) \
+                    / np.trapezoid(self._tab_sigma_nfw[i,ii,:], x=R)
+                
+                #print(f'for z={z:.2f}, M={_M_:.2e}: {self._tab_sigma_nfw_cdf[i,ii,:]}')
 
         pb.finish()
 
@@ -1457,12 +1463,17 @@ class HaloModel(HaloMassFunction):
             nothing = MPI.COMM_WORLD.Allreduce(self._tab_sigma_nfw, tmp)
             self._tab_sigma_nfw = tmp
 
+            tmp2 = np.zeros(shape)
+            nothing = MPI.COMM_WORLD.Allreduce(self._tab_sigma_nfw_cdf, tmp2)
+            self._tab_sigma_nfw_cdf = tmp2
+
             # So only root processor writes to disk
             if rank > 0:
                 return
 
         with h5py.File(fn, 'w') as f:
             f.create_dataset('tab_Sigma_nfw', data=self._tab_sigma_nfw)
+            f.create_dataset('tab_Sigma_nfw_cdf', data=self._tab_sigma_nfw_cdf)
             f.create_dataset('tab_R', data=R)
             f.create_dataset('tab_M', data=self.tab_M)
             f.create_dataset('tab_z', data=self.tab_z)

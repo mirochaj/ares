@@ -672,6 +672,23 @@ class LightCone(object): # pragma: no cover
         Because the projected NFW profile is tabulated, we use this simple
         wrapper to first check if we've already interpolated to a postage
         stamp of size `_r_`
+
+        Parameters
+        ----------
+        _r_ : int 
+            Size of postage stamp (in pixels) in one dimension.
+        Rarr : np.ndarray
+            Radii at which we'll evaluate the IHL brightness.
+        Rtab : np.ndarray
+            Virial radii at which we have tabulated the surface brightness 
+            profile for IHL (projected NFW).
+        Stab : np.ndarray
+            The tabulated surface brightness profile for IHL. Has dimensions of 
+            (halos.tab_z, halos.tab_M, `Rtab`) natively, but we've already sliced
+            in the first dimension so `Stab` is just (M, R).
+        iM : int 
+            Index for mass element for halo of interest.
+
         """
         if not hasattr(self, '_cache_ihl_pstamp_'):
             self._cache_ihl_pstamp_ = {}
@@ -726,37 +743,6 @@ class LightCone(object): # pragma: no cover
         slcy2 = slice(ylo, yhi)
 
         return slcx, slcy, slcx2, slcy2
-
-    def get_pix_mesh(self, fov, pix, in_mpc=0):
-        """
-        Get
-        """
-        if not hasattr(self, '_cache_pix_mesh_'):
-            self._cache_pix_mesh_ = {}
-
-        if not in_mpc:
-            if (fov, pix, in_mpc) in self._cache_pix_mesh_.keys():
-                return self._cache_pix_mesh_[(fov, pix, in_mpc)]
-
-            ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
-            pix_deg = pix / 3600.
-
-
-            rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
-                indexing='ij')
-
-            self._cache_pix_mesh_[(fov, pix, in_mpc)] = rr, dd
-            return rr, dd
-
-        ##
-        # Slightly harder case
-
-            mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
-                pix / 60.)
-
-            rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
-                                dec_c * 60 * mpc_per_arcmin,
-                                indexing='ij')
 
     #@njit(parallel=True)
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
@@ -928,7 +914,7 @@ class LightCone(object): # pragma: no cover
         ##
         # Need some extra info to do more sophisticated modeling...
         ##
-        mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid, 1)
+        arcmin_per_cmpc = self.sim.cosm.get_angle_from_length_comoving(zmid, 1)
 
         resolved_sources = False
 
@@ -936,22 +922,25 @@ class LightCone(object): # pragma: no cover
         if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
             resolved_sources = True
 
+            # Radii that we've tabulated the surface brightness over
             Rall = self.sim.pops[0].halos.tab_R_nfw
+            # Virial radii for each halo at this redshift
             Rvir = self.sim.pops[0].halos.get_Rvir(zmid, Mh) / 1e3 # kpc->Mpc
+            # Redshift index for slicing surface brightness table
             _iz = np.argmin(np.abs(zmid - self.sim.pops[pid].halos.tab_z))
 
-            # Remaining dimensions (Mh, R)
+            # Remaining dimensions (Mh [like halos.tab_M], `Rall`)
             Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
             Mall = self.sim.pops[pid].halos.tab_M
 
-            R_pix = R_X = Rvir * 60 / mpc_per_arcmin / pix
+            # Virial radii of all sources in units of pixels
+            R_pix = R_X = Rvir * arcmin_per_cmpc * 60 / pix
 
             # Pixel coordinates in RA and DEC
             if postage_stamp is None:
-                rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
-                                dec_c * 60 * mpc_per_arcmin,
+                rr, dd = np.meshgrid(ra_c / (arcmin_per_cmpc / 60),
+                                dec_c / (arcmin_per_cmpc / 60),
                                 indexing='ij')
-
 
         elif include_galaxy_sizes:  
             resolved_sources = True
@@ -999,7 +988,7 @@ class LightCone(object): # pragma: no cover
             R_pix = R_deg / pix_deg
 
             # R_X is the threshold size of an object we'll model in detail.
-            #
+            # Units: pixels. (converting from arcseconds computed above)
             R_X /= (3600 * pix_deg)
 
             # All in degrees
@@ -1045,38 +1034,57 @@ class LightCone(object): # pragma: no cover
     
                 # HERE: account for fact that galaxies aren't point sources.
                 # [optional]
-                if self.sim.pops[pid].is_diffuse and include_galaxy_sizes and (R_X[h] >= 1):
+                if self.sim.pops[pid].is_diffuse and include_galaxy_sizes \
+                    and (R_X[h] >= 1):
+
                     # Interpolate between tabulated solutions.
                     iM = np.argmin(np.abs(Mh[h] - Mall))
-    
+
+                    # Get setup to 'drop' IHL postage stamp into full image
                     if postage_stamp is not None:
+                        # Pixel coordinates for postage stamp image of linear dimension
+                        # `postage_stamp` * Rvir
                         xx, yy, _r_ = self._get_postage_stamp_pix(R_pix[h], postage_stamp)
-    
-                        # This is in pixels, need to convert to cMpc before
-                        # interpolating
+
+                        # Need an array of radii (wrt central halo position) at 
+                        # which to evaluate IHL surface brightness.
+                        # This is in pixels (through xx and yy) so then we 
+                        # convert to cMpc before interpolating.
                         Rarr = np.sqrt(xx**2 + yy**2) * (pix / 60.) \
-                            * mpc_per_arcmin
-    
+                            / arcmin_per_cmpc
+
+                        # Generate the surface brightness profile of IHL 
+                        # for this object.
                         I = self._get_ihl_postage_stamp(_r_, Rarr, Rall, Sall, iM)
     
-                        # OK, now need to drop into full image
+                        # OK, now need to drop into full image. These are the 
+                        # array slices needed to do so.
                         slcx, slcy, slcx2, slcy2 = \
                             self._get_postage_stamp_slices(I, img, i, j)
-    
+                    # Brute force solution where we evaluate the surface brightness 
+                    # on the full image.
                     else:
                         # Image of distances from halo center
-                        r0 = ra_c[i] * 60 * mpc_per_arcmin
-                        d0 = dec_c[j] * 60 * mpc_per_arcmin
+                        r0 = ra_c[i] / (arcmin_per_cmpc / 60.)
+                        d0 = dec_c[j] / (arcmin_per_cmpc / 60.)
                         Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
     
                         # In Msun/cMpc^3
                         I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
     
                     # Optional: hard cut at large radius.
+                    # Recall that both `Rarr` and `Rvir` are in cMpc.
                     I[Rarr >= null_beyond_size * Rvir[h]] = 0
     
                     tot = I.sum()
-    
+
+                    ##
+                    # Do some debugging
+                    I_norm = I[slcx2,slcy2] \
+                            / I[slcx2,slcy2].sum()
+                    to_add = _flux_ * I[slcx2,slcy2] \
+                            / I[slcx2,slcy2].sum()
+
                     if postage_stamp is not None:
                         img[slcx,slcy] += _flux_ * I[slcx2,slcy2] \
                             / I[slcx2,slcy2].sum()
@@ -1094,7 +1102,7 @@ class LightCone(object): # pragma: no cover
                         # This is in pixels, need to convert to cMpc before
                         # interpolating
                         Rarr = np.sqrt(xx**2 + yy**2) * (pix / 60.) \
-                            * mpc_per_arcmin
+                            / arcmin_per_cmpc
     
                         # Put galaxies at the center of the postage stamp, hence
                         # no (xx - x_0) factors, just xx
@@ -1143,152 +1151,6 @@ class LightCone(object): # pragma: no cover
                 else:
                     img[i,j] += _flux_
     
-        ##
-        # Clear out some memory sheesh
-        del flux, _flux_, ra, dec, red, Mh, ok, okp, okz, ra_ind, de_ind, \
-            mask_ra, mask_de
-        if self.mem_concious:
-            gc.collect()
-
-    def _get_map_from_cat(self, fov, pix, ra, dec, red, flux, pid,
-        include_galaxy_sizes):
-        ##
-        # Need some extra info to do more sophisticated modeling...
-        ##
-        raise NotImplemented('help')
-
-        ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
-
-        # Extended emission from IHL
-        if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
-
-            Rmi, Rma = -3, 1
-            dlogR = 0.25
-            Rall = 10**np.arange(Rmi, Rma+dlogR, dlogR)
-
-            _iz = np.argmin(np.abs(zmid - self.sim.pops[pid].halos.tab_z))
-
-            # Remaining dimensions (Mh, R)
-            Sall = self.sim.pops[pid].halos.tab_Sigma_nfw[_iz,:,:]
-            Mall = self.sim.pops[pid].halos.tab_M
-
-            mpc_per_arcmin = self.sim.cosm.get_angle_from_length_comoving(zmid,
-                pix / 60.)
-
-            rr, dd = np.meshgrid(ra_c * 60 * mpc_per_arcmin,
-                                dec_c * 60 * mpc_per_arcmin,
-                                indexing='ij')
-
-
-        elif include_galaxy_sizes:
-
-            assert self.profile_info is not None, \
-                "Must supply `profile_info` at initialization!"
-
-            R_sec, nsers, ellip, pa = self._get_size_catalog(zlim, logmlim,
-                red, Mh, pid)
-
-            ##
-            # Next, impose effective stopping criterion in size where we
-            # stop painting on Sersic profiles and just dump all photons
-            # in a single pixel.
-            #
-
-            # Will paint anything half-light radius greater than a pixel
-            if size_cut == 0.5:
-                R_X = R_sec
-            # General option: paint anything with size, defined as the
-            # radius containing `size_cut` fraction of the light, that
-            # exceeds a pixel.
-            else:
-                rmax = [self.sim.pops[pid].get_sersic_rmax(size_cut,
-                    nsers[h]) for h in range(R_sec.size)]
-
-                R_X = np.array(rmax) * R_sec
-
-            #R_sec = Rkpc * self.cosmo.arcsec_per_kpc_proper(red).to_value()
-
-            # Size in degrees
-            R_deg = R_sec / 3600.
-            R_pix = R_deg / pix_deg
-
-            R_X /= (3600 * pix_deg)
-
-            # All in degrees
-            x0, y0 = ra, dec
-            a, b = R_deg, R_deg
-
-            rr, dd = np.meshgrid(ra_c / pix_deg, dec_c / pix_deg,
-                indexing='ij')
-
-        ##
-        # Actually sum fluxes from all objects in image plane.
-        for h in range(ra.size):
-
-            #if not ok[h]:
-            #    continue
-
-            # Where this galaxy lives in pixel coordinates
-            i, j = ra_ind[h], de_ind[h]
-
-            # Grab the flux
-            _flux_ = flux[h]
-
-            # HERE: account for fact that galaxies aren't point sources.
-            # [optional]
-            if self.sim.pops[pid].is_diffuse and include_galaxy_sizes:
-
-                # Image of distances from halo center
-                r0 = ra_c[i] * 60 * mpc_per_arcmin
-                d0 = dec_c[j] * 60 * mpc_per_arcmin
-                Rarr = np.sqrt((rr - r0)**2 + (dd - d0)**2)
-
-                # In Msun/cMpc^3
-
-                # Interpolate between tabulated solutions.
-                iM = np.argmin(np.abs(Mh[h] - Mall))
-
-                I = np.interp(np.log10(Rarr), np.log10(Rall), Sall[iM,:])
-
-                tot = I.sum()
-
-                if tot == 0:
-                    img[i,j] += _flux_
-                else:
-                    img[:,:] += _flux_ * I / tot
-
-                #print(f"doing IHL, _flux_={_flux_}, tot={tot}")
-
-            elif include_galaxy_sizes and R_X[h] >= 1:
-
-                model_SB = Sersic2D(amplitude=1., r_eff=R_pix[h],
-                    x_0=ra[h] / pix_deg, y_0=dec[h] / pix_deg,
-                    n=nsers[h], theta=pa[h] * np.pi / 180.,
-                    ellip=ellip[h])
-
-                # Fractional contribution to total flux
-                I = model_SB(rr, dd)
-                tot = I.sum()
-
-                ##
-                # Test: null flux from beyond 4 R_e
-                #dr = np.sqrt((rr - ra[h] / pix_deg)**2 \
-                #   +         (dd - dec[h] / pix_deg)**2)
-                #beyond_edges = dr > 8 * R_pix[h]
-                #I[beyond_edges==1] = 0
-
-                #print('hi', h, R_pix[h], I.sum())
-
-                if tot == 0:
-                    img[i,j] += _flux_
-                else:
-                    img[:,:] += _flux_ * I / tot
-
-            ##
-            # Otherwise just add flux to single pixel
-            else:
-                img[i,j] += _flux_
-
         ##
         # Clear out some memory sheesh
         del flux, _flux_, ra, dec, red, Mh, ok, okp, okz, ra_ind, de_ind, \

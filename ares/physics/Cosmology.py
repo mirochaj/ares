@@ -832,6 +832,25 @@ class Cosmology(object):
         return fsolve(f, x0=0.1)[0]
 
     def get_angle_from_length_comoving(self, z, R):
+        """
+        Compute the angle (arcmin) corresponding to a given physical scale `R`.
+
+        .. note :: The case of R=1 is very fast -- we tabulate that vs. z 
+            since it is often useful to have the simple arcmin/cMpc 
+            conversion factor.
+
+        Parameters
+        ----------
+        z : int, float, np.ndarray
+            Redshift(s) of interest.
+        R : int, float 
+            Physical scale of interest in cMpc.
+        
+        Returns
+        -------
+        Angle subtended by given radius [arcmin].
+
+        """
         if self.interpolate and R == 1:
             return np.interp(z, self.tab_z, self._tab_ang_from_co)
         else:

@@ -153,7 +153,7 @@ class NbodySim(LightCone): # pragma: no cover
 
             numh = _data.shape[0]
 
-            if verbose:
+            if verbose and self.verbose:
                 print(f"! Loaded {fn}. {numh:.1e} halos.")
 
             ##
@@ -201,7 +201,7 @@ class NbodySim(LightCone): # pragma: no cover
                 oko = np.ones(numh)
                 oko[r > focc] = 0
 
-                if verbose:
+                if verbose and self.verbose:
                     print(f"# Applied occupation fraction cut for pop #{pid} at z={z:.2f} in {logmlim[0]:.1f}-{logmlim[1]:.1f} mass range.")
                     print(f"# [reduced number of halos by {100*(1-oko.sum()/float(oko.size)):.2f}%]")
 

@@ -702,6 +702,8 @@ def generate_nfw_Sigma_tables(path, **kwargs):
         'halo_lnk_max': 11.,
         'halo_lnR_min': -9.,
         'halo_lnR_max': 9.,
+
+        # Should have R_nfw table res in here.
     }
 
     def_kwargs.update(kwargs)

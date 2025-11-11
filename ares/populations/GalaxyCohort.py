@@ -344,6 +344,7 @@ class GalaxyCohort(GalaxyAggregate):
             Ms = self.get_smhm(z=z, Mh=Mh) * Mh
 
         func = self._get_function('pop_msr')
+
         return func(z=z, Ms=Ms)
     
     def get_light_fraction_in_aperture(self, z, ap=2.):
@@ -2926,11 +2927,15 @@ class GalaxyCohort(GalaxyAggregate):
                     # Not for SSPs, L per SFR is really L per Mstell.
                     _Lh_ = Ms * L_sfr
 
+                    # To model IHL, scale central luminosity.
                     if self.pf['pop_ihl'] is not None:
                         fihl = self.get_ihl(z=z, Mh=self.halos.tab_M)
 
-                        # We're definining f_ihl = L_ihl / (L_ihl + L_cen)
-                        _Lh_ *= (fihl / (1. - fihl))
+                        # We're definining f_ihl = M_ihl / (M_ihl + M_cen)
+                        # so f_ihl * M_cen = M_ihl * (1 - f_ihl)
+                        # and M_ihl = M_cen * f_ihl / (1 - f_ihl)
+                        ihl_lfrac = (fihl / (1. - fihl))
+                        _Lh_ *= ihl_lfrac
 
                         if (self.pf['pop_ihl_suppression'] is not None) or \
                            (self.pf['pop_ihl_mask'] is not None):
