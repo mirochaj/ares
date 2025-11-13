@@ -228,7 +228,7 @@ aux_data = {
         None,
     ],
     "sedtabs": [
-        "https://drive.google.com/file/d/1_W2otC-ZWy8Fve4jjCTO7bwB12qqNg45/view?usp=sharing",
+        "https://drive.google.com/file/d/11_1ih3XmaACAy5QW_qStt6yJ9X4Q2CUL/view?usp=sharing",
         "sedtabs.tar.gz",
         None,
     ],
@@ -1135,10 +1135,12 @@ def download_files(args):
                      f = tarfile.open(full_path)
                      f.extractall(parent_dir)
                      f.close()
+                     print(f"# Extracted {full_path}.")
                 elif _fn.endswith('.zip'):
                     zip_ref = zipfile.ZipFile(full_path, 'r')
                     zip_ref.extractall(parent_dir)
                     zip_ref.close()
+                    print(f"# Unzipped {full_path}.")
 
             # Might be some final bit of work that's needed.
             if aux_data[dset][-1] is not None:
