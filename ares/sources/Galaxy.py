@@ -61,7 +61,7 @@ class Galaxy(SynthesisModel):
             self._synth = SpectralSynthesis(**self.pf)
             self._synth.src = self
             self._synth._src_csfr = self._src_csfr
-            self._synth.oversampling_enabled = False
+            self._synth.oversampling_enabled = 1
             self._synth.oversampling_below = 30
             self._synth.careful_cache = 1
 
@@ -176,42 +176,6 @@ class Galaxy(SynthesisModel):
             else:
                 return sfr
             
-        return sfr
-
-        if type(sfr) == np.ndarray:
-            k = np.argmin(np.abs(t - tobs))
-
-            #print('hey cmon', tobs, k, t[k], t.size, t[0], t[-1],  t.max())
-
-            # Ignore this if at edge of array (i.e., tobs=t since Big Bang)
-            # In this case there are no array elements that need nulling.
-            if k == 0:
-                pass
-            # If this closest grid point to tobs is at later times than tobs
-            # we're OK and need not take any further action
-            elif tobs < t[k]:
-                pass
-            else:
-                #assert tobs > t[k]
-                # If the closest grid point we found is still 
-                while k > 0:
-                    k -= 1
-
-                    if tobs < t[k]:
-                        break
-            #else:
-            #    k -= 2
-
-
-            #print('k after modification', k)
-
-            sfr[t > t[k]] = 0
-            
-            
-        else:
-            if t > tobs:
-                sfr = 0
-
         return sfr
 
     def _get_freturn(self, t):
@@ -594,8 +558,8 @@ class Galaxy(SynthesisModel):
             best = fmin(func, [1, np.log10(tau_guess)],
                 disp=disp, full_output=disp, ftol=ftol, xtol=xtol)
 
-            if best:
-                best, fval, niter, neval, dunno = best
+            #if best:
+            #    best, fval, niter, neval, dunno = best
 
             norm, tau = 10**best
 
@@ -714,7 +678,7 @@ class Galaxy(SynthesisModel):
         # If we already tried our fallback option, try a constant SFR as a last resort.
         # Should always work.
         if (kw['sfh'] != self.pf['source_sfh']): 
-            if self.pf['source_fallback_last_resort']:
+            if self.pf['source_sfh_fallback_last_resort']:
                 #print("Double fail?")
                 #print(err, np.log10(_mass), np.log10(mass), sfr, kw)
                 #input('enter>')

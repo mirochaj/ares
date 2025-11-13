@@ -917,16 +917,9 @@ def generate_csfh_tab(path, **kwargs):
     tarr = galaxy.tab_t
     waves = galaxy.tab_waves_c
 
-    #data = np.zeros((waves.size, tarr.size))
-    #for i, t in enumerate(tarr[0:-1]):
-    #    if i == 0:
-    #        continue
-
     # Default units for native SED tables is erg/s/A
     data = galaxy.get_spec(zobs=None, t=tarr,
         sfh=np.ones_like(tarr), waves=waves, units_out='erg/s/A')
-
-        #data[:,i] = spec[i,:]
 
     fn = f"{path}_csfh"
     with open(fn, 'wb') as f:

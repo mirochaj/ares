@@ -177,15 +177,16 @@ class Simulation(object):
                 for j, band in enumerate(bands):
 
                     nu = c / (np.mean(band) * 1e-4)
-
+                    
                     num = self.get_galaxy_number_counts(band, magbins, popid=i,
                         **kwargs)
-
+                    
                     # Cumulative flux [convert to nW m^-2 sr^-1 Hz^-1]
                     tot_Jy = np.trapezoid(num[i] * fbins, x=magbins) / 1e-23
+                    
                     flux[j] = tot_Jy * 1e-23 * nu * (1e2)**2 \
                         * sqdeg_per_std / erg_per_s_per_nW
-                    
+                                    
                 # In this case, x and flux are always in ascending wavelength
 
             else:
@@ -206,7 +207,8 @@ class Simulation(object):
             data[i] = x, flux
 
         # Cache
-        self._cache_ebl_[(wave_units, flux_units, zlow, compute_via_counts)] = data
+        # Can't cache: compute_via_counts may have provided zmin, zmax
+        #self._cache_ebl_[(wave_units, flux_units, zlow, compute_via_counts)] = data
 
         return data
 
@@ -397,14 +399,15 @@ class Simulation(object):
 
         return scales, waves, ptot, px
     
-    def get_galaxy_number_counts(self, band, magbins,popid=None,
+    def get_galaxy_number_counts(self, band, magbins, popid=None,
         dlam=10, zmin=None, zmax=None, zbin=0.01):
         """
         Compute the number of galaxies per square degree for each source populations.
 
         Parameters
         ----------
-        band 
+        band : tuple
+            Band edges in microns.
         """
 
         # Put band in terms that internal routines understand
