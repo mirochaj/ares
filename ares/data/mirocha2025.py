@@ -874,13 +874,91 @@ _base_smhm_univ = \
  'pop_sys_sfr_a{0}': 0.008643024161763914
 }
 
-sed_modeling = \
+_base_smhm_evol = \
+{'pq_func_par0[0]{0}': 0.00024340818505629087,
+ 'pq_func_par1[0]{0}': 4432643085721.096,
+ 'pq_func_par2[0]{0}': 1.2711114162862631,
+ 'pq_func_par3[0]{0}': -0.3051492520095239,
+ 'pq_func_par0[10]{1}': 4.843669332479228e-06,
+ 'pq_func_par1[10]{1}': 2014695744144.7297,
+ 'pq_func_par2[10]{1}': 1.6439795830453647,
+ 'pq_func_par3[10]{1}': -0.35002344629511645,
+ 'pq_func_par5[0]{0}': -0.983444639361645,
+ 'pq_func_par9[0]{0}': -1.1181339245014636,
+ 'pq_func_par6[0]{0}': -4.1951081806445645,
+ 'pq_func_par10[0]{0}': 4.37791004560655,
+ 'pq_func_par7[0]{0}': -0.7905597384245008,
+ 'pq_func_par11[0]{0}': 0.08295044078231055,
+ 'pq_func_par8[0]{0}': -0.922018537767296,
+ 'pq_func_par12[0]{0}': -0.4427307454247793,
+ 'pq_func_par5[10]{1}': 2.470369901568695,
+ 'pq_func_par9[10]{1}': -1.4103107097822063,
+ 'pq_func_par6[10]{1}': -1.049867095195406,
+ 'pq_func_par10[10]{1}': 0.6759217791847014,
+ 'pq_func_par7[10]{1}': -4.364305220725775,
+ 'pq_func_par11[10]{1}': 1.689412895264865,
+ 'pq_func_par8[10]{1}': -1.6527422568397754,
+ 'pq_func_par12[10]{1}': 0.9552332857980068,
+ 'pq_func_par0[2]{0}': 0.07462240913649396,
+ 'pq_func_par1[2]{0}': 0.6452348627356916,
+ 'pq_func_par2[2]{0}': 12.143665331444609,
+ 'pq_func_par3[2]{0}': -0.1483955059139539,
+ 'pq_func_par4[2]{0}': -0.21853035459435977,
+ 'pq_func_par8[2]{0}': -1.5867957426130983,
+ 'pq_func_par5[2]{0}': 1.0717050592683606,
+ 'pq_func_par9[2]{0}': -0.30126731858101663,
+ 'pq_func_par6[2]{0}': 0.18793307768908268,
+ 'pq_func_par10[2]{0}': 0.1801743223797549,
+ 'pq_func_par7[2]{0}': -0.3008877981810485,
+ 'pq_func_par11[2]{0}': -0.0451121696867538,
+ 'pq_func_par0[1]{0}': 0.0010960294500633263,
+ 'pq_func_par1[1]{0}': 305470827115.1007,
+ 'pq_func_par2[1]{0}': 2.2557455352497713,
+ 'pq_func_par3[1]{0}': 1.0213159635888145,
+ 'pq_func_par5[1]{0}': -3.938487654901255,
+ 'pq_func_par9[1]{0}': 2.4185488519201197,
+ 'pq_func_par6[1]{0}': 2.633566748148678,
+ 'pq_func_par10[1]{0}': -0.992813961284668,
+ 'pq_func_par7[1]{0}': -0.5750272876212722,
+ 'pq_func_par11[1]{0}': 0.0050600294649953415,
+ 'pq_func_par8[1]{0}': -1.8978075443855054,
+ 'pq_func_par12[1]{0}': 0.6822435303576575,
+ 'pq_func_par0[4]{0}': 0.4386717065809691,
+ 'pq_func_par1[4]{0}': 3014273283275.125,
+ 'pq_func_par2[4]{0}': 0.22772419699833676,
+ 'pq_func_par3[4]{0}': -0.7773397105141043,
+ 'pq_func_par5[4]{0}': 0.2748510912874824,
+ 'pq_func_par9[4]{0}': -0.13699053531988065,
+ 'pq_func_par6[4]{0}': 2.9907271775153705,
+ 'pq_func_par10[4]{0}': -1.2065527459224699,
+ 'pq_func_par7[4]{0}': 2.7374686670988417,
+ 'pq_func_par11[4]{0}': -2.2971330480428045,
+ 'pq_func_par8[4]{0}': 2.7291653747149787,
+ 'pq_func_par12[4]{0}': -0.645307009351606,
+ 'pop_scatter_sfh{0}': 0.41137693427830385,
+ 'pop_sfr_below_ms{1}': 64.61353557557199,
+ 'pop_sys_mstell_now{0}': -0.24066444958980104,
+ 'pop_sys_mstell_a{0}': 0.14437770641779976,
+ 'pop_sys_sfr_now{0}': 0.0014440131161852915,
+ 'pop_sys_sfr_a{0}': 0.01464925069842566,
+}
+
+sed_modeling_univ = \
 {
  'pop_lum_tab{0}': f"{HOME}/.ares/sedtabs/sedtab_pop_0_smhm_univ_best.hdf5",
  'pop_lum_tab{1}': f"{HOME}/.ares/sedtabs/sedtab_pop_1_smhm_univ_best.hdf5",
  'pop_lum_tab{2}': f"{HOME}/.ares/sedtabs/sedtab_pop_0_smhm_univ_best.hdf5",
  'pop_lum_tab{3}': f"{HOME}/.ares/sedtabs/sedtab_pop_1_smhm_univ_best.hdf5",
 }
+
+sed_modeling_evol = \
+{
+ 'pop_lum_tab{0}': f"{HOME}/.ares/sedtabs/sedtab_pop_0_smhm_evol_best.hdf5",
+ 'pop_lum_tab{1}': f"{HOME}/.ares/sedtabs/sedtab_pop_1_smhm_evol_best.hdf5",
+ 'pop_lum_tab{2}': f"{HOME}/.ares/sedtabs/sedtab_pop_0_smhm_evol_best.hdf5",
+ 'pop_lum_tab{3}': f"{HOME}/.ares/sedtabs/sedtab_pop_1_smhm_evol_best.hdf5",
+}
+
 
 no_sed_modeling = \
 {
@@ -916,16 +994,23 @@ scatter_flex = \
 # (iv) systematics not identical to B13
 # (v) satellites == centrals at given (sub)halo mass
 
-base = setup.copy()
-base.update(smhm_Q)
-base.update(dust_dplx)
-base.update(_base)
-base.update(sed_modeling)
+#base = setup.copy()
+#base.update(smhm_Q)
+#base.update(dust_dplx)
+#base.update(_base)
+#base.update(sed_modeling)
 #base.update(lines_wprof)
 
 smhm_univ = setup.copy()
 smhm_univ.update(smhm_Q)
 smhm_univ.update(dust_dplx)
 smhm_univ.update(_base_smhm_univ)
-smhm_univ.update(sed_modeling)
+smhm_univ.update(sed_modeling_univ)
 smhm_univ.update(lines_wprof)
+
+smhm_evol = setup.copy()
+smhm_evol.update(smhm_Q)
+smhm_evol.update(dust_dplx)
+smhm_evol.update(_base_smhm_evol)
+smhm_evol.update(sed_modeling_evol)
+smhm_evol.update(lines_wprof)

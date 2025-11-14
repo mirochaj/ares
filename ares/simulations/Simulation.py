@@ -3,6 +3,7 @@ import copy
 import pickle
 import numpy as np
 from types import FunctionType
+from ..util import ProgressBar
 from ..util import ParameterFile
 from ..util.Stats import bin_c2e
 from .Global21cm import Global21cm
@@ -174,7 +175,11 @@ class Simulation(object):
                 # Loop over bands, integrate galaxy counts
                 x = np.mean(bands, axis=1)
                 flux = np.zeros(bands.shape[0])
+
+                pb = ProgressBar(x.size, name=f'ebl(pop={i})', use=self.pf['progress_bar'])
+                pb.start()
                 for j, band in enumerate(bands):
+                    pb.update(j)
 
                     nu = c / (np.mean(band) * 1e-4)
                     
@@ -186,7 +191,9 @@ class Simulation(object):
                     
                     flux[j] = tot_Jy * 1e-23 * nu * (1e2)**2 \
                         * sqdeg_per_std / erg_per_s_per_nW
-                                    
+                
+                pb.finish()
+
                 # In this case, x and flux are always in ascending wavelength
 
             else:
