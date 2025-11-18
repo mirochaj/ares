@@ -598,7 +598,7 @@ def PopulationParameters():
     "pop_sfh": 'const',
     "pop_sfh_degrade": 1,
     "pop_sfh_fallback": None,
-    "pop_sfh_fallback_last_resort": None,
+    "pop_sfh_fallback_last_resort": True,
     "pop_age_definition": None,
 
 
@@ -1072,7 +1072,7 @@ def SourceParameters():
         "source_sfh": 'const',
         "source_sfh_axes": None,
         "source_sfh_fallback": None,
-        "source_sfh_fallback_last_resort": 'const',
+        "source_sfh_fallback_last_resort": True,
 
         "source_psm_instance": None,
         "source_age": 100.0,

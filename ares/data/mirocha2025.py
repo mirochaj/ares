@@ -72,6 +72,7 @@ centrals_sf = \
 
  'pop_Tmin': None,
  'pop_Mmin': 1e8,
+ 'pop_Mmax': 1e14,
 
  # Something with dust and metallicity here
 
@@ -431,6 +432,8 @@ dust_x['pq_func_par8[40]{0}'] = 0     # slope
 dust_x['pq_func_par9[40]{0}'] = 0     # slope
 dust_x['pq_func_par10[40]{0}'] = 0     # slope
 
+no_dust = {'pop_dust_template{0}': None, 'pop_Av{0}': 0}
+
 for par in dust.keys():
     setup[par + '{0}'] = dust[par]
 
@@ -746,6 +749,13 @@ slow = \
  "halo_dlogM": 0.01,
  "halo_tmin": 30,
  "halo_dt": 10,
+}
+
+very_slow = \
+{
+ "halo_dlogM": 0.01,
+ "halo_tmin": 30,
+ "halo_dt": 1,
 }
 
 # Lowest dimensional model we've got?

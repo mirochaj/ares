@@ -22,13 +22,13 @@ from ..obs.Survey import Survey
 from ..analysis import ModelSet
 from scipy.optimize import fsolve
 from functools import cached_property
-from ..util.Misc import numeric_types, get_band_edges
+from ..util.Misc import numeric_types, get_band_edges, split_by_sign
 from scipy.integrate import quad, simpson, cumulative_trapezoid, ode
 from .GalaxyAggregate import GalaxyAggregate
 from .Population import normalize_sed, complex_sfhs
 from ..util.Stats import bin_c2e, bin_e2c, lognormal
 from scipy.interpolate import RectBivariateSpline, LinearNDInterpolator
-from ..util.Math import central_difference, interp1d_wrapper, interp1d
+from ..util.Math import central_difference, interp1d_wrapper, interp1d, smooth
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
     cm_per_pc, m_H, s_per_myr, Lsun
@@ -50,6 +50,7 @@ except ImportError:
 small_dz = 1e-8
 ztol = 1e-2
 tiny_phi = 1e-18
+tiny_lum = 1e-18 # in any units we use, this is tiny
 #_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
 #    'L_per_sfr', 'sps-toy']
 
@@ -1967,48 +1968,73 @@ class GalaxyCohort(GalaxyAggregate):
 
         MAB = self.magsys.get_mag_abs_from_lum(Lh)
 
-        # Skip 0th element of phi(L):
-        #if self.pf['pop_scatter_sfr'] == 0:
-        #    phi_of_M = phi_of_L[1:] * np.abs(np.diff(Lh) / np.diff(MAB))
-        #else:
         phi_of_M = phi_of_L[1:] * np.abs(np.diff(np.log(Lh)) / np.diff(MAB))
-        #phi_of_M[phi_of_M==0] = tiny_phi
-
+        
         x_phi = MAB[1:]
         phi = phi_of_M
 
-        ok = np.logical_and(phi.mask == False, phi > tiny_phi)
-
+        ok = np.logical_and(np.array(phi.mask == False, dtype=bool), 
+                            np.array(phi > tiny_phi, dtype=bool))
+        
+        ok = np.logical_and(ok, Lh[1:] > tiny_lum)
+        
         if (ok.sum() == 0) or np.all(phi.mask == True):
+            #print(f"All garbage at z={z}")
             return bins, np.zeros_like(bins)
 
-        ##
-        # Need to check for double-valued-ness. This happens sometimes if
-        # the dust attenuation is a non-monotonic function of mass. np.interp
-        # (or previously scipy.interpolate.interp1d) don't like this, as it's
-        # possible that there will be x values at the start of the array that
-        # are in descending order.
-        dx = np.diff(x_phi[ok==1][-1::-1])
-        if not np.all(dx > 0):
-            ix = np.argwhere(dx < 0).max()
-        else:
-            ix = 0
-
+        # Potentially grab absolute magnitudes if `bins` is apparent.
         if not absolute:
             bins_abs = self.get_mags_abs(z, bins)
         else:
             bins_abs = bins
 
-        try:
-            phi_of_x = np.interp(bins_abs, x_phi[ok==1][-1::-1][ix+1:],
-                phi[ok==1][-1::-1][ix+1:], left=0, right=0)
-        except ValueError:
-            print(f"Getting 'array of samples points empty' error.")
-            print(bins_abs)
-            print(x_phi)
-            print(phi)
+        
+        ##
+        # Need to pre-process LF to handle potential double-valued-ness.
+        # Note that there are real reasons this can happen, e.g., complex
+        # Mh-dependencies in dust. However, small numerical issues can 
+        # masquerade as double-valuedness, so we need to be careful. A 
+        # previous implementation aimed at dealing with this problem 
+        # was sometimes fooled. 
+        xx, yy = x_phi[ok==1][-1::-1], phi[ok==1][-1::-1]
 
-            return bins, tiny_phi * np.ones_like(bins)
+        dx = np.diff(xx)
+
+        # If no doublevaluedness, we're done.
+        if np.all(dx > 0):
+            phi_of_x = np.interp(bins_abs, xx, yy, left=0, right=0)
+        # Otherwise, we have some pre-processing to do
+        else:
+
+            _x_, _dx_ = split_by_sign(xx, dx)
+            _y_, _dx_ = split_by_sign(yy, dx)
+            nchunks = len(_x_)
+
+            phi_of_x = np.zeros_like(bins_abs)
+
+            for i in range(nchunks):
+                if np.all(_dx_[i] > 0):
+                    phi_of_x += np.interp(bins_abs, _x_[i], _y_[i], 
+                        left=0, right=0)
+                else:
+                    phi_of_x += np.interp(bins_abs, _x_[i][-1::-1], _y_[i][-1::-1], 
+                        left=0, right=0)
+
+            #if sum(dx < 0) < 100:
+            #    _ok = np.argwhere(dx > 0).squeeze()            
+            #    phi_of_x = np.interp(bins_abs, xx[_ok], yy[_ok], left=0, right=0)
+            #    print('issue with DVN 1', z)
+        # Otherwise, smooth a bit. This is usually just due to small numerical
+        # noise.
+            #else:
+            #    print('issue with DVN 2', z, sum(dx < 0))
+            #    # Just smooth
+            #    width = 11
+    #
+            #    yy = smooth(xx, width)
+            #    xx = smooth(yy, width)
+    #
+            #    phi_of_x = np.interp(bins_abs, xx, yy, left=0, right=0)
 
         return bins, phi_of_x
 
@@ -2750,7 +2776,6 @@ class GalaxyCohort(GalaxyAggregate):
                 sfr = self.get_sfr(z=z, Mh=self.halos.tab_M)
                 Ms = self.get_mstell(z=z, Mh=self.halos.tab_M)
                 #sfr = self.get_sfr_obs(z=z, Mh=self.halos.tab_M)
-                #Ms = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
 
         except Exception as e:
             print(e)
@@ -2808,7 +2833,8 @@ class GalaxyCohort(GalaxyAggregate):
                 Lh = Lh_l * 1.
             else:
                 # Need to interpolate in redshift, stellar mass, wavelength
-                Lh_c = self._get_lum_from_tab(z, Ms=Ms, x=x, band=band, units=units)
+                Ms_obs = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
+                Lh_c = self._get_lum_from_tab(z, Ms=Ms_obs, x=x, band=band, units=units)
                 Lh = Lh_c + Lh_l
 
             if (not self.is_central_pop) and total_sat:
@@ -2996,7 +3022,7 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         # Grab table elements
-        ltab = self.tab_lum
+        ltab = self.tab_lum # (redshift, mass)
         ltab_z = self._tab_lum_z
         ltab_M = self._tab_lum_Ms # actually log10(stellar mass)
         ltab_w = self._tab_lum_waves
