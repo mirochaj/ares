@@ -1346,7 +1346,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                 if z == z2:
                     return rhoL2
-
+                
             ##
             # Don't try to interpolate if everybody's zero
             if rhoL1 == rhoL2 == 0:
@@ -1954,13 +1954,8 @@ class GalaxyCohort(GalaxyAggregate):
             return bins, func(z=z, MUV=bins)
 
         ##
-        # Otherwise, standard parameterized approach.
+        # Otherwise, standard approach.
         ##
-
-        # These are absolute AB magnitudes in `x_phi`
-        #x_phi, phi = self._get_lf_mags_raw(z, x=x, use_tabs=use_tabs,
-        #    units=units, window=window, bins=bins,
-        #    cam=cam, filters=filters, dlam=dlam)
 
         Lh, phi_of_L = self._get_lf_lum(z,
             x=x, units=units, window=window,
@@ -1979,7 +1974,6 @@ class GalaxyCohort(GalaxyAggregate):
         ok = np.logical_and(ok, Lh[1:] > tiny_lum)
         
         if (ok.sum() == 0) or np.all(phi.mask == True):
-            #print(f"All garbage at z={z}")
             return bins, np.zeros_like(bins)
 
         # Potentially grab absolute magnitudes if `bins` is apparent.
@@ -2005,7 +1999,6 @@ class GalaxyCohort(GalaxyAggregate):
             phi_of_x = np.interp(bins_abs, xx, yy, left=0, right=0)
         # Otherwise, we have some pre-processing to do
         else:
-
             _x_, _dx_ = split_by_sign(xx, dx)
             _y_, _dx_ = split_by_sign(yy, dx)
             nchunks = len(_x_)
@@ -2014,11 +2007,13 @@ class GalaxyCohort(GalaxyAggregate):
 
             for i in range(nchunks):
                 if np.all(_dx_[i] > 0):
-                    phi_of_x += np.interp(bins_abs, _x_[i], _y_[i], 
-                        left=0, right=0)
-                else:
-                    phi_of_x += np.interp(bins_abs, _x_[i][-1::-1], _y_[i][-1::-1], 
-                        left=0, right=0)
+                    tmp = 10**np.interp(bins_abs, _x_[i], np.log10(_y_[i]), 
+                        left=-np.inf, right=-np.inf)
+                else:                    
+                    tmp = 10**np.interp(bins_abs, _x_[i][-1::-1], np.log10(_y_[i][-1::-1]), 
+                        left=-np.inf, right=-np.inf)
+                
+                phi_of_x += tmp
 
             #if sum(dx < 0) < 100:
             #    _ok = np.argwhere(dx > 0).squeeze()            
@@ -3069,6 +3064,7 @@ class GalaxyCohort(GalaxyAggregate):
                 left=0, right=0)
             kludge2 = np.interp(np.log10(Ms), ltab_M, lum[ilo+1,:],
                 left=0, right=0)
+            
             m = (kludge2 - kludge1) / (ltab_z[ilo+1] - ltab_z[ilo])
 
             # Interpolate in redshift
@@ -3849,6 +3845,28 @@ class GalaxyCohort(GalaxyAggregate):
             dndm *= fobsc
 
         ##
+        # New (11/18/2025). If drawing luminosities from a lookup table, we
+        # need to beware of potential interpolation problems.
+        # The easiest solution to this problem is to smooth the Lh(Mh) 
+        # function before differencing to avoid numerical noise.
+        if self.pf['pop_lum_tab'] is not None:
+            #poke = self.tab_lum
+
+            # Reminder: already in log10
+            dlogMstell = np.diff(self._tab_lum_Ms)[0]
+            
+            # This is a bit hand-wavvy -- comparing stellar v halo masses -- 
+            # but we just need to get in the right ballpark.
+            smooth_factor = int(dlogMstell // self.pf['halo_dlogM'])
+            
+            if smooth_factor % 2 == 0:
+                smooth_factor += 5
+            else:
+                smooth_factor += 4
+            
+            Lh = smooth(Lh, smooth_factor)
+
+        ##
         # Figure out dM/dlogL factor.
         # Add a ghost zone to the low-L end of Lh.
         # Should we just compute L at bin edges in the future?
@@ -3858,6 +3876,9 @@ class GalaxyCohort(GalaxyAggregate):
         dlog10L = np.diff(np.log10(Lh))
         dmdlnL = np.diff(self.halos.tab_M_e) \
                 / np.concatenate(([dlnL.min()], np.abs(dlnL)))
+        
+        
+
         dMh_dlog10L = np.diff(self.halos.tab_M_e) \
                 / np.concatenate(([dlog10L.min()], np.abs(dlog10L)))
         dMh_dlog10L[np.isnan(dMh_dlog10L)] = 0
