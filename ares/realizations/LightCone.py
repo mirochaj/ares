@@ -458,7 +458,7 @@ class LightCone(object): # pragma: no cover
                     * np.arange(1, len(zmid)+1) * fmh
                 self._seeds['seed_lum'] = seed_lum
             else:
-                self._seeds['seed_lum'] = None
+                self._seeds['seed_lum'] = -np.inf
 
         i = layer
         # Done
@@ -491,7 +491,10 @@ class LightCone(object): # pragma: no cover
         zlo, zhi = zlim
         zsub_lo = 1 * zlo
 
-        np.random.seed(seed)
+        if seed is None:
+            np.random.seed(seed)
+        elif np.isfinite(seed):
+            np.random.seed(seed)
 
         flux = np.zeros_like(Mh)
         while zsub_lo < zhi:
@@ -909,7 +912,8 @@ class LightCone(object): # pragma: no cover
             # Shape of (ra, dec, red) is just (Ngalaxies)
 
             # Get flux from each object. Units = erg/s/cm^2/Ang.
-            flux = self._get_flux_catalog((zlo, zhi), logmlim, red, Mh, channel, pid)
+            flux = self._get_flux_catalog((zlo, zhi), logmlim, red, Mh, channel, 
+                pid, seed=seed_kw['seed_lum'])
 
         ##
         # Need some extra info to do more sophisticated modeling...
@@ -1461,6 +1465,8 @@ class LightCone(object): # pragma: no cover
             # Get number of M layer
             im = np.argmin(np.abs(mlayer[0] - mlayers[:,0]))
 
+            seed_kw = self.get_seed_kwargs(iz, mlayer, pid)
+        
             izm = iz * len(mlayers) + im
 
             # See if we already finished this map.
@@ -1622,10 +1628,13 @@ class LightCone(object): # pragma: no cover
                             dnu = c * 1e4 * (chan_mic[1] - chan_mic[0]) / np.mean(chan_mic)**2
 
                             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
-                                chan_mic, pid)
+                                chan_mic, pid, seed=seed_kw['seed_lum'])
                             _dat *= self.get_map_norm(cat_units) / dnu
                         elif channel in ['Mh']:
                             _dat = _Mh
+                        elif channel in ['rvir']:
+                            # in kpc internally for some reason, convert to cMpc
+                            _dat = self.sim.pops[pid].halos.get_Rvir(_red, _Mh) / 1e3    
                         elif channel in ['parents']:
                             _dat = _parents
                         elif channel.lower().startswith('ew'):

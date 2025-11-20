@@ -256,6 +256,7 @@ for par in centrals_sf:
 
 ihl_scaled = centrals_q.copy()
 ihl_scaled['pop_focc'] = 1
+#ihl_scaled['pop_fstar'] = 'link:fstar:1' # Does it matter?
 ihl_scaled['pop_age'] = 5e3
 ihl_scaled['pop_ihl'] = 'pq[50]'
 ihl_scaled['pop_focc_inv'] = False
@@ -268,6 +269,10 @@ ihl_scaled['pq_func_par2[50]'] = 1.  # Linear Mh dependence
 ihl_scaled['pq_func_par3[50]'] = 1.  # Anchored to z=0
 ihl_scaled['pq_func_par4[50]'] = 0   # No evolution by default [illustrative]
 ihl_scaled['pq_val_ceil[50]'] = 0.999
+
+# Deterministic luminosity 
+ihl_scaled['pop_scatter_sfh{4}'] = 0
+
 
 ihl_scaled['pop_include_1h'] = True
 ihl_scaled['pop_include_2h'] = True
