@@ -686,13 +686,13 @@ class LogNormal(LightCone): # pragma: no cover
 
         ##
         # Setup random seeds for random rotations and translations
-        np.random.seed(self.seed_rot)
-        r_rot = np.random.randint(0, high=4, size=(len(Re)-1)*3).reshape(
-            len(Re)-1, 3
-        )
-
-        np.random.seed(self.seed_tra)
-        r_tra = np.random.rand(len(Re)-1, 3)
+        #np.random.seed(self.seed_rot)
+        #r_rot = np.random.randint(0, high=4, size=(len(Re)-1)*3).reshape(
+        #    len(Re)-1, 3
+        #)
+#
+        #np.random.seed(self.seed_tra)
+        #r_tra = np.random.rand(len(Re)-1, 3)
 
         ##
         # Print-out information about FOV
@@ -993,21 +993,25 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Poisson random draw to determine actual number of subhalos,
             # given expected number.
-            #np.random.seed(seeds_num[i])
+            np.random.seed(seeds_num[i])
             Nsat_act_tot = np.random.poisson(Nsat_exp)
+
+            # This looked OK
+            #print(i, np.log10(self.halos.tab_M[iM[i]]), Nsat_exp, Nsat_act_tot)
+            #input('<enter>')
 
             if Nsat_act_tot == 0:
                 continue
 
             # Outsources sampling over sub-halo MF
             _m = self.get_halo_masses(red_c[i], Nsat_act_tot,
-                logmlim=logmlim, #seed=seeds_mass[i],
+                logmlim=logmlim, seed=seeds_mass[i],
                 subhalos=True, Mc=mass_c[i], iz=iz[i], iM=iM[i])
 
             ##
             # Apply occupation fraction
             _x, _y, _z, _m = self._filter_by_focc((None, None, None, _m),
-                red_c[i], None, popid)
+                red_c[i], seeds_occ[i], popid)
 
             if _m is None:
                 continue
@@ -1022,7 +1026,7 @@ class LogNormal(LightCone): # pragma: no cover
 
                 cdf = self.halos.tab_Sigma_nfw_cdf[iz[i],iM[i],:]
 
-                #np.random.seed(seeds_pos[i])
+                np.random.seed(seeds_pos[i])
                 r = np.random.rand(Nsat_act)
 
                 # Radial displacement of all satellites in cMpc
@@ -1250,10 +1254,10 @@ class LogNormal(LightCone): # pragma: no cover
         # do a quick check that the number smaller than 2x sqrt(mean). Note
         # that occassionally we might get a bigger difference here, hence the
         # warning instead of raising an exception.
-        if (Nerr > 2 * np.sqrt(Nexp)) and (err > 0.2) and self.verbose:
-            print(f"# WARNING: Error in halo density is {err*100:.0f}% for m in [{np.log10(mmin):.1f},{np.log10(mmax):.1f}]")
-            print(f"# (expected {Nexp:.2f} halos, got {Nact:.0f})")
-            print("# Might be small box issue, but could be OK for massive halos.")
+        #if (Nerr > 2 * np.sqrt(Nexp)) and (err > 0.2) and self.verbose:
+        #    print(f"# WARNING: Error in halo density is {err*100:.0f}% for m in [{np.log10(mmin):.1f},{np.log10(mmax):.1f}]")
+        #    print(f"# (expected {Nexp:.2f} halos, got {Nact:.0f})")
+        #    print("# Might be small box issue, but could be OK for massive halos.")
 
         if np.any(mass < mmin):
             raise ValueError("help")

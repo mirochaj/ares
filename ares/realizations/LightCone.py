@@ -1509,7 +1509,6 @@ class LightCone(object): # pragma: no cover
                     # BUT, if we do that, and we're really unlucky and this
                     # happens on the last layer of work for a given channel,
                     # then no checkpoint will be written below :/
-                    # Hence the use of `pass` here intead.
                     if (izm < Nlayers - 1):
                         tracker_flat[pid_par][izm+1] = tracker_flat[pid_par][izm]
 
@@ -1554,6 +1553,8 @@ class LightCone(object): # pragma: no cover
 
                             tracker[pid_par][iz,im] = ok_c.sum()
 
+                            # Figure out how many centrals there are up to,
+                            # but not including, this layer of work.
                             if izm == 0:
                                 Ncen = 0
                             else:
@@ -1564,6 +1565,8 @@ class LightCone(object): # pragma: no cover
                                 tracker_flat[pid_par][izm+1] = ok_c.sum() \
                                     + tracker_flat[pid_par][izm]
 
+                            # Will need to edit indices based on the fact that some 
+                            # halos are filtered out for being just outside the FoV.
                             if ok_c.sum():
                                 ids_in, ids_out = self._filter_by_fov(ok_c).T
 
@@ -1600,6 +1603,10 @@ class LightCone(object): # pragma: no cover
                             print('problem with _parents 1', popid, izm, len(_parents), len(_ra))
                             input('<enter>')
 
+                        if len(_Mh) != len(_ra):
+                                print('problem with _Mh 1', popid, izm, len(_Mh), len(_ra))
+
+
                     ct += ok.sum()
 
                     if len(_ra) > 0:
@@ -1612,6 +1619,9 @@ class LightCone(object): # pragma: no cover
 
                             if len(_parents) != len(_ra):
                                 print('problem with _parents 2', popid, izm, len(_parents), len(_ra))
+
+                            if len(_Mh) != len(_ra):
+                                print('problem with _Mh 2', popid, izm, len(_Mh), len(_ra))
 
                         ##
                         # Unpack channel info
@@ -1759,6 +1769,11 @@ class LightCone(object): # pragma: no cover
                         if field_names[ff] == 'parents':
                             if len(field) != len(ra):
                                 print('problem with _parents 3', popid, logmlim, len(parents), len(ra))
+                                #input('<enter>')
+
+                        if field_names[ff] == 'Mh':
+                            if len(field) != len(ra):
+                                print('problem with Mh 3', popid, logmlim, len(Mh), len(ra))
                                 #input('<enter>')
 
                     _fn_ff = self.get_cat_fn(fov, field_names[ff], popid,
