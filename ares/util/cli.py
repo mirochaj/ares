@@ -233,7 +233,7 @@ aux_data = {
         None,
     ],
     "halo_surf": [
-        "https://drive.google.com/file/d/1YoCJ0G5y9yo-qUrg_4_npf46_tSuLTg9/view?usp=sharing",
+        "https://drive.google.com/file/d/1ZprEkAfa4L8riroFsb0A6nz3YTFeccft/view?usp=sharing",
         "halo_surf.tar.gz",
         _mv_halosurf,
     ],
