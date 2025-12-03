@@ -1960,7 +1960,7 @@ class GalaxyCohort(GalaxyAggregate):
         Lh, phi_of_L = self._get_lf_lum(z,
             x=x, units=units, window=window,
             use_tabs=use_tabs, cam=cam, filters=filters, dlam=dlam)
-
+                
         MAB = self.magsys.get_mag_abs_from_lum(Lh)
 
         phi_of_M = phi_of_L[1:] * np.abs(np.diff(np.log(Lh)) / np.diff(MAB))
@@ -1982,7 +1982,6 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             bins_abs = bins
 
-        
         ##
         # Need to pre-process LF to handle potential double-valued-ness.
         # Note that there are real reasons this can happen, e.g., complex
@@ -1990,6 +1989,9 @@ class GalaxyCohort(GalaxyAggregate):
         # masquerade as double-valuedness, so we need to be careful. A 
         # previous implementation aimed at dealing with this problem 
         # was sometimes fooled. 
+
+        # We flip here since luminosities are in ascending order (via Mh)
+        # so magnitudes will naturally be in descending order.
         xx, yy = x_phi[ok==1][-1::-1], phi[ok==1][-1::-1]
 
         dx = np.diff(xx)
@@ -1999,22 +2001,55 @@ class GalaxyCohort(GalaxyAggregate):
             phi_of_x = np.interp(bins_abs, xx, yy, left=0, right=0)
         # Otherwise, we have some pre-processing to do
         else:
+            print(f"Should this still happen? z={z}, x={x}", self.id_num, np.all(np.diff(Lh) > 0), np.all(np.diff(xx) > 0))
+            import matplotlib.pyplot as plt 
+            plt.loglog(Lh, phi_of_L)
+
+            plt.ylim(1e-50, 1e5)
+
+            input('<enter>')
+            #raise NotImplementedError("This shouldnt happen anymore!")
             _x_, _dx_ = split_by_sign(xx, dx)
             _y_, _dx_ = split_by_sign(yy, dx)
             nchunks = len(_x_)
 
             phi_of_x = np.zeros_like(bins_abs)
 
+            #import matplotlib.pyplot as plt 
+#
+            #plt.figure(int(z * 10))
+            #print(f'figure {int(z*10)}: nchunks={nchunks}')
+
+            _colors = 'k', 'b', 'c', 'm'
             for i in range(nchunks):
+                #print(i, np.all(_dx_[i] > 0), _x_[i], np.log10(_y_[i]))
                 if np.all(_dx_[i] > 0):
+                    
                     tmp = 10**np.interp(bins_abs, _x_[i], np.log10(_y_[i]), 
                         left=-np.inf, right=-np.inf)
-                else:                    
+                else:               
                     tmp = 10**np.interp(bins_abs, _x_[i][-1::-1], np.log10(_y_[i][-1::-1]), 
                         left=-np.inf, right=-np.inf)
                 
                 phi_of_x += tmp
 
+                #plt.semilogy(bins_abs, 10**(np.log10(tmp) + i * 0.5), ls='-' if np.all(_dx_[i] > 0) else '--',
+                #    lw=1 if np.all(_dx_[i] > 0) else 3, color=_colors[i])
+                #plt.ylim(1e-8, 1e1)
+                #plt.xlim(-25, -15)
+
+            #plt.ylim(1e-10, 1)
+#
+            #plt.figure(int(z * 10) + 100)
+            #plt.semilogy(xx, yy, ls='-', color='k', lw=1)
+            #plt.semilogy(bins_abs, phi_of_x, ls='--', color='b', lw=3)
+            #plt.xlim(-25, -15)
+            #plt.savefig(f'test_z_{z:.2f}.png')
+            #input('<enter>')
+#
+            #plt.figure(int(z * 10) + 200)
+            #plt.scatter(xx[0:-1], dx, ls='-', color='k', lw=1)
+            #plt.xlim(-25, -15)
             #if sum(dx < 0) < 100:
             #    _ok = np.argwhere(dx > 0).squeeze()            
             #    phi_of_x = np.interp(bins_abs, xx[_ok], yy[_ok], left=0, right=0)
@@ -3759,7 +3794,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return mask
 
-    def _get_lf_lum(self, z, x=1600., window=1, raw=False,
+    def _get_lf_lum(self, z, larr=None, x=1600., window=1, raw=False,
         nebular_only=False, band=None, units='Angstroms',
         cam=None, filters=None, dlam=20, use_tabs=True):
         """
@@ -3798,7 +3833,7 @@ class GalaxyCohort(GalaxyAggregate):
         Lh = self.get_lum(z, x=x, use_tabs=use_tabs, window=window,
             raw=raw, nebular_only=nebular_only, band=band, units=units,
             units_out='erg/s/Hz', total_sat=self.is_central_pop)
-
+        
         ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
             self.halos.tab_M < self.get_Mmax(z))
         
@@ -3866,19 +3901,21 @@ class GalaxyCohort(GalaxyAggregate):
             
             Lh = smooth(Lh, smooth_factor)
 
+        # Is this necessary? 
+        _ok = np.logical_and(ok, Lh>0)
+
         ##
         # Figure out dM/dlogL factor.
         # Add a ghost zone to the low-L end of Lh.
         # Should we just compute L at bin edges in the future?
         dL = np.diff(Lh)
+        dL_wpad = np.concatenate(([dL.min()], dL))
         lnL = np.log(Lh)
         dlnL = np.diff(lnL)
         dlog10L = np.diff(np.log10(Lh))
         dmdlnL = np.diff(self.halos.tab_M_e) \
                 / np.concatenate(([dlnL.min()], np.abs(dlnL)))
         
-        
-
         dMh_dlog10L = np.diff(self.halos.tab_M_e) \
                 / np.concatenate(([dlog10L.min()], np.abs(dlog10L)))
         dMh_dlog10L[np.isnan(dMh_dlog10L)] = 0
@@ -3895,22 +3932,79 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
                     sigma = self.pf['pop_scatter_sfr']
 
-                xx = mu = np.log(Lh)
-                xx[Lh==0] = 0
-                mu[Lh==0] = 0
-
-                # Log-normal distribution of luminosity at given
-                # halo mass, need to integrate over.
-                # Arguments are just: x, mu, sigma
-                pdf = lognormal(xx[None,:], mu[:,None], sigma)
-
                 # Integrate over halo mass (or really, <Lh>) axis
-                _ok = np.logical_and(ok, Lh>0)
-                phi_tot = np.trapezoid(dndlnL[_ok==1,None] * pdf[_ok==1,:], 
-                    x=lnL[_ok==1], axis=0)
 
+                # If there aren't any sources, return nulled arrays.
+                # (this can happen, e.g., in drop-out bands at high z)
+                if not np.any(_ok):
+                    mask = np.ones_like(_ok)
+
+                    lum = np.ma.array(Lh, mask=mask)
+                    phi = np.ma.array(dndlnL, mask=mask, fill_value=-np.inf)
+
+                    return lum, phi
+
+                # Be careful: `Lh` may be double-valued, which messes up 
+                # integration and interpolation, hence the check for 
+                # monotonicity here and the more careful integration-in-pieces
+                # below if non-monotonic behavior is detected.
+                if np.all(dL > 0):
+                    xx = mu = np.log(Lh)
+                    xx[Lh==0] = 0
+                    mu[Lh==0] = 0
+    
+                    # Log-normal distribution of luminosity at given
+                    # halo mass, need to integrate over.
+                    # Arguments are just: x, mu, sigma
+                    pdf = lognormal(xx[None,:], mu[:,None], sigma)
+
+                    phi_tot = np.trapezoid(dndlnL[_ok==1,None] * pdf[_ok==1,:], 
+                        x=lnL[_ok==1], axis=0)
+                else:
+                    ##
+                    # In this case, we use new grid for second axis.
+                    if larr is None:
+                        lmin = np.log10(Lh[_ok==1].min() * 0.5)
+                        lmax = np.log10(Lh[_ok==1].max() * 1.5)
+                        larr = 10**np.arange(lmin, lmax, 0.01)
+
+                    # So, in general, the PDF array will not be square.
+                    mu = np.log(Lh)
+                    xx = np.log(larr)
+                    mu[Lh==0] = 0
+                    xx[larr==0] = 0
+                    pdf = lognormal(xx[None,:], mu[:,None], sigma)
+
+                    # Split apart the pieces by whether luminosity is increasing or decreasing
+                    _lnL_, _dL_ = split_by_sign(lnL, dL_wpad)
+                    _phi_, _dL_ = split_by_sign(dndlnL, dL_wpad)
+                    _ok_, _dL_ = split_by_sign(_ok, dL_wpad)
+                    _pdf_, _dL_ = split_by_sign(pdf, dL_wpad)
+
+                    nchunks = len(_dL_)
+
+                    phi_tot = np.zeros_like(larr)
+                    for i in range(nchunks):
+                        if not np.any(_ok_[i]==1):
+                            continue
+
+                        if np.all(_dL_[i] > 0):
+                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1,None] * _pdf_[i][_ok_[i]==1,:], 
+                                    x=_lnL_[i][_ok_[i]==1], axis=0)
+                        else:    
+                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1][-1::-1,None] * _pdf_[i][_ok_[i]==1,:][-1::-1,:], 
+                                    x=_lnL_[i][_ok_[i]==1][-1::-1], axis=0)
+                                                                            
+                    # Override `Lh`, refashion mask
+                    Lh = larr.copy()
+                    mask = np.zeros_like(larr)
+        
+                ##
+                # Convert to masked arrays
                 lum = np.ma.array(Lh, mask=mask)
                 phi = np.ma.array(phi_tot, mask=mask, fill_value=-np.inf)
+
+                assert np.all(np.diff(lum) > 0)
 
                 # Remember: phi is dn/dlnL
                 return lum, phi
@@ -3918,10 +4012,6 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Extra step if we're dealing with satellites
         else:
-
-            #_x = np.log(self.halos.tab_M[0:]) \
-            #    if self.halos.dlnm is None else None
-            #_dx = self.halos.dlog10m
 
             if use_tabs:
                 fsurv = self.tab_fsurv[iz,:]
@@ -3939,7 +4029,7 @@ class GalaxyCohort(GalaxyAggregate):
             # Shape of dndlnm_sub (centrals, satellites)
             dndm_sub = self.halos.tab_dndlnm_sub[:,:] / self.halos.tab_M
 
-            #
+            # 
             dndlnL_sat = np.zeros_like(self.halos.tab_M)
             for i, Msat in enumerate(self.halos.tab_M):
 
@@ -3954,34 +4044,84 @@ class GalaxyCohort(GalaxyAggregate):
 
                 dndlnL_sat[i] = np.trapezoid(integrand[ok==1], dx=self.halos.dlnm)
 
-            #
+            # 
             if (self.pf['pop_scatter_sfh'] > 0) or (self.pf['pop_scatter_sfr'] > 0):
                 if (self.pf['pop_scatter_sfh'] > 0):
                     sigma = self.pf['pop_scatter_sfh']
                 else:
                     sigma = self.pf['pop_scatter_sfr']
 
-                xx = mu = np.log(Lh)
+                if not np.any(_ok):
+                    mask = np.ones_like(_ok)
 
-                # Log-normal distribution of luminosity at given
-                # halo mass, need to integrate over.
-                # Arguments are just: x, mu, sigma
-                pdf = lognormal(xx[None,:], mu[:,None], sigma)
+                    lum = np.ma.array(Lh, mask=mask)
+                    phi = np.ma.array(dndlnL_sat, mask=mask, fill_value=-np.inf)
 
-                ##
-                # OK, we now know the number of subhalos globally as a
-                # function of subhalo mass
-            
-                _ok = np.logical_and(ok, Lh>0)
+                    return lum, phi
 
-                # Integrate over halo mass axis
-                phi_tot = np.trapezoid(dndlnL_sat[_ok==1,None] * pdf[_ok==1],
-                    x=np.log(Lh[_ok==1]), axis=0)
+                if np.all(dL > 0):
+                    xx = mu = np.log(Lh)
+    
+                    # Log-normal distribution of luminosity at given
+                    # halo mass, need to integrate over.
+                    # Arguments are just: x, mu, sigma
+                    pdf = lognormal(xx[None,:], mu[:,None], sigma)
+    
+                    ##
+                    # OK, we now know the number of subhalos globally as a
+                    # function of subhalo mass
+                    
+                    # Integrate over halo mass axis
+                    phi_tot = np.trapezoid(dndlnL_sat[_ok==1,None] * pdf[_ok==1],
+                        x=np.log(Lh[_ok==1]), axis=0)
+    
+                    mask = np.logical_not(ok)
+    
+                    
+                else:##
+                    # In this case, we use new grid for second axis.
+                    if larr is None:
+                        lmin = np.log10(Lh[_ok==1].min() * 0.5)
+                        lmax = np.log10(Lh[_ok==1].max() * 1.5)
+                        larr = 10**np.arange(lmin, lmax, 0.01)
 
-                mask = np.logical_not(ok)
+                    # So, in general, the PDF array will not be square.
+                    mu = np.log(Lh)
+                    xx = np.log(larr)
+                    mu[Lh==0] = 0
+                    xx[larr==0] = 0
+                    pdf = lognormal(xx[None,:], mu[:,None], sigma)
 
+                    # Split apart the pieces by whether luminosity is increasing or decreasing
+                    _lnL_, _dL_ = split_by_sign(lnL, dL_wpad)
+                    _phi_, _dL_ = split_by_sign(dndlnL_sat, dL_wpad)
+                    _ok_, _dL_ = split_by_sign(_ok, dL_wpad)
+                    _pdf_, _dL_ = split_by_sign(pdf, dL_wpad)
+
+                    nchunks = len(_dL_)
+
+                    phi_tot = np.zeros_like(larr)
+
+                    for i in range(nchunks):
+                        if not np.any(_ok_[i]==1):
+                            continue
+                        
+                        if np.all(_dL_[i] > 0):
+                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1,None] * _pdf_[i][_ok_[i]==1,:],
+                                x=_lnL_[i][_ok_[i]==1], axis=0)
+                        else:
+                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1][-1::-1,None] * _pdf_[i][_ok_[i]==1][-1::-1,:],
+                                x=_lnL_[i][_ok_[i]==1], axis=0)
+                            
+                    # Override `Lh`
+                    Lh = larr.copy()
+                    mask = np.zeros_like(larr)
+
+                # Convert to masked arrays and be done
                 lum = np.ma.array(Lh, mask=mask)
                 phi = np.ma.array(phi_tot, mask=mask, fill_value=-np.inf)
+
+                assert np.all(np.diff(lum) > 0), f"problem with `lum` for pop={self.id_num}"
 
                 # Already in dn/dlog10(Mstell,sat)
                 return lum, phi

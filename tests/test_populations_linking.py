@@ -1,7 +1,7 @@
 import ares
 
 def test():
-    pars = ares.util.ParameterBundle('mirocha2025:base')
+    pars = ares.util.ParameterBundle('mirocha2025:smhm_univ')
     #pars.update(ares.util.ParameterBundle('testing:galaxies'))
     
     sim = ares.simulations.Simulation(**pars)
