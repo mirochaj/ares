@@ -458,13 +458,13 @@ class LightCone(object): # pragma: no cover
                     * np.arange(1, len(zmid)+1) * fmh
                 self._seeds['seed_lum'] = seed_lum
             else:
-                self._seeds['seed_lum'] = -np.inf
+                self._seeds['seed_lum'] = [None] * len(zmid)
 
         i = layer
         # Done
         return {key:self._seeds[key][i] for key in self._seeds.keys()}
 
-    def _get_flux_catalog(self, zlim, logmlim, red, Mh, channel, pid, seed=None):
+    def _get_flux_catalog(self, zlim, logmlim, red, Mh, channel, pid, seed=None, dlam=10):
         """
         Compute flux from catalog of sources in given redshift range.
 
@@ -496,42 +496,94 @@ class LightCone(object): # pragma: no cover
         elif np.isfinite(seed):
             np.random.seed(seed)
 
-        flux = np.zeros_like(Mh)
+        # Check for str channel, e.g., wise_W1, euclid_J, sdss_r, etc.
+        if type(channel) == str:
+            is_photometry = True
+            mags = np.zeros_like(Mh)
+            cam, filt = channel.split('_')
+        else:
+            is_photometry = False
+            flux = np.zeros_like(Mh)
+
+        # Sub-cycle through redshift slabs
         while zsub_lo < zhi:
 
             zsub_hi = min(zsub_lo + self.dz_max, zhi)
 
             zsub_mid = np.mean([zsub_lo, zsub_hi])
 
-            band = channel[0] * 1e4 / (1. + zsub_mid), \
-                   channel[1] * 1e4 / (1. + zsub_mid)
-
             okzsub = np.logical_and(red >= zsub_lo, red < zsub_hi)
 
-            _flux_ = self.sim.pops[pid].get_lum(zsub_mid, x=None,
-                Mh=Mh[okzsub==1], units='Ang',
-                units_out='erg/s/Ang', band=tuple(band))
+            ##
+            # Support for proper photometry...
+            if is_photometry:
+                waves = self.sim.pops[pid].phot.get_required_spectral_range((zsub_lo, zsub_hi), 
+                    cam=cam, filters=[filt], dlam=dlam)
+                owaves = waves * (1. + zsub_mid) / 1e4
+
+                _flux_ = np.zeros((okzsub.sum(), len(waves)))
+
+                # Note that in this case we keep the fluxes in erg/s/Hz units 
+                # since that's what our `get_photometry` routine assumes further below.
+                for j, x in enumerate(waves):
+                    tmp = self.sim.pops[pid].get_lum(zsub_mid, x=x,
+                        Mh=Mh[okzsub==1], units='Ang',
+                        units_out='erg/s/hz')
+                    
+                    _flux_[:,j] = tmp
+                    
+            # ...or tophat over some channel width
+            else: 
+                band = channel[0] * 1e4 / (1. + zsub_mid), \
+                       channel[1] * 1e4 / (1. + zsub_mid)
+    
+                _flux_ = self.sim.pops[pid].get_lum(zsub_mid, x=None,
+                    Mh=Mh[okzsub==1], units='Ang',
+                    units_out='erg/s/Ang', band=tuple(band))
             
             ##
             # Add luminosity scatter here!
             sigma = self.sim.pops[pid].pf['pop_scatter_sfh']
             if sigma > 0:
-                lognoise = np.random.normal(scale=sigma, size=_flux_.size)
-                noise = np.power(10, 
-                    np.log10(_flux_) + np.reshape(lognoise, _flux_.shape)) \
-                    - _flux_
-                
+                # One value for each halo
+                lognoise = np.random.normal(scale=sigma, size=_flux_.shape[0])
+
+                if is_photometry:
+                    noise = np.power(10, 
+                        np.log10(_flux_) + np.reshape(lognoise, _flux_.shape[0])[:,None]) \
+                        - _flux_
+                    
+                else:
+                    noise = np.power(10, 
+                        np.log10(_flux_) + np.reshape(lognoise, _flux_.shape)) \
+                        - _flux_
+                    
                 _flux_ += noise
+
 
             # Frequency "squashing", i.e., our 'per Angstrom' interval is
             # different in the observer frame by a factor of 1+z.
             corr = 1. / 4. / np.pi \
                 / (np.interp(zsub_mid, self.tab_z, self.tab_dL) * cm_per_mpc)**2
-            flux[okzsub==1] = _flux_ * corr / (1. + zsub_mid)
+            
+            if is_photometry:
+                flux = _flux_ * corr / (1. + zsub_mid)
 
+                _filt, _xfilt, _dxfilt, _mags_ = self.sim.pops[pid].phot.get_photometry(flux, owaves,
+                    cam=cam, filters=[filt])
+                                
+                # Second dimension is number of filters, which is always one here.
+                mags[okzsub==1] = _mags_[:,0].copy()
+            else:
+                flux[okzsub==1] = _flux_ * corr / (1. + zsub_mid)
+
+            # Move along
             zsub_lo += self.dz_max
-
-        return flux
+        
+        if is_photometry:
+            return mags
+        else:
+            return flux
 
     def _get_size_catalog(self, zlim, logmlim, red, Mh, pid):
         """
@@ -1654,7 +1706,7 @@ class LightCone(object): # pragma: no cover
                         elif channel.lower() in ['ms', 'mstell']:
                             raise NotImplemented('help')
                         elif channel.lower() in ['ellip', 'nsers', 'pa', 'r50']:
-                            R_sec, nsers, ellip, pa = self._get_size_catalog(zlim,
+                            R_sec, nsers, ellip, pa = self._get_size_catalog(zlayer,
                                 logmlim, _red, _Mh, pid)
 
                             _dat_dict = {'r50': R_sec, 'nsers': nsers,
@@ -1662,35 +1714,11 @@ class LightCone(object): # pragma: no cover
 
                             _dat = _dat_dict[channel.lower()]
                         else:
-                            cam, filt = channel.split('_')
-
-                            #raise NotImplemented('do we need to do this anymore?')
-
-                            ##
-                            # Once again, in general need to sub-cycle through z
-                            # to preserve accuracy.
-                            zsub_lo = 1 * zlo
-
-                            mags = np.inf * np.ones(_Mh.size)
-                            while zsub_lo < zhi:
-
-                                zsub_hi = min(zsub_lo + self.dz_max, zhi)
-
-                                zsub_mid = np.mean([zsub_lo, zsub_hi])
-
-                                okzsub = np.logical_and(_red >= zsub_lo,
-                                                        _red < zsub_hi)
-
-                                _filt, out = \
-                                    self.sim.pops[pid].get_mags(zsub_mid,
-                                    absolute=False, cam=cam, filters=[filt],
-                                    Mh=_Mh[okzsub==1])
-
-                                # There's a meaningless second dimension here
-                                # because get_mags can report mags for multiple
-                                # filters at once, we're just not doing that here.
-                                mags[okzsub==1] = out[:,0]
-                                zsub_lo += self.dz_max
+                            # If `channel` is a string, this routine will first generate
+                            # spectra at `dlam` resolution before convolving with the
+                            # relevant filter transmission curve.
+                            mags = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
+                                channel, pid, seed=seed_kw['seed_lum'], dlam=dlam)
 
                             if cat_units == 'mags':
                                 _dat = np.atleast_1d(mags.squeeze())

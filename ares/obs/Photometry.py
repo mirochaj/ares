@@ -84,6 +84,8 @@ class Photometry(object):
             # the requested band. This results in fluctuations in slope
             # measurements, so to be more stringent set picky=True.
             if restricted_range is not None:
+                if type(zobs) in [tuple, list, np.ndarray]:
+                    raise NotImplemented('not hard just do it')
 
                 rest_lo, rest_hi = restricted_range
 
@@ -102,8 +104,12 @@ class Photometry(object):
             lmax = max(lmax, cent + dx[0] * (1. + tol))
 
         # Convert from microns to Angstroms, undo redshift.
-        lmin = lmin * 1e4 / (1. + zobs)
-        lmax = lmax * 1e4 / (1. + zobs)
+        if type(zobs) in [tuple, list, np.ndarray]:
+            lmin = lmin * 1e4 / (1. + max(zobs))
+            lmax = lmax * 1e4 / (1. + min(zobs))
+        else:
+            lmin = lmin * 1e4 / (1. + zobs)
+            lmax = lmax * 1e4 / (1. + zobs)
 
         #lmin = max(lmin, self.src.tab_waves_c.min())
         #lmax = min(lmax, self.src.tab_waves_c.max())
