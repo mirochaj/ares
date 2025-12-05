@@ -1293,7 +1293,7 @@ class Population(object):
                     #    band=_band) / dfreq[jj]
                     _tot = self.get_emissivity(z[ll], x=_waves[jj],
                         units='Ang', units_out='erg/s/Hz',
-                        band=None) #/ dfreq[jj]
+                        band=None)
 
                     # Convert from luminosity in erg to photons / s / Hz
                     epsilon[ll,jj] = _tot / H[ll] / (E[jj] * erg_per_ev)

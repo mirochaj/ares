@@ -2872,6 +2872,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             # This stuff should go in _get_lum_from_tab
             if (band is not None):
+                # If `band` was provided we've already integrated out the Hz^-1 or Ang^-1
                 pass
             elif units_out.lower() == 'erg/s/hz':
                 pass

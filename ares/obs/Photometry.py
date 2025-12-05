@@ -17,7 +17,7 @@ from ..physics.Constants import flux_AB, c
 
 all_cameras = ['wfc', 'wfc3', 'hubble', 'hst', 'nircam', 'roman', 'irac',
     'spitzer', 'wise', '2mass', 'panstarrs', 'euclid', 'spherex', 'sdss',
-    'hsc']
+    'hsc', 'tophat']
 
 class Photometry(object):
     def __init__(self, **kwargs):
@@ -125,8 +125,7 @@ class Photometry(object):
 
     def get_photometry(self, flux, owaves, flux_units=None,
         cam='wfc3', filters=None, presets=None,
-        rest_wave=None,
-        idnum=None, picky=False,
+        rest_wave=None, idnum=None, picky=False,
         load=True, use_pbar=True):
         """
         Take as input a spectrum (or set of spectra) and 'photometrize' them,
@@ -205,7 +204,7 @@ class Photometry(object):
         if flux.ndim == 2:
             batch_mode = True
 
-        # Convert microns to cm. micron * (m / 1e6) * (1e2 cm / m)
+        # Get frequencies for integration (integrating over erg/s/Hz spectrum).
         freq_obs = c / (owaves * 1e-4)
 
         # Why do NaNs happen? Just nircam.
@@ -251,8 +250,6 @@ class Photometry(object):
             else:
                 integrand = -1. * flux * T_regrid
                 _yphot = np.sum(integrand[0:-1] * np.diff(freq_obs))
-
-                #_yphot = np.trapezoid(integrand, x=freq_obs)
 
             corr = np.sum(T_regrid[0:-1] * -1. * np.diff(freq_obs), axis=-1)
 

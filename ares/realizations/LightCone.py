@@ -500,7 +500,13 @@ class LightCone(object): # pragma: no cover
         if type(channel) == str:
             is_photometry = True
             mags = np.zeros_like(Mh)
-            cam, filt = channel.split('_')
+            cam, _filt_ = channel.split('_')
+
+            if '-' in _filt_:
+                lo, hi = _filt_.split('-')
+                filt = (float(lo), float(hi))
+            else:
+                filt = _filt_
         else:
             is_photometry = False
             flux = np.zeros_like(Mh)
@@ -517,29 +523,48 @@ class LightCone(object): # pragma: no cover
             ##
             # Support for proper photometry...
             if is_photometry:
-                waves = self.sim.pops[pid].phot.get_required_spectral_range((zsub_lo, zsub_hi), 
+                # `waves_e` in Angstroms. These are in the rest frame.
+                waves_e = self.sim.pops[pid].phot.get_required_spectral_range((zsub_lo, zsub_hi), 
                     cam=cam, filters=[filt], dlam=dlam)
-                owaves = waves * (1. + zsub_mid) / 1e4
+                
+                waves_c = bin_e2c(waves_e)
 
-                _flux_ = np.zeros((okzsub.sum(), len(waves)))
+                owaves_e = waves_e * (1. + zsub_mid) / 1e4
+                owaves = waves_c * (1. + zsub_mid) / 1e4
+
+                freq_obs = c / (owaves * 1e-4)
+                freq_obs_e = c / (owaves_e * 1e-4)
+                
+                freq_rest_e = c / (waves_e * 1e-8)
+                dfreq = np.abs(np.diff(freq_rest_e))
+                dfreq_obs = np.abs(np.diff(freq_obs_e))
+                freq_rest_c = c / (waves_c * 1e-8)
+
+                _flux_ = np.zeros((okzsub.sum(), len(waves_c)))
 
                 # Note that in this case we keep the fluxes in erg/s/Hz units 
                 # since that's what our `get_photometry` routine assumes further below.
-                for j, x in enumerate(waves):
+                for j, x in enumerate(waves_c):
+                    band = waves_e[j], waves_e[j+1]
+    
                     tmp = self.sim.pops[pid].get_lum(zsub_mid, x=x,
                         Mh=Mh[okzsub==1], units='Ang',
-                        units_out='erg/s/hz')
+                        units_out='erg/s/Ang', band=band)
                     
-                    _flux_[:,j] = tmp
+                    _flux_[:,j] = tmp / dfreq_obs[j]
                     
+                #
             # ...or tophat over some channel width
             else: 
                 band = channel[0] * 1e4 / (1. + zsub_mid), \
                        channel[1] * 1e4 / (1. + zsub_mid)
-    
+                
+                dfreq_obs = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
+                    
                 _flux_ = self.sim.pops[pid].get_lum(zsub_mid, x=None,
                     Mh=Mh[okzsub==1], units='Ang',
-                    units_out='erg/s/Ang', band=tuple(band))
+                    units_out='erg/s/Ang', band=tuple(band)) \
+                    / dfreq_obs
             
             ##
             # Add luminosity scatter here!
@@ -552,7 +577,6 @@ class LightCone(object): # pragma: no cover
                     noise = np.power(10, 
                         np.log10(_flux_) + np.reshape(lognoise, _flux_.shape[0])[:,None]) \
                         - _flux_
-                    
                 else:
                     noise = np.power(10, 
                         np.log10(_flux_) + np.reshape(lognoise, _flux_.shape)) \
@@ -560,22 +584,26 @@ class LightCone(object): # pragma: no cover
                     
                 _flux_ += noise
 
-
-            # Frequency "squashing", i.e., our 'per Angstrom' interval is
-            # different in the observer frame by a factor of 1+z.
-            corr = 1. / 4. / np.pi \
+            ##
+            # Get geometric dilution factor
+            d_corr = 1. / 4. / np.pi \
                 / (np.interp(zsub_mid, self.tab_z, self.tab_dL) * cm_per_mpc)**2
             
+            # Account for frequency squashing and possibly do photometrization
             if is_photometry:
-                flux = _flux_ * corr / (1. + zsub_mid)
+                # Fluxes are in erg/s/Hz rest frame, hence (1+z) factor
+                flux = _flux_ * d_corr #* (1. + zsub_mid)
 
-                _filt, _xfilt, _dxfilt, _mags_ = self.sim.pops[pid].phot.get_photometry(flux, owaves,
-                    cam=cam, filters=[filt])
-                                
+                _filt, _xfilt, _dxfilt, _mags_ = \
+                    self.sim.pops[pid].phot.get_photometry(
+                    flux, owaves, cam=cam, filters=[filt]
+                    )
+                           
                 # Second dimension is number of filters, which is always one here.
                 mags[okzsub==1] = _mags_[:,0].copy()
             else:
-                flux[okzsub==1] = _flux_ * corr / (1. + zsub_mid)
+                # Fluxes are in erg/s/Ang [rest frame], hence (1+z)^-1 factor
+                flux[okzsub==1] = _flux_ * d_corr #/ (1. + zsub_mid)
 
             # Move along
             zsub_lo += self.dz_max
@@ -896,12 +924,13 @@ class LightCone(object): # pragma: no cover
             # erg/s/cm^2/Ang, but then integrated over channel.
             # Will need channel width in Hz to recover specific
             # intensities averaged over band.
-            nu = c * 1e4 / np.mean(channel)
-            dnu = c * 1e4 * (channel[1] - channel[0]) / np.mean(channel)**2
+            #nu = c * 1e4 / np.mean(channel)
+            #dnu = (c * 1e4 / chan_mic[0]) - (c * 1e4 / chan_mic[1])
 
-            _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
-                channel, pid, seed=seed_kw['seed_lum'])
-            flux *= 1. / (self.get_map_norm(cat_units) / dnu)
+            #_dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
+            #    channel, pid, seed=seed_kw['seed_lum'])
+            
+            flux *= 1. / self.get_map_norm(cat_units)
         else:
             # Run fresh if we didn't find anything
             ra, dec, red, Mh, parents = self.get_catalog_halos(
@@ -1686,12 +1715,16 @@ class LightCone(object): # pragma: no cover
                             # erg/s/cm^2/Ang, but then integrated over channel.
                             # Will need channel width in Hz to recover specific
                             # intensities averaged over band.
-                            nu = c * 1e4 / np.mean(chan_mic)
-                            dnu = c * 1e4 * (chan_mic[1] - chan_mic[0]) / np.mean(chan_mic)**2
+                            #nu = c * 1e4 / np.mean(chan_mic)
+                            #dnu = c * 1e4 * (chan_mic[1] - chan_mic[0]) / np.mean(chan_mic)**2
+                            dnu = (c * 1e4 / chan_mic[0]) - (c * 1e4 / chan_mic[1])
 
                             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
-                                chan_mic, pid, seed=seed_kw['seed_lum'])
-                            _dat *= self.get_map_norm(cat_units) / dnu
+                                chan_mic, pid, seed=seed_kw['seed_lum'], dlam=dlam)
+                            # This gets conversion factor from cgs (internal) to user's 
+                            # preferred `cat_units`
+                            _dat *= self.get_map_norm(cat_units)
+                            
                         elif channel in ['Mh']:
                             _dat = _Mh
                         elif channel in ['rvir']:
@@ -2292,8 +2325,9 @@ class LightCone(object): # pragma: no cover
 
             # Will need channel width in Hz to recover specific intensities
             # averaged over band.
-            nu = c * 1e4 / np.mean(chan_mic)
-            dnu = c * 1e4 * (chan_mic[1] - chan_mic[0]) / np.mean(chan_mic)**2
+            #nu = c * 1e4 / np.mean(chan_mic)
+            #dnu = c * 1e4 * (chan_mic[1] - chan_mic[0]) / np.mean(chan_mic)**2
+            dnu = (c * 1e4 / chan_mic[0]) - (c * 1e4 / chan_mic[1])
 
             # What buffer should we increment?
             if (not keep_layers):
@@ -2360,7 +2394,7 @@ class LightCone(object): # pragma: no cover
                         logmlim=mlayer, zlim=zlayer, wave_units=wave_units,
                         suffix=suffix,
                         fmt=fmt, include_galaxy_sizes=include_galaxy_sizes)
-                    self.save_map(_fn, buffer * f_norm / dnu,
+                    self.save_map(_fn, buffer * f_norm,
                         channel, zlayer, logmlim, fov,
                         pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
                         verbose=verbose, clobber=clobber)
@@ -2416,7 +2450,7 @@ class LightCone(object): # pragma: no cover
             if done_w_chan and ((not was_done_already) or (not _fn_exists)) \
                 and load_if_found:
 
-                self.save_map(_fn, cimg * f_norm / dnu,
+                self.save_map(_fn, cimg * f_norm,
                     channel, self.zlim, logmlim, fov,
                     pix=pix, fmt=fmt, hdr=hdr, map_units=map_units,
                     verbose=verbose, clobber=clobber)

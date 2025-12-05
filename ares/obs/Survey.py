@@ -45,10 +45,10 @@ class Survey(object):
         Plot transmission curves for filters.
         """
 
-        import matplotlib.pyplot as pl
+        import matplotlib.pyplot as plt
 
         if ax is None:
-            fig = pl.figure(fig, figsize=(6, 6))
+            fig = plt.figure(fig, figsize=(6, 6))
             ax = fig.add_subplot(111)
             gotax = False
         else:
@@ -77,7 +77,7 @@ class Survey(object):
                 **kwargs)
 
             if annotate:
-                if filt.endswith('IR'):
+                if type(filt) == str and filt.endswith('IR'):
                     _filt = filt[0:-3]
                 else:
                     _filt = filt
@@ -142,8 +142,42 @@ class Survey(object):
             return self._read_hsc(filters)
         elif self.camera == 'dirbe':
             return self._read_dirbe(filters)
+        elif self.camera == 'tophat':
+            return self._read_tophat(filters)
         else:
             raise NotImplemented(f"Unrecognized cam '{cam}'")
+
+    def _read_tophat(self, filters=None):
+        """
+        Special case. `filters` should be list of band edges in microns, e.g.,
+
+            filters=[(1, 1.4), (1.4, 1.8)]
+
+        yields J and H-like tophat filters.
+        """
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        data = {}
+        for filt in filters:
+            lo, hi = filt
+            # By default use 1 Angstrom resolution why not 
+            x = np.arange(max((lo - 0.1) * 1e4, 0), (hi + 0.1) * 1e4 + 1, 1)
+            x_mic = x / 1e4
+            y = np.ones_like(x)
+            y[x_mic < lo] = 0
+            y[x_mic > hi] = 0
+
+            # Bypass _get_filter_prop
+            mi = np.mean([lo, hi])
+            dx = (hi - mi, mi - lo)
+            Tavg = 1.
+
+            data[filt] = x_mic, y, mi, dx, Tavg
+
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
 
     def _read_nircam(self, filters=None): # pragma: no cover
 
