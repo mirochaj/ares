@@ -4009,6 +4009,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                 # Remember: phi is dn/dlnL
                 return lum, phi
+            
 
         ##
         # Extra step if we're dealing with satellites
@@ -4134,6 +4135,9 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # If we made it here, there's no scatter. Life is a bit easier.
         # Still could be centrals or satellites but that's encoded in `dndm`.
+
+        assert np.all(dL > 0), \
+            "Need to revisit double-valued-ness problem in sigma=0 limit!" 
 
         phi_of_L = dndm * dmdlnL
 
