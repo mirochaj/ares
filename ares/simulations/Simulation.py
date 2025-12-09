@@ -333,14 +333,7 @@ class Simulation(object):
                 if i not in pops:
                     continue
 
-            if (cache_ipop_mtx is not None) and include_inter_pop:
-                _px, _pz = cache_ipop_mtx
-                _npops = _px.shape[0]
-                # If we're covered by the cache, use it
-                if i < _npops:
-                    px[i,j,:,:] = _px[i,j,:,:].copy()
-                    ps_z[i,j,:,:,:] = _pz[i,j,:,:,:].copy()
-                    continue
+            
 
             for j, popx in enumerate(self.pops):
                 # Avoid double counting
@@ -350,6 +343,16 @@ class Simulation(object):
                 # Honor user-supplied list of populations to include
                 if pops is not None:
                     if j not in pops:
+                        continue
+                
+                # Try to load from cache [optional]
+                if (cache_ipop_mtx is not None) and include_inter_pop:
+                    _px, _pz = cache_ipop_mtx
+                    _npops = _px.shape[0]
+                    # If we're covered by the cache, use it
+                    if i < _npops:
+                        px[i,j,:,:] = _px[i,j,:,:].copy()
+                        ps_z[i,j,:,:,:] = _pz[i,j,:,:,:].copy()
                         continue
 
                 for k, wave in enumerate(waves):
