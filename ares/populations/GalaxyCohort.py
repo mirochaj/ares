@@ -2995,7 +2995,7 @@ class GalaxyCohort(GalaxyAggregate):
                         _Lh_ *= ihl_lfrac
 
                         if (self.pf['pop_ihl_suppression'] is not None) or \
-                           (self.pf['pop_ihl_mask'] is not None):
+                           (self.pf['pop_ihl_mask_method'] > 0):
                             fsupp = self.tab_fmask_ihl[iz,:]
                             #fsupp = self.get_ihl_suppression(z=z,
                             #    Mh=self.halos.tab_M)
@@ -3069,6 +3069,11 @@ class GalaxyCohort(GalaxyAggregate):
             freqs = c * 1e8 / ltab_w
             lum = np.trapezoid(ltab[:,:,iw1:iw2+1], x=-freqs[iw1:iw2+1],
                 axis=-1)
+            
+            ##
+            # Need to be more careful here?
+
+
         elif x is not None:
             wave = self.src.get_ang_from_x(x, units=units)
             iw = np.argmin(np.abs(wave - ltab_w))
@@ -3277,7 +3282,7 @@ class GalaxyCohort(GalaxyAggregate):
         This function returns the fraction of IHL emission lost to masking.
         """
 
-        # Option #1: suppression due to random loss of pixels from
+        # Option #0: suppression due to random loss of pixels from
         # masking foreground/background galaxies. Probably shouldn't do this...
         # Mkk will take care of this effect in practice, no?
         if self.pf['pop_ihl_suppression'] is not None:
@@ -3289,9 +3294,20 @@ class GalaxyCohort(GalaxyAggregate):
             fmask = np.ones_like(Mh) * n_per_deg / pix_per_deg
             return np.minimum(1, fmask)
 
+        ##
+        # Simple approach first: reduce IHL by s
+        elif self.pf['pop_ihl_mask_method'] == 1:
+
+            ##
+            # Need access to centrals or have user provide by hand.
+
+
+            
+            raise NotImplementedError('help')
+
         # Option #2: loss of pixels would contribute to IHL but have
-        # subhalos in them that have been masked out.
-        elif (self.pf['pop_ihl_mask'] is not None):
+        # subhalos in them that have been masked out.        
+        elif self.pf['pop_ihl_mask_method'] == 2:
 
             # Need to figure out how many satellites are brighter than mag
             # cut as a function of Mh.
@@ -3358,7 +3374,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Ultimately, we're returning the fraction of IHL lost to masking.
             return flost
-
+        
         else:
             return np.zeros_like(Mh)
 

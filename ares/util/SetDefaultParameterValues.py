@@ -539,6 +539,7 @@ def PopulationParameters():
     "pop_centrals": True,
     "pop_ihl": None,
     "pop_ihl_mask": None,
+    "pop_ihl_mask_method": 0,
     "pop_ihl_mask_pix": 6,
     "pop_ihl_suppression": None,
 
