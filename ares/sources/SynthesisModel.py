@@ -15,12 +15,12 @@ import numbers
 import numpy as np
 from scipy.optimize import minimize
 from scipy.integrate import cumulative_trapezoid
-
 from ..core import SpectralSynthesis
 from ..data import ARES
 from .Source import Source
+from scipy.integrate import quad
 from ..util.Stats import bin_c2e
-from ..util.Math import interp1d
+from ..util.Math import interp1d, integrate_with_subgrid_interp
 from ..util.Misc import numeric_types
 from ..physics import Cosmology
 from ares.data import read as read_lit
@@ -373,7 +373,8 @@ class SynthesisModelBase(Source):
         units='Angstrom', units_out='erg/s/Hz', raw=False, nebular_only=False,
         Z=None):
         """
-        Compute the luminosity per unit SFR (or mass, if source_ssp=True).
+        Compute the luminosity per unit SFR (or mass, if source_ssp=True) 
+        for all times.
 
         Parameters
         ----------
@@ -454,15 +455,21 @@ class SynthesisModelBase(Source):
                         yield_UV[i] = data[i1,i] * dlam \
                             / (self.tab_energies_c[i1] * erg_per_ev)
                 else:
+                    l1, l2 = self.get_ang_from_x(band, units=units)
+
                     if 'erg' in units_out.lower():
-                        integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0]
+                        integrand = data[:,i] * self.tab_waves_c
                     else:
-                        integrand = data[i1:i0,i] * self.tab_waves_c[i1:i0] \
-                            / (self.tab_energies_c[i1:i0] * erg_per_ev)
-
-                    yield_UV[i] = np.trapezoid(integrand,
-                        x=np.log(self.tab_waves_c[i1:i0]))
-
+                        integrand = data[:,i] * self.tab_waves_c \
+                            / (self.tab_energies_c * erg_per_ev)
+#                   
+                    yield_UV[i] = integrate_with_subgrid_interp(
+                        np.log(self.tab_waves_c), integrand,
+                        np.log(l1), np.log(l2), method='trapz_trapz', 
+                        brute_force_for_single_pt=1, axis=-1)
+                    
+                    if yield_UV[i] < 0:
+                        raise ValueError(f'Negative lum_per_sfr! band={band}, l1={l1}, l2={l2}')
 
         else:
             wave = self.get_ang_from_x(x, units=units)

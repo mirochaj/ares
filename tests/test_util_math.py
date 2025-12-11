@@ -13,7 +13,7 @@ Description:
 import numpy as np
 from scipy.interpolate import interp1d
 from ares.util.Math import interp1d_wrapper, forward_difference, \
-    central_difference, five_pt_stencil, LinearNDInterpolator, smooth
+    central_difference, LinearNDInterpolator, smooth
 
 def test():
 
@@ -36,7 +36,6 @@ def test():
     # Test derivative routines
     x1, dydx1 = forward_difference(x, y)
     x2, dydx2 = central_difference(x, y)
-    x3, dydx3 = five_pt_stencil(x, y)
 
     # Smoothing
     d = y + np.random.normal(scale=0.5, size=y.size)

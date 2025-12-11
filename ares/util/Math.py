@@ -11,8 +11,8 @@ Description:
 """
 
 import numpy as np
-from scipy.integrate import quad
 from ..physics.Constants import nu_0_mhz
+from scipy.integrate import quad, simpson
 from scipy.interpolate import interp1d as interp1d_scipy
 
 try:
@@ -28,6 +28,140 @@ except ImportError:
 
 
 _numpy_kwargs = {'left': None, 'right': None}
+
+def integrate_with_subgrid_interp(x, y, bound_lo, bound_hi, method='trapz_trapz',
+    brute_force_for_single_pt=False, axis=-1):
+    """
+    Sometimes doing numpy.trapezoid isn't good enough.
+
+    In particular, if the grid is relatively coarse *and* we're not 
+    integrating over the full domain, and we just associate the integration
+    bounds with the nearest grid points, we can accrue noticeable numerical
+    error.
+
+    This routine is designed to help.
+
+    Basically, we treat the 'bulk' of the integral using the trapezoidal rule
+    and then correct for the extra area under the curve that is off of our
+    grid points.
+    
+    Parameters
+    ----------
+    x : np.ndarray 
+        Array of x values.
+    y : np.ndarray
+        Function values corresponding to given x values. Note: this can 
+        be more than 1-D, see `axis` parameter.
+    bound_lo : int, float
+        Lower limit of integration
+    bound_hi : int, float
+        Upper limit of integration.
+    method : str 
+        Current options: 'trapz_nn', 'trapz_cubic', 'quad_cubic'
+    brute_force_for_single_pt : bool
+        In the rare case where bound_lo and bound_hi are both in the same grid 
+        point, just fit the full curve with a cubic spline and integrate using
+        quad. The alternative(s) can be very inaccurate.
+
+    Returns 
+    -------
+    Integral of function y(x) between `bound_lo` and `bound_hi`.
+    """
+
+    ##
+    # Automatically flip arrays and/or bounds
+    if bound_lo > bound_hi:
+        lo = bound_hi * 1.
+        bound_hi = bound_lo * 1.
+        bound_lo = lo
+    
+    if not np.all(np.diff(x) > 0):
+        x = x[-1::-1]
+        y = y[-1::-1]
+
+        assert np.all(np.diff(x) > 0), "Non-monotonic x values!"
+        
+    # We don't do extrapolation here
+    assert bound_lo >= x.min(), \
+            f"Hey! bound_lo={bound_lo:.3e}, must be >= min(x)={min(x)}"
+    assert bound_hi <= x.max(), \
+            f"Hey! bound_hi={bound_hi:.3e}, must be <= max(x)={max(x)}"
+
+    ##
+    # Otherwise, we're keeping it simpler/faster.
+    i_lo = np.argmin(np.abs(x - bound_lo))
+    i_hi = np.argmin(np.abs(x - bound_hi))
+
+    # We force the bounding indices to contain `bound_lo` and `bound_hi`.
+    # So, our corrections *remove* extra bits of the integrand.
+    # Nothing special here, just a convention.
+    if (x[i_lo] > bound_lo) and i_lo >= 1:
+        i_lo -= 1
+    if (x[i_hi] < bound_hi) and i_hi < (len(x) - 1):
+        i_hi += 1
+
+    ##
+    # Brute force. Setup interpolant and then integrate using quad.
+    if (method == 'cubic_quad') or ((i_lo == i_hi) and brute_force_for_single_pt):
+
+        if y.ndim > 1:
+            raise NotImplemented('help')
+        else:
+            f = interp1d(x, y, kind='cubic', axis=axis)
+            return quad(f, bound_lo, bound_hi)[0]
+
+    ##
+    # Special case: both points in same grid point.
+    if (i_lo == i_hi):
+        # In this case, just doing a rectangular integration as 
+        # we have no knowledge of broader function shape.
+        if method == 'trapz_nn':
+            return y[i_lo] * (bound_hi - bound_lo)
+        else:
+            pass
+            # Will get dealt with below.
+
+    # Recall: i_lo and i_hi extend past our integration bounds.
+    # First we'll compute this integral
+    if method.startswith('trapz'):
+        full = np.trapezoid(y[i_lo:i_hi+1], x=x[i_lo:i_hi+1], axis=axis)
+    elif method.startswith('simps'):
+        full = simpson(y[i_lo:i_hi+1], x=x[i_lo:i_hi+1], axis=axis)
+
+    # Equivalent to 'nn' correction
+    if '_' not in method:
+        return full
+
+    # From here on its all about how we correct for the extra little 
+    # slivers of the integral we need to remove. We're calling these 
+    # the 'ears' because they hang off the sides.
+    corr_method = method.split('_')[-1]
+
+    ##
+    # General case.
+    if corr_method == 'nn':
+        return full
+    elif corr_method == 'trapz':
+        # Recall: i_lo and i_hi extend past our integration bounds.
+        # First we'll compute this integral
+
+        # Trapezoid of left 'ear'
+        dydx_l = (y[i_lo+1] - y[i_lo]) / (x[i_lo+1] - x[i_lo])
+        y_bound_lo = y[i_lo] + (bound_lo - x[i_lo]) * dydx_l
+        rect_l = (bound_lo - x[i_lo]) * y_bound_lo
+        corr_l = rect_l + 0.5 * (bound_lo - x[i_lo]) * (y[i_lo] - y_bound_lo)
+
+        # Trapezoid of right 'ear'
+        dydx_r = (y[i_hi] - y[i_hi-1]) / (x[i_hi] - x[i_hi-1])
+        y_bound_hi = y[i_hi-1] + (bound_hi - x[i_hi-1]) * dydx_r
+        rect_r = (x[i_hi] - bound_hi) * y_bound_hi
+        corr_r = rect_r + 0.5 * (x[i_hi] - bound_hi) * (y[i_hi] - y_bound_hi)
+    
+        # Subtract of ears and we're done.
+        return full - corr_l - corr_r
+    else:
+        raise NotImplementedError('help')
+
 
 def interp1d(x, y, kind='linear', fill_value=0.0, bounds_error=False,
     force_scipy=False, **kwargs):
@@ -128,31 +262,6 @@ def central_difference(x, y, keep_size=False):
     else:
         xout = x[1:-1]
         yout = dydx[1:-1]
-
-    return xout, yout
-
-def five_pt_stencil(x, y, keep_size=False):
-    """
-    Compute the first derivative of y wrt x using five point method.
-    """
-
-    h = abs(np.diff(x)[0])
-
-    dydx = -np.roll(y, -2) + 8. * np.roll(y, -1) \
-          - 8. * np.roll(y, 1) + np.roll(y, 2)
-    dydx /= (12 * h)
-
-    if keep_size:
-        xout = x
-        yout = dydx.copy()
-        #
-        yout[0] = (y[1] - y[0]) / (x[1] - x[0])
-        yout[1] = (y[2] - y[1]) / (x[2] - x[1])
-        yout[-1] = (y[-1] - y[-2]) / (x[-1] - x[-2])
-        yout[-2] = (y[-2] - y[-3]) / (x[-2] - x[-3])
-    else:
-        xout = x[2:-2]
-        yout = dydx[2:-2]
 
     return xout, yout
 
