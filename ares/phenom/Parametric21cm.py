@@ -26,8 +26,7 @@ class Parametric21cm(object):
         self.cosm = Cosmology(**self.pf)
 
         # Create instance of Hydrogen class
-        self.hydr = Hydrogen(cosm=self.cosm,
-            approx_Salpha=self.pf['approx_Salpha'], **kwargs)
+        self.hydr = Hydrogen(cosm=self.cosm, **self.pf)
 
     def electron_density(self, z):
         return np.interp(z, self.cosm.thermal_history['z'],

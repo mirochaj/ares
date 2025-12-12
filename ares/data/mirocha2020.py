@@ -68,6 +68,7 @@ _sed_updates = \
 _halo_updates = \
 {
  # Use constant timestep
+ 'halo_dz': None,
  'halo_dt': 1.,
  'halo_tmax': 2e3,
  'halo_mf': 'Tinker10',

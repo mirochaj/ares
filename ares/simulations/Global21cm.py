@@ -160,7 +160,6 @@ class Global21cm(AnalyzeGlobal21cm):
             if kwargs['gaussian_model']:
                 from ..phenom.Gaussian21cm import Gaussian21cm as PhenomModel
                 self.is_gauss = True
-                print('wtf indeed', self.is_gauss)
         if 'parametric_model' in kwargs:
             if kwargs['parametric_model']:
                 from ..phenom.Parametric21cm import Parametric21cm as PhenomModel

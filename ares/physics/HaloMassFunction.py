@@ -135,18 +135,15 @@ class HaloMassFunction(object):
         if attempt_load:
             prefix = self.tab_prefix_hmf(True)
             fn = os.path.join(_path, prefix)
-
             # First, look for a perfect match
-            if os.path.exists(
-                    '{0!s}.{1!s}'.format(fn, self.pf['preferred_format'])
-            ):
+            if os.path.exists(f'{fn}.{self.pf['preferred_format']}'):
                 self.tab_name = '{0!s}.{1!s}'.format(fn, self.pf['preferred_format'])
             # Next, look for same table different format
             elif os.path.exists('{!s}.hdf5'.format(fn)):
                 self.tab_name = '{!s}.hdf5'.format(fn)
             else:
 
-                print(f"Didn't find {fn}. Looking for other candidates...")
+                print(f"! Didn't find {fn}. Looking for other candidates...")
 
                 # Leave resolution blank, but enforce ranges
                 prefix = self.tab_prefix_hmf()
@@ -194,6 +191,8 @@ class HaloMassFunction(object):
                             continue
 
                         self.tab_name = candidate
+
+                print(f"* Found {self.tab_name}.")
 
 
         # Override switch: compute Press-Schechter function analytically
@@ -1677,13 +1676,13 @@ class HaloMassFunction(object):
             #)
 
             prefix = f"halo_mf_{self.pf['halo_mf']}_{self.cosm.get_prefix()}"
-            prefix += f"_logM_{logMsize:.0f}_{M1:.0f}_{M2:.0f}"
+            prefix += f"_logM_{logMsize:.0f}_{M1:.0f}-{M2:.0f}"
             prefix += f"_{s}_{zsize:.0f}"
 
             if is_dlogx:
-                prefix += f"_{z1:.3f}_{z2:.3f}"
+                prefix += f"_{z1:.3f}-{z2:.3f}"
             else:
-                prefix += f"_{z1:.0f}_{z2:.0f}"
+                prefix += f"_{z1:.0f}-{z2:.0f}"
 
         else:
 

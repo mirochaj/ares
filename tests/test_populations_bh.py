@@ -33,6 +33,7 @@ def test():
      'pop_sed': 'pl',
      'pop_alpha': -1.5,
      'halo_dt': 1.,
+     'halo_dz': None,
      #'sam_dz': 0.05,
      #'sam_atol': 1e-6,
      #'sam_rtol': 1e-8,

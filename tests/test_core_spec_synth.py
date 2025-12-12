@@ -28,6 +28,7 @@ def test(show_bpass=False, oversample_age=30., dt_coarse=10):
     f = toy.frequencies
 
     pars = ares.util.ParameterBundle('mirocha2020:univ')
+    pars.update(ares.util.ParameterBundle('testing:galaxies'))
     pars['pop_sed'] = 'sps-toy'
     pars['pop_toysps_beta'] = -2.
     # Turn off aging so we recover beta = -2

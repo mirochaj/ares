@@ -516,6 +516,7 @@ _planck2015 = \
 
 _galaxies_testing = \
 {
+ 'halo_dz': None,
  'halo_dt': 1,
  'halo_tmin': 30.,
  'halo_tmax': 1000.,
