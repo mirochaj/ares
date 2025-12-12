@@ -145,6 +145,9 @@ class HaloMassFunction(object):
             elif os.path.exists('{!s}.hdf5'.format(fn)):
                 self.tab_name = '{!s}.hdf5'.format(fn)
             else:
+
+                print(f"Didn't find {fn}. Looking for other candidates...")
+
                 # Leave resolution blank, but enforce ranges
                 prefix = self.tab_prefix_hmf()
                 full_path = os.path.join(ARES, "halos", prefix)
@@ -783,7 +786,9 @@ class HaloMassFunction(object):
 
                 self._load_hmf()
 
-            elif self.pf['halo_dt'] is None:
+            elif self.pf['halo_dz'] is not None:
+                assert self.pf['halo_dt'] is None 
+                assert self.pf['halo_dlogx'] is None
 
                 dz = self.pf['halo_dz']
                 zmin = max(self.pf['halo_zmin'] - 2*dz, 0.0)
@@ -792,7 +797,10 @@ class HaloMassFunction(object):
                 Nz = int(round(((zmax - zmin) / dz) + 1, 1))
                 self._tab_z = np.linspace(zmin, zmax, Nz)
                 self._tab_t = self.cosm.t_of_z(self._tab_z) / s_per_myr
-            else:
+            elif self.pf['halo_dt'] is not None:
+                assert self.pf['halo_dz'] is None 
+                assert self.pf['halo_dlogx'] is None
+
                 dt = self.pf['halo_dt'] # Myr
 
                 tmin = max(self.pf['halo_tmin'] - 2*dt, 20.)
@@ -808,7 +816,21 @@ class HaloMassFunction(object):
                 # Should check that z >= 0, which can happen if we weren't
                 # careful to check age of Universe with given cosmological
                 # parameters, and because we add a buffer at the end.
+            elif self.pf['halo_dlogx'] is not None:
+                assert self.pf['halo_dt'] is None 
+                assert self.pf['halo_dz'] is None
 
+                # x = 1+z
+                tab_logx = np.arange(self.pf['halo_logxmin'], 
+                    self.pf['halo_logxmax']+self.pf['halo_dlogx'],
+                    self.pf['halo_dlogx'])
+                self._tab_logx = tab_logx
+                
+                self._tab_z = np.exp(tab_logx) - 1.
+                self._tab_t = np.array([self.cosm.t_of_z(zz) for zz in self._tab_z]) \
+                    / s_per_myr
+            else:
+                raise NotImplementedError('Unknown z gridding scheme! Provide halo_dz, halo_dt, or halo_dlogx please!')
 
         return self._tab_z
 
@@ -1516,7 +1538,7 @@ class HaloMassFunction(object):
         #return Mmin_vbc + Mmin_H2
 
     def get_table_zstr(self):
-        if self.pf['halo_dt'] is None:
+        if self.pf['halo_dz'] is not None:
             z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
 
             # Just use integer redshift bounds please.
@@ -1532,10 +1554,10 @@ class HaloMassFunction(object):
                 / self.pf['halo_dz']) + 1
 
             return f'{s}_{int(zsize)}_{z1}-{z2}'
-        else:
+        elif self.pf['halo_dt'] is not None:
             t1, t2 = self.pf['halo_tmin'], self.pf['halo_tmax']
 
-            # Just use integer redshift bounds please.
+            # Just use integer time bounds please.
             assert t1 % 1 == 0
             assert t2 % 1 == 0
 
@@ -1549,13 +1571,25 @@ class HaloMassFunction(object):
                 / self.pf['halo_dt']) + 1
 
             return f'{s}_{int(tsize)}_{t1}-{t2}'
+        
+        elif self.pf['halo_dlogx'] is not None:
+            lx1, lx2 = self.pf['halo_logxmin'], self.pf['halo_logxmax']
+            
+            xsize = ((lx2 - lx1) \
+                / self.pf['halo_dlogx']) + 1
+            
+            return f'logx_{int(xsize)}_{lx1:.3f}-{lx2:.3f}'
+        
+        else:
+            raise NotImplementedError('Unknown z gridding scheme! Provide halo_dz, halo_dt, or halo_dlogx please!')
+
 
     def tab_prefix_hmf(self, with_size=False):
         """
         What should we name this table?
 
         Convention:
-        halo_mf_FIT_logM_nM_logMmin_logMmax_z_nz_
+        halo_mf_FIT_logM_nM_logMmin_logMmax_z_nz_zlo_zhi
 
         Read:
         halo mass function using FIT form of the mass function
@@ -1566,8 +1600,8 @@ class HaloMassFunction(object):
 
         M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
 
-
-        if self.pf['halo_dt'] is None:
+        is_dlogx = False
+        if self.pf['halo_dz'] is not None:
             z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
 
             # Just use integer redshift bounds please.
@@ -1584,7 +1618,7 @@ class HaloMassFunction(object):
                 / self.pf['halo_dz']
             ) + 1
 
-        else:
+        elif self.pf['halo_dt'] is not None:
             t1, t2 = self.pf['halo_tmin'], self.pf['halo_tmax']
 
             # Just use integer redshift bounds please.
@@ -1602,6 +1636,22 @@ class HaloMassFunction(object):
                 / self.pf['halo_dt']
             ) + 1
 
+        elif self.pf['halo_dlogx'] is not None:
+            lx1, lx2 = self.pf['halo_logxmin'], self.pf['halo_logxmax']
+            
+            zsize = ((self.pf['halo_logxmax'] - self.pf['halo_logxmin']) \
+                / self.pf['halo_dlogx']) + 1
+            
+            z1 = lx1 
+            z2 = lx2
+
+            s = 'logx'
+            z = self.tab_z
+            #z1 = np.exp(np.log(1+z.min()))
+            #z2 = np.exp(np.log(1+z.max()))
+            zsize = z.size
+
+            is_dlogx = True
 
         if with_size:
             logMsize = (
@@ -1609,27 +1659,35 @@ class HaloMassFunction(object):
                 / self.pf['halo_dlogM']
             )
 
-
             assert logMsize % 1 == 0
             logMsize = int(logMsize)
             assert zsize % 1 == 0, f"Require integer number of z bins! {zsize}"
             zsize = int(round(zsize, 1))
 
-            s = 'halo_mf_{0!s}_{1!s}_logM_{2}_{3}-{4}_{5}_{6}_{7}-{8}'.format(
-                self.pf['halo_mf'],
-                self.cosm.get_prefix(),
-                logMsize,
-                M1,
-                M2,
-                s,
-                zsize,
-                z1,
-                z2,
-            )
+            #s = 'halo_mf_{0!s}_{1!s}_logM_{2}_{3}-{4}_{5}_{6}_{7}-{8}'.format(
+            #    self.pf['halo_mf'],
+            #    self.cosm.get_prefix(),
+            #    logMsize,
+            #    M1,
+            #    M2,
+            #    s,
+            #    zsize,
+            #    z1,
+            #    z2,
+            #)
+
+            prefix = f"halo_mf_{self.pf['halo_mf']}_{self.cosm.get_prefix()}"
+            prefix += f"_logM_{logMsize:.0f}_{M1:.0f}_{M2:.0f}"
+            prefix += f"_{s}_{zsize:.0f}"
+
+            if is_dlogx:
+                prefix += f"_{z1:.3f}_{z2:.3f}"
+            else:
+                prefix += f"_{z1:.0f}_{z2:.0f}"
 
         else:
 
-            s = 'halo_mf_{0!s}_{1!s}_logM_*_{2}-{3}_{4}_*_{5}-{6}'.format(
+            prefix = 'halo_mf_{0!s}_{1!s}_logM_*_{2}-{3}_{4}_*_{5}-{6}'.format(
                 self.pf['halo_mf'],
                 self.cosm.get_prefix(),
                 M1,
@@ -1640,14 +1698,14 @@ class HaloMassFunction(object):
             )
 
         if self.pf['halo_mf_window'].lower() != 'tophat':
-            s += '_{}'.format(self.pf['halo_mf_window'].lower())
+            prefix += '_{}'.format(self.pf['halo_mf_window'].lower())
 
         if self.pf['halo_wdm_mass'] is not None:
             #TODO: For Testing, the assertion is for correct nonlinear fits.
             #assert self.pf['hmf_window'].lower() == 'sharpk'
-            s += '_wdm_{:.2f}'.format(self.pf['halo_wdm_mass'])
+            prefix += '_wdm_{:.2f}'.format(self.pf['halo_wdm_mass'])
 
-        return s
+        return prefix
 
     def save_hmf(self, fn=None, clobber=False, destination=None, fmt='hdf5',
         save_MAR=True):

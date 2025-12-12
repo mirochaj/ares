@@ -1260,6 +1260,11 @@ def HaloMassFunctionParameters():
         "halo_tmax": 1000.0,
         "halo_dt": None,     # if not None, will switch this one.
 
+        # Optional: log(1+z) instead of redshift
+        "halo_logxmin": 0.005,   # about z=0.005
+        "halo_logxmax": 3.05,    # about z=20
+        "halo_dlogx": None,     # 0.02 yields about 150 bins for above values
+
         # Augment suite of halo growth histories
         "halo_hist_dlogM": 0.1,
         'halo_hist_Mmax': 10, # 10x the

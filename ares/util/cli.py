@@ -533,6 +533,7 @@ def generate_hmf_tables(path, **kwargs):
         "halo_wdm_mass": None,
 
         # Can do constant timestep instead of constant dz
+        "halo_dz": None,
         "halo_dt": 10,
         "halo_tmin": 30.0,
         "halo_tmax": 13.7e3,  # Myr
@@ -651,7 +652,8 @@ def make_halos(path):
     """
     generate_hmf_tables(path, halo_mf="ST")
     generate_hmf_tables(path, halo_mf="PS", halo_zmin=5, halo_zmax=30, halo_dz=1)
-    generate_hmf_tables(path, halo_mf="ST", halo_dt=1, halo_tmin=30, halo_tmax=1000)
+    generate_hmf_tables(path, halo_mf="ST", halo_dt=1, halo_tmin=30, halo_tmax=1000,
+        halo_dz=None)
     generate_halo_histories(
         path,
         "halo_mf_ST_planck_TTTEEE_lowl_lowE_best_logM_1400_4-18_t_971_30-1000.hdf5",
@@ -688,6 +690,7 @@ def generate_nfw_Sigma_tables(path, **kwargs):
         "halo_wdm_mass": None,
 
         # Can do constant timestep instead of constant dz
+        "halo_dz": None,
         "halo_dt": 10,
         "halo_tmin": 30.0,
         "halo_tmax": 13.7e3,  # Myr
@@ -749,6 +752,7 @@ def generate_nfw_ukm_tables(path, **kwargs):
         "halo_wdm_mass": None,
 
         # Can do constant timestep instead of constant dz
+        "halo_dz": None,
         "halo_dt": 10,
         "halo_tmin": 30.0,
         "halo_tmax": 13.7e3,  # Myr
@@ -1308,14 +1312,14 @@ def init_ares(args):
         ## Generate default HMFs.
         make_data_dir(f"{args.path}/halos")
         generate_hmf_tables(f"{args.path}/halos",
-            halo_mf='Tinker10', halo_dt=100, halo_tmin=100)
+            halo_mf='Tinker10', halo_dt=100, halo_tmin=100, halo_dz=None)
         generate_hmf_tables(f"{args.path}/halos",
-            halo_mf='Tinker10', halo_dt=10, halo_tmin=30)
+            halo_mf='Tinker10', halo_dt=10, halo_tmin=30, halo_dz=None)
 
         generate_nfw_ukm_tables(f"{args.path}/halos",
-            halo_mf='Tinker10', halo_dt=100, halo_tmin=100)
+            halo_mf='Tinker10', halo_dt=100, halo_tmin=100, halo_dz=None)
         generate_nfw_ukm_tables(f"{args.path}/halos",
-            halo_mf='Tinker10', halo_dt=10, halo_tmin=30)
+            halo_mf='Tinker10', halo_dt=10, halo_tmin=30, halo_dz=None)
 
         # Nice to have UniverseMachine for comparison and for 
         # all the included datasets

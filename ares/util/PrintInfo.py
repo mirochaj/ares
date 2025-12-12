@@ -329,14 +329,18 @@ def print_hmf(hmf):
     print(line('Table Limits & Resolution'))
     print(line('-' * twidth))
 
-    if hmf.pf['halo_dt'] is None:
+    if hmf.pf['halo_dz'] is not None:
         print(line("zmin                  : {0:g}".format(hmf.pf['halo_zmin'])))
         print(line("zmax                  : {0:g}".format(hmf.pf['halo_zmax'])))
         print(line("dz                    : {0:g}".format(hmf.pf['halo_dz'])))
-    else:
+    elif hmf.pf['halo_dt'] is not None:
         print(line("tmin (Myr)            : {0:g}".format(hmf.pf['halo_tmin'])))
         print(line("tmax (Myr)            : {0:g}".format(hmf.pf['halo_tmax'])))
         print(line("dt   (Myr)            : {0:g}".format(hmf.pf['halo_dt'])))
+    elif hmf.pf['halo_dlogx'] is not None:
+        print(line("log(1+z_min)            : {0:g}".format(hmf.pf['halo_logxmin'])))
+        print(line("log(1+z_max)            : {0:g}".format(hmf.pf['halo_logxmax'])))
+        print(line("dlog(1+z)               : {0:g}".format(hmf.pf['halo_dlogx'])))
 
     print(line("Mmin (Msun)           : {0:e}".format(\
         10 ** hmf.pf['halo_logMmin'])))

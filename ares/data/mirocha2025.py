@@ -6,6 +6,7 @@ HOME = os.getenv("HOME")
 
 setup = \
 {
+ "halo_dz": None,
  "halo_dt": 100,
  "halo_tmin": 100.,
  "halo_tmax": 13.7e3, # Myr
