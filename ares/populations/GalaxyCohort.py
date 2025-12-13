@@ -3635,6 +3635,10 @@ class GalaxyCohort(GalaxyAggregate):
         if not hasattr(self, '_tab_fmask'):
             self._tab_fmask = self._get_mask_general()
         return self._tab_fmask
+    
+    @tab_fmask.setter
+    def tab_fmask(self, value):
+        self._tab_mask = value
 
     def _get_mask_general(self):
         """

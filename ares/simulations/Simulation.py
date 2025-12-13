@@ -316,6 +316,10 @@ class Simulation(object):
         if waves2 is None:
             waves2 = waves
 
+        ##
+        # Pre-processing: any populations masked based on other population?
+        self._share_masks()
+
         ps = np.zeros((len(self.pops), len(scales), len(waves)))
         px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
         # Save contributing pieces
@@ -332,8 +336,6 @@ class Simulation(object):
             if pops is not None:
                 if i not in pops:
                     continue
-
-            
 
             for j, popx in enumerate(self.pops):
                 # Avoid double counting
@@ -467,6 +469,51 @@ class Simulation(object):
 
     #    return self._pops
 
+    def _share_masks(self):
+        """
+        Figure out if the mask for any populations depend on the others.
+
+        If yes, compute the mask and manually set the attribute of the population 
+        in need of another's mask.
+
+        Returns
+        -------
+        Doesn't return anything -- manually sets the `tab_fmask` attribute of 
+        the population(s) in need of another's mask. Recall that tab_fmask is
+        just the fraction of galaxies that are masked in each (redshift, halo mass)
+        bin (with axes corresponding to halos.tab_z and halos.tab_M).
+        """
+
+        any_links = 0
+        link_needed = []
+        for i, pop in self.pops:
+            if pop.pf['pop_mask_shared_with'] is None:
+                continue
+
+            any_links += 1
+            link_needed.append(i)
+
+        if not any_links:
+            return None
+        
+        ##
+        # Otherwise, determine mask 
+        masks_by_pop = {}
+        for linker in link_needed:
+
+            linkee = self.pops[pop].pf['pop_mask_shared_with']
+
+            pop_w_mask = self.pops[linkee]
+
+            ##
+            # Determine key field, f_mask.
+            self.pops[linker].tab_fmask = self.pops[linkee].tab_fmask
+
+            if self.pf['verbose']:
+                print(f"* Linking mask of pop={linker} to that of pop={linkee}")
+
+        return masks_by_pop
+
     @property
     def grid(self):
         return self.sim_gs.medium.field.grid
@@ -478,6 +525,7 @@ class Simulation(object):
                 self._hydr = self.grid.hydr
             else:
                 self._hydr = Hydrogen(pf=self.pf, cosm=self.cosm, **self.pf)
+
         return self._hydr
 
     @property

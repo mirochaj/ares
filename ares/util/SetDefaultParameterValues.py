@@ -693,6 +693,7 @@ def PopulationParameters():
     "pop_mask_logic": 'or',
     "pop_mask_sats_of_centrals": False,
     "pop_mask_interp": None,
+    "pop_mask_shared_with": None,
 
     # For GalaxyEnsemble
     "pop_aging": False,
