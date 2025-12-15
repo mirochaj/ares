@@ -228,7 +228,7 @@ aux_data = {
         None,
     ],
     "sedtabs": [
-        "https://drive.google.com/file/d/11_1ih3XmaACAy5QW_qStt6yJ9X4Q2CUL/view?usp=sharing",
+        "https://drive.google.com/file/d/1gvLDOiYSkeBytnev4riABXl-FMMiddWp/view?usp=sharing",
         "sedtabs.tar.gz",
         None,
     ],
