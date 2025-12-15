@@ -152,47 +152,9 @@ class HaloMassFunction(object):
 
                 if len(candidates) == 1:
                     self.tab_name = candidates[0]
+                    print(f"* Found {self.tab_name}.")
                 else:
-
-                    # What parameter file says we need.
-                    logMmax = self.pf['halo_logMmax']
-                    logMmin = self.pf['halo_logMmin']
-                    logMsize = (logMmax - logMmin) / self.pf['halo_dlogM']
-                    # Get an extra bin so any derivatives will still be
-                    # sane at the boundary.
-                    zmax = self.pf['halo_zmax']
-                    zmin = self.pf['halo_zmin']
-                    zsize = (zmax - zmin) / self.pf['halo_dz'] + 1
-
-                    self.tab_name = None
-                    for candidate in candidates:
-
-                        if 'hist' in candidate:
-                            continue
-
-                        results = list(map(int, re.findall(r'\d+', candidate)))
-
-                        if self.pf['halo_mf'] == 'Tinker10':
-                            ist = 1
-                        else:
-                            ist = 0
-
-                        if 'hdf5' in candidate:
-                            ien = -1
-                        else:
-                            ien = None
-
-                        _Nm, _logMmin, _logMmax, _Nz, _zmin, _zmax = results[ist:ien]
-
-                        if (_logMmin > logMmin) or (_logMmax < logMmax):
-                            continue
-
-                        if (_zmin > zmin) or (_zmax < zmax):
-                            continue
-
-                        self.tab_name = candidate
-
-                print(f"* Found {self.tab_name}.")
+                    raise IOError("Did not find matching HMF table.")
 
 
         # Override switch: compute Press-Schechter function analytically
