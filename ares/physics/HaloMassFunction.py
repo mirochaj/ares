@@ -136,7 +136,7 @@ class HaloMassFunction(object):
             prefix = self.tab_prefix_hmf(True)
             fn = os.path.join(_path, prefix)
             # First, look for a perfect match
-            if os.path.exists(f'{fn}.{self.pf['preferred_format']}'):
+            if os.path.exists(f"{fn}.{self.pf['preferred_format']}"):
                 self.tab_name = '{0!s}.{1!s}'.format(fn, self.pf['preferred_format'])
             # Next, look for same table different format
             elif os.path.exists('{!s}.hdf5'.format(fn)):
