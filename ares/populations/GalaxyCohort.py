@@ -2994,12 +2994,11 @@ class GalaxyCohort(GalaxyAggregate):
                         ihl_lfrac = (fihl / (1. - fihl))
                         _Lh_ *= ihl_lfrac
 
-                        if (self.pf['pop_ihl_suppression'] is not None) or \
-                           (self.pf['pop_ihl_mask_method'] > 0):
-                            fsupp = self.tab_fmask_ihl[iz,:]
-                            #fsupp = self.get_ihl_suppression(z=z,
-                            #    Mh=self.halos.tab_M)
-                            _Lh_ *= (1 - fsupp)
+                        if (self.pf['pop_ihl_suppression_method'] > 1):
+                            flost = self.get_ihl_suppression(z=z,
+                                Mh=self.halos.tab_M)
+                            _Lh_ *= (1 - flost)
+                        
 
                 else:
                     Ls = Ms * L_sfr
@@ -3269,45 +3268,129 @@ class GalaxyCohort(GalaxyAggregate):
 
         return arr
 
-    @cached_property
-    def tab_fmask_ihl(self):
-        self._tab_fmask_ihl = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
-        for i, z, in enumerate(self.halos.tab_z):
-            self._tab_fmask_ihl[i,:] = self.get_ihl_suppression(z=z,
-                Mh=self.halos.tab_M)
-        return self._tab_fmask_ihl
+    #@cached_property
+    #def tab_fmask_ihl(self):
+#
+    #    if self.pf['pop_mask_shared_with'] is not None:
+    #        assert self.pf['pop_ihl_suppression_method'] == 1
+    #        # Should have been set by hand in Simulation.get_ebl_ps
+    #        # call to Simulation._share_masks
+    #        assert hasattr(self, '_tab_fmask')
+    #        
+    #        self._tab_fmask_ihl = self.tab_fmask
+    #    else:
+#
+    #        self._tab_fmask_ihl = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
+    #        for i, z, in enumerate(self.halos.tab_z):
+    #            self._tab_fmask_ihl[i,:] = self.get_ihl_suppression(z=z,
+    #                Mh=self.halos.tab_M)
+    #            
+    #    return self._tab_fmask_ihl
+
+    @property 
+    def _ihl_mask_prop(self):
+        if not hasattr(self, '_ihl_mask_prop_'):
+            self._ihl_mask_prop_ = self.pf['pop_ihl_mask']
+        return self._ihl_mask_prop_
+    
+    @_ihl_mask_prop.setter
+    def _ihl_mask_prop(self, value):
+        self._ihl_mask_prop_ = value
+        
+    @property
+    def tab_fsupp_ihl(self):
+        if not hasattr(self, '_tab_fsupp_ihl'):
+            raise NotImplemented('help')
+        return self._tab_fsupp_ihl
 
     def get_ihl_suppression(self, z, Mh):
         """
         This function returns the fraction of IHL emission lost to masking.
+
+        Unlike self.tab_fmask, which is binary (entire halo gone or not), 
+        this is a fractional reduction in IHL luminosity, as long as 
+        `pop_ihl_suppression_method` is greater than 1.
         """
 
-        # Option #0: suppression due to random loss of pixels from
-        # masking foreground/background galaxies. Probably shouldn't do this...
-        # Mkk will take care of this effect in practice, no?
-        if self.pf['pop_ihl_suppression'] is not None:
-
-            n_per_deg, pix = self.pf['pop_ihl_suppression']
-
-            pix_per_deg = 3600.**2 / pix**2
-
-            fmask = np.ones_like(Mh) * n_per_deg / pix_per_deg
-            return np.minimum(1, fmask)
-
         ##
-        # Simple approach first: reduce IHL by s
-        elif self.pf['pop_ihl_mask_method'] == 1:
+        # Simple approach first: mask out any IHL associated with a masked central.
+        if self.pf['pop_ihl_suppression_method'] == 1:
+            # Note: this routine will not get called if `pop_mask_related_to_pops`
+            # is provided. 
+            # Also: masking is binary in this case, so all effects are wrapped up in 
+            # tab_fmask rather (hits the occupation fraction) rather than 
+            # dimming.
+            pass
 
-            ##
-            # Need access to centrals or have user provide by hand.
-
-
+        elif self.pf['pop_ihl_suppression_method'] == 2:
+            # This is like case 1 except we mask a fixed fraction of IHL, 
+            # set by the fraction of the (projected) virial radius occupied
+            # by the central galaxy.
             
-            raise NotImplementedError('help')
+            focc, fmask = self._ihl_mask_prop
+
+            Rvir_mpc = self.halos.get_Rvir(z, M=self.halos.tab_M) / 1e3
+            
+            fvir = self.pf['pop_ihl_suppression_factor']
+
+            iz = self.get_zindex(z)
+
+            Rarr = self.halos.tab_R_nfw
+
+            flost = np.zeros_like(self.halos.tab_M)
+            for i, M in enumerate(self.halos.tab_M):
+                flost[i] = np.interp(fvir * Rvir_mpc[i], Rarr, 
+                    self.halos.tab_Sigma_nfw_cdf[iz,i,:])
+                                
+            return flost
+        
+        elif self.pf['pop_ihl_suppression_method'] == 3:
+            # This is like case 1 except we mask a fixed fraction of IHL, 
+            # set by the fraction of the (projected) virial radius occupied
+            # by the central galaxy.
+            # We also must supply the pixel scale: this provides a lower bound
+            # on what fraction of the IHL is masked, i.e., no less than 
+            # 1 pixels worth of the projected surface area.
+            pix = self.pf['pop_ihl_mask_pix']
+            assert pix is not None, \
+                "Must provide pixel scale for pop_ihl_suppression_method=3! (arcsec please)"
+            
+            focc, fmask = self._ihl_mask_prop
+
+            Rvir_mpc = self.halos.get_Rvir(z, M=self.halos.tab_M) / 1e3
+            # Convert Rvir to angle, convert from arcmin to arcsec
+            Rvir_ang = np.array(
+                [self.cosm.get_angle_from_length_comoving(z, RR) * 60 \
+                for RR in Rvir_mpc])
+
+            # Area of central halos vs. mass in arcsec**2
+            area_per_halo = 4 * np.pi * np.array(Rvir_ang)**2
+
+            # What fraction of pixels does the central occupy?
+        
+            fvir = self.pf['pop_ihl_suppression_factor']
+
+            iz = self.get_zindex(z)
+
+            Rarr = self.halos.tab_R_nfw
+            Rarr_ang = np.array(
+                [self.cosm.get_angle_from_length_comoving(z, RR) * 60 \
+                for RR in Rarr])
+
+            Rlost = fvir * Rvir_ang
+            flost = np.zeros_like(self.halos.tab_M)
+            for i, M in enumerate(self.halos.tab_M):
+                
+                Rang = max(fvir * Rvir_ang[i], pix)
+
+                flost[i] = np.interp(Rang, Rarr_ang, 
+                    self.halos.tab_Sigma_nfw_cdf[iz,i,:])
+                                
+            return flost
 
         # Option #2: loss of pixels would contribute to IHL but have
         # subhalos in them that have been masked out.        
-        elif self.pf['pop_ihl_mask_method'] == 2:
+        elif self.pf['pop_ihl_suppression_method'] == 4:
 
             # Need to figure out how many satellites are brighter than mag
             # cut as a function of Mh.
@@ -3329,24 +3412,24 @@ class GalaxyCohort(GalaxyAggregate):
 
             iz = self.get_zindex(z)
 
+            # Offload this to another routine
+
             # Shape of dndlnm_sub (centrals, satellites)
             dndlnm_sub = self.halos.tab_dndlnm_sub[:,:] #/ self.halos.tab_M[:,None]
 
             num_mask = np.zeros_like(self.halos.tab_M)
-            for (focc, fmask) in self.pf['pop_ihl_mask']:
+            focc, fmask = self._ihl_mask_prop
 
-                # Need to integrate number of subhalos per central that will
-                # be masked.
-                ok = self.halos.tab_M >= self.get_Mmin(z)
-                for j, Mc in enumerate(self.halos.tab_M):
-                    if not ok[j]:
-                        continue
-
-                    _num = np.trapezoid(
-                        dndlnm_sub[j,ok==1] * focc[iz,ok==1] * fmask[iz,ok==1],
-                        x=np.log(self.halos.tab_M[ok==1]))
-
-                    num_mask += _num
+            # Need to integrate number of subhalos per central that will
+            # be masked.
+            ok = self.halos.tab_M >= self.get_Mmin(z)
+            for j, Mc in enumerate(self.halos.tab_M):
+                if not ok[j]:
+                    continue
+                _num = np.trapezoid(
+                    dndlnm_sub[j,ok==1] * focc[iz,ok==1] * fmask[iz,ok==1],
+                    x=np.log(self.halos.tab_M[ok==1]))
+                num_mask += _num
 
 
             # First, we compute the Virial radius of all halos and convert that
@@ -3374,6 +3457,18 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Ultimately, we're returning the fraction of IHL lost to masking.
             return flost
+        
+        # Option #4: suppression due to random loss of pixels from
+        # masking foreground/background galaxies. Probably shouldn't do this...
+        # Mkk will take care of this effect in practice, no?
+        elif self.pf['pop_ihl_suppression_method'] == np.nan:
+
+            n_per_deg, pix = self.pf['pop_ihl_suppression']
+
+            pix_per_deg = 3600.**2 / pix**2
+
+            fmask = np.ones_like(Mh) * n_per_deg / pix_per_deg
+            return np.minimum(1, fmask)
         
         else:
             return np.zeros_like(Mh)
@@ -3633,12 +3728,12 @@ class GalaxyCohort(GalaxyAggregate):
     @property
     def tab_fmask(self):
         if not hasattr(self, '_tab_fmask'):
-            self._tab_fmask = self._get_mask_general()
+            # Override switch
+            if hasattr(self, '_ihl_mask_prop_'):
+                focc, self._tab_fmask = self._ihl_mask_prop
+            else:
+                self._tab_fmask = self._get_mask_general()
         return self._tab_fmask
-    
-    @tab_fmask.setter
-    def tab_fmask(self, value):
-        self._tab_mask = value
 
     def _get_mask_general(self):
         """

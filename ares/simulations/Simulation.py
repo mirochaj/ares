@@ -318,7 +318,7 @@ class Simulation(object):
 
         ##
         # Pre-processing: any populations masked based on other population?
-        self._share_masks()
+        self._generate_masks()
 
         ps = np.zeros((len(self.pops), len(scales), len(waves)))
         px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
@@ -469,31 +469,33 @@ class Simulation(object):
 
     #    return self._pops
 
-    def _share_masks(self):
+    def _generate_masks(self):
         """
         Figure out if the mask for any populations depend on the others.
 
-        If yes, compute the mask and manually set the attribute of the population 
-        in need of another's mask.
+        If yes, compute the mask and manually set the relevant attributes
+        of the population in need of another's mask.
 
         Returns
         -------
         Doesn't return anything -- manually sets the `tab_fmask` attribute of 
         the population(s) in need of another's mask. Recall that tab_fmask is
         just the fraction of galaxies that are masked in each (redshift, halo mass)
-        bin (with axes corresponding to halos.tab_z and halos.tab_M).
+        bin (with axes corresponding to halos.tab_z and halos.tab_M). Note that 
+        for more complex cases we also set the `_ihl_mask_prop` attribute, 
+        which contains (occupation fraction, masked fraction).
         """
 
         any_links = 0
+        any_props = 0
         link_needed = []
-        for i, pop in self.pops:
-            if pop.pf['pop_mask_shared_with'] is None:
-                continue
+        prop_needed = []
+        for i, pop in enumerate(self.pops):
+            if pop.pf['pop_mask_related_to_pops'] is not None:
+                any_links += 1
+                link_needed.append(i)
 
-            any_links += 1
-            link_needed.append(i)
-
-        if not any_links:
+        if not (any_links or any_props):
             return None
         
         ##
@@ -501,13 +503,12 @@ class Simulation(object):
         masks_by_pop = {}
         for linker in link_needed:
 
-            linkee = self.pops[pop].pf['pop_mask_shared_with']
-
-            pop_w_mask = self.pops[linkee]
+            linkee = self.pops[linker].pf['pop_mask_related_to_pops']
 
             ##
             # Determine key field, f_mask.
-            self.pops[linker].tab_fmask = self.pops[linkee].tab_fmask
+            self.pops[linker]._ihl_mask_prop = \
+                self.pops[linkee].tab_focc, self.pops[linkee].tab_fmask
 
             if self.pf['verbose']:
                 print(f"* Linking mask of pop={linker} to that of pop={linkee}")

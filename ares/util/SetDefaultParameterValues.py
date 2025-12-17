@@ -538,10 +538,12 @@ def PopulationParameters():
 
     "pop_centrals": True,
     "pop_ihl": None,
+    "pop_ihl_suppression_method": 0,
+    "pop_ihl_suppression_factor": None,
     "pop_ihl_mask": None,
-    "pop_ihl_mask_method": 0,
     "pop_ihl_mask_pix": 6,
-    "pop_ihl_suppression": None,
+    
+
 
     "pop_focc": 1.0,
     "pop_focc_inv": False,
@@ -693,7 +695,7 @@ def PopulationParameters():
     "pop_mask_logic": 'or',
     "pop_mask_sats_of_centrals": False,
     "pop_mask_interp": None,
-    "pop_mask_shared_with": None,
+    "pop_mask_related_to_pops": None,
 
     # For GalaxyEnsemble
     "pop_aging": False,
