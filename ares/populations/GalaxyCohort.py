@@ -3355,20 +3355,26 @@ class GalaxyCohort(GalaxyAggregate):
             assert pix is not None, \
                 "Must provide pixel scale for pop_ihl_suppression_method=3! (arcsec please)"
             
-            focc, fmask = self._ihl_mask_prop
+            focc, fmask, msr = self._ihl_mask_prop
 
-            Rvir_mpc = self.halos.get_Rvir(z, M=self.halos.tab_M) / 1e3
-            # Convert Rvir to angle, convert from arcmin to arcsec
-            Rvir_ang = np.array(
-                [self.cosm.get_angle_from_length_comoving(z, RR) * 60 \
-                for RR in Rvir_mpc])
-
-            # Area of central halos vs. mass in arcsec**2
-            area_per_halo = 4 * np.pi * np.array(Rvir_ang)**2
+            assert msr is not None, \
+                "Must provide galaxy mass-size relation for pop_ihl_suppression_method=3!"
 
             # What fraction of pixels does the central occupy?
-        
-            fvir = self.pf['pop_ihl_suppression_factor']
+            # Should we use galaxy half-light radii as guide, ihl_suppresion_factor
+            # is a multiplier on top?
+            f_50_to_100 = self.pf['pop_ihl_suppression_factor']
+            
+            Rvir_mpc = self.halos.get_Rvir(z, M=self.halos.tab_M) / 1e3
+            Ms = self.get_mstell(z=z, Mh=self.halos.tab_M)
+            R50_mpc = msr(z=z, Ms=Ms) / 1e3
+
+            R100_mpc = f_50_to_100 * R50_mpc
+
+            # Convert Rvir to angle, convert from arcmin to arcsec
+            R100_ang = np.array(
+                [self.cosm.get_angle_from_length_comoving(z, RR) * 60 \
+                for RR in R100_mpc])
 
             iz = self.get_zindex(z)
 
@@ -3377,15 +3383,14 @@ class GalaxyCohort(GalaxyAggregate):
                 [self.cosm.get_angle_from_length_comoving(z, RR) * 60 \
                 for RR in Rarr])
 
-            Rlost = fvir * Rvir_ang
             flost = np.zeros_like(self.halos.tab_M)
             for i, M in enumerate(self.halos.tab_M):
                 
-                Rang = max(fvir * Rvir_ang[i], pix)
+                Rang = max(R100_ang[i], pix)
 
                 flost[i] = np.interp(Rang, Rarr_ang, 
                     self.halos.tab_Sigma_nfw_cdf[iz,i,:])
-                                
+                                                
             return flost
 
         # Option #2: loss of pixels would contribute to IHL but have
@@ -3730,7 +3735,7 @@ class GalaxyCohort(GalaxyAggregate):
         if not hasattr(self, '_tab_fmask'):
             # Override switch
             if hasattr(self, '_ihl_mask_prop_'):
-                focc, self._tab_fmask = self._ihl_mask_prop
+                focc, self._tab_fmask, msr = self._ihl_mask_prop
             else:
                 self._tab_fmask = self._get_mask_general()
         return self._tab_fmask

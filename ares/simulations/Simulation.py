@@ -506,9 +506,10 @@ class Simulation(object):
             linkee = self.pops[linker].pf['pop_mask_related_to_pops']
 
             ##
-            # Determine key field, f_mask.
+            # Determine key field, f_mask, galaxy mass-size relations.
             self.pops[linker]._ihl_mask_prop = \
-                self.pops[linkee].tab_focc, self.pops[linkee].tab_fmask
+                self.pops[linkee].tab_focc, self.pops[linkee].tab_fmask, \
+                self.pops[linkee].pf['pop_msr']
 
             if self.pf['verbose']:
                 print(f"* Linking mask of pop={linker} to that of pop={linkee}")
