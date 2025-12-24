@@ -21,7 +21,7 @@ from ..simulations import Simulation
 from scipy.special import gammaincinv
 from ..util.Stats import bin_e2c, bin_c2e
 from ..util.ProgressBar import ProgressBar
-from scipy.spatial.transform import Rotation
+from scipy.interpolate import RegularGridInterpolator
 from ..util.Misc import numeric_types, get_hash, get_pop_info
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c, s_per_myr
@@ -1362,11 +1362,162 @@ class LightCone(object): # pragma: no cover
 
         return hdr
 
-    def generate_lightcone(self, fov, pix, channels):
+    def get_lc_grid(self, fov, pix, coordinates='comoving'):
         """
-        Generate a lightcone.
+        This returns a tuple of arrays whose values correspond to grid points 
+        of our lightcone, both in the transverse direction and along the line 
+        of sight. Voxel edges and centers are provided. 
+
+        Parameters
+        ----------
+        fov : int, float 
+            Field of view [deg]
+        pix : int, float 
+            Pixel scale [arcsec]
+        coordinates : str
+            Either 'comoving' or 'angular'.
+        
+        We provide grids both in cMpc/h and redshift, e.g.:
+
+        >>> xgrids, ygrids, zgrids = self.get_lc_grid(fov, pix)
+        >>> d_e, d_c, z_e, z_c = zgrids
+        >>> x_e, x_c = xgrids
+        >>> y_e, y_c = ygridsf
+
+        That is all.
         """
-        pass
+
+        # Determine LoS grid in cMpc / h
+        # First, convert redshift bounds of lightcone to co-moving distance
+        Lmin = self.sim.cosm.get_dist_los_comoving(0, self.zlim[0]) \
+                * self.sim.cosm.h70 / cm_per_mpc
+        Lmax = self.sim.cosm.get_dist_los_comoving(0, self.zlim[-1]) \
+            * self.sim.cosm.h70 / cm_per_mpc
+        # LoS resolution is just our grid scale
+        Lpix = self.Lbox / float(self.dims)
+
+        # Use these numbers to construct array of grid points.
+        # These are cMpc / h
+        Larr_e = np.arange(Lmin, Lmax+Lpix, Lpix)
+        Larr_c = Larr_e[0:-1] + 0.5 * Lpix
+
+        # Interpolate using comoving radial distance lookup table
+        # to get corresponding redshift bins.
+        zarr_e = np.interp(Larr_e / self.sim.cosm.h70, 
+            self.sim.cosm._tab_dist_los_co / cm_per_mpc, self.sim.cosm.tab_z)
+        zarr_c = np.interp(Larr_c / self.sim.cosm.h70, 
+            self.sim.cosm._tab_dist_los_co / cm_per_mpc, self.sim.cosm.tab_z)
+
+        # Also keep track of (x, y) coordinates in cMpc / h
+        x_e = y_e = np.arange(-self.Lbox / 2., (self.Lbox + Lpix) / 2., Lpix)
+        x_c = y_c = x_e[0:-1] + Lpix / 2.
+
+        # If we just wanted comoving coordinates, we're done.
+        if coordinates == 'comoving':
+            return (x_e, x_c), (y_e, y_c), (Larr_e, Larr_c, zarr_e, zarr_c)
+        # Otherwise, we have some more work to do.
+        elif coordinates == 'angular':
+            ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix=pix)
+
+            xarr_c_ang = np.zeros((zarr_c.size, ra_c.size))
+            yarr_c_ang = np.zeros((zarr_c.size, dec_c.size))
+            arcmin_per_cmpc = np.array([
+                self.sim.cosm.get_angle_from_length_comoving(zz, 1) \
+                    for zz in zarr_c])
+            deg_per_cmpc = arcmin_per_cmpc / 60.
+
+            for i, _z_ in enumerate(zarr_c):
+                xarr_c_ang[i] = ra_c / deg_per_cmpc[i]
+                yarr_c_ang[i] = dec_c / deg_per_cmpc[i]
+
+            return xarr_c_ang, yarr_c_ang, (Larr_e, Larr_c, zarr_e, zarr_c)
+        else:
+            raise NotImplementedError('help')
+
+    def generate_lightcone(self, fov, pix, coordinates='comoving',
+        lightcone_corr=True, interp_method='linear'):
+        """
+        Generate a lightcone. So far, the only option is a density lightcone 
+        but we could generalize this in the future.
+
+        .. note :: We're saving the fractional overdensity, delta, and so 
+            values span the domain (-1, inf).
+
+        Parameters
+        ----------
+        """
+
+        zlayers = self.get_redshift_layers(zlim=self.zlim)
+        zmid = zlayers.mean(axis=1)
+
+        xgrids, ygrids, zgrids = self.get_lc_grid(fov, pix, 'comoving')
+
+        # d's are cMpc / h, z's are redshifts
+        (d_e, d_c, z_e, z_c) = zgrids 
+        
+        ##
+        # Always need to first setup lightcone on normal grid
+        lc = np.zeros((self.dims, self.dims, self.dims * len(zmid)))
+        for i, layer in enumerate(zlayers):
+            
+            # Note that the random seed for the density box only 
+            # depends on `i` but we pass logmlim and popid here 
+            # just to avoid breaking stuff.
+            seed_kwargs = self.get_seed_kwargs(i, (10, 15), 0)
+            rho = self.get_density_field(z=zmid[i], 
+                seed=seed_kwargs['seed_box'],
+                lightcone_corr=lightcone_corr)
+            
+            lc[:,:,self.dims*i:self.dims*(i+1)] = rho.copy()
+
+        if coordinates == 'comoving':
+            return xgrids, ygrids, zgrids, lc
+        elif coordinates == 'angular':
+
+            xgrids_a, ygrids_a, zgrids_a = self.get_lc_grid(fov, pix, 'angular')
+
+            x_e, x_c = xgrids
+            y_e, y_c = ygrids
+            xarr_c_ang = xgrids_a
+            yarr_c_ang = ygrids_a
+
+            ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix)
+            
+            # Use regular comoving cMpc grid to build interpolator.
+            # Interpolate over log10(Delta) instead of little delta.
+            #interp = RegularGridInterpolator((x_c, x_c, d_c), 
+            #    np.log10(1+lc), method=interp_method)
+            
+            lc_a = np.zeros((ra_c.size, dec_c.size, z_c.size))
+            for i, _z_ in enumerate(z_c):
+
+                interp = RegularGridInterpolator((x_c, y_c), 
+                    np.log10(1+lc[:,:,i]), method=interp_method)
+            
+                # At each redshift, we have slightly different mapping from angle 
+                # to comoving scale.
+                xg, yg = np.meshgrid(xarr_c_ang[i], yarr_c_ang[i], indexing='ij')
+
+                # Redshift fixed here to effectively do 2-D interpolation.
+                #zpts = [d_c[i]] * len(xg.ravel())
+
+                #print('hi', i, _z_, xarr_c_ang.shape, xarr_c_ang[i].shape, z_c.shape, xg.shape, lc_a.shape)
+
+                #break
+                #new_f = 10**interp(np.array([xg.ravel(), yg.ravel(), zpts]).T) - 1.
+                new_f = 10**interp(np.array([xg.ravel(), yg.ravel()]).T) - 1.
+
+                lc_a[:,:,i] = new_f.reshape(xg.shape, order='C')
+
+            return (ra_e, ra_c), (dec_e, dec_c), zgrids_a, lc_a
+    
+        else:
+            raise NotImplementedError('help')
+        
+        
+        
+
+        
 
     def _filter_by_fov(self, ok):
         """

@@ -72,8 +72,8 @@ class LogNormal(LightCone): # pragma: no cover
         """
         self.Lbox = Lbox
         self.dims = dims
-        self.zmin = zmin
-        self.zmax = zmax
+        self.zmin = zmin # Remember: just used for file-naming! More precision in zlim
+        self.zmax = zmax # Remember: just used for file-naming! More precision in zlim
         self.zlim = (zmin, zmax)
         self.dz_max = dz_max
         self.lightcone_max_evol = lightcone_max_evol
