@@ -1434,8 +1434,8 @@ class LightCone(object): # pragma: no cover
         else:
             raise NotImplementedError('help')
 
-    def generate_lightcone(self, fov, pix, coordinates='comoving',
-        lightcone_corr=True, interp_method='linear'):
+    def generate_lightcone(self, fov, pix=None, coordinates='comoving',
+        lightcone_corr=True, interp_method='linear', clobber=False):
         """
         Generate a lightcone. So far, the only option is a density lightcone 
         but we could generalize this in the future.
@@ -1445,6 +1445,19 @@ class LightCone(object): # pragma: no cover
 
         Parameters
         ----------
+        fov : int, float 
+            Field of view, linear dimension [degrees].
+        pix : int, float
+            Pixel scale [arcseconds].
+            Only required for coordinates='angular'
+        lightcone_corr : bool 
+            If True, perform lightcone correction, i.e., interpolate properties
+            of co-eval cubes along line of sight if power spectrum evolves 
+            by more than given percentage from cube's front to back.
+        interp_method : str 
+            Will be passed to RegularGridInterpolator, and so should be 
+            'linear', 'sliner', 'quadratic', 'cubic', etc.
+
         """
 
         zlayers = self.get_redshift_layers(zlim=self.zlim)
@@ -1454,7 +1467,20 @@ class LightCone(object): # pragma: no cover
 
         # d's are cMpc / h, z's are redshifts
         (d_e, d_c, z_e, z_c) = zgrids 
+
+        # For final outputs. 
+        final_dir = self.get_output_dir(fov=fov, zlim=self.zlim,
+            logmlim=None)
         
+        ##
+        # Save to hdf5 file.
+        fn = f"{final_dir}/delta_{coordinates}_coords.hdf5"
+        
+        if os.path.exists(fn) and (not clobber):
+            raise NotImplemented('help')
+        elif self.verbose:
+            print(f"* Will save lightcone to {fn}.")
+
         ##
         # Always need to first setup lightcone on normal grid
         lc = np.zeros((self.dims, self.dims, self.dims * len(zmid)))
@@ -1471,7 +1497,7 @@ class LightCone(object): # pragma: no cover
             lc[:,:,self.dims*i:self.dims*(i+1)] = rho.copy()
 
         if coordinates == 'comoving':
-            return xgrids, ygrids, zgrids, lc
+            pass
         elif coordinates == 'angular':
 
             xgrids_a, ygrids_a, zgrids_a = self.get_lc_grid(fov, pix, 'angular')
@@ -1482,12 +1508,6 @@ class LightCone(object): # pragma: no cover
             yarr_c_ang = ygrids_a
 
             ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix)
-            
-            # Use regular comoving cMpc grid to build interpolator.
-            # Interpolate over log10(Delta) instead of little delta.
-            #interp = RegularGridInterpolator((x_c, x_c, d_c), 
-            #    np.log10(1+lc), method=interp_method)
-            
             lc_a = np.zeros((ra_c.size, dec_c.size, z_c.size))
             for i, _z_ in enumerate(z_c):
 
@@ -1497,28 +1517,40 @@ class LightCone(object): # pragma: no cover
                 # At each redshift, we have slightly different mapping from angle 
                 # to comoving scale.
                 xg, yg = np.meshgrid(xarr_c_ang[i], yarr_c_ang[i], indexing='ij')
-
-                # Redshift fixed here to effectively do 2-D interpolation.
-                #zpts = [d_c[i]] * len(xg.ravel())
-
-                #print('hi', i, _z_, xarr_c_ang.shape, xarr_c_ang[i].shape, z_c.shape, xg.shape, lc_a.shape)
-
-                #break
-                #new_f = 10**interp(np.array([xg.ravel(), yg.ravel(), zpts]).T) - 1.
                 new_f = 10**interp(np.array([xg.ravel(), yg.ravel()]).T) - 1.
-
                 lc_a[:,:,i] = new_f.reshape(xg.shape, order='C')
 
-            return (ra_e, ra_c), (dec_e, dec_c), zgrids_a, lc_a
-    
+                # Slower approach for sanity check
+                #for j, xx in enumerate(xarr_c_ang[i]):
+                #    for k, yy in enumerate(yarr_c_ang[i]):
+                #        lc_a[j,k,i] = 10**interp((xx, yy)) - 1.
+
+            xgrids = (ra_e, ra_c)
+            ygrids = (dec_e, dec_c)
+            zgrids = zgrids_a
+            lc = lc_a
+                
         else:
             raise NotImplementedError('help')
         
-        
-        
+        ##
+        # Save and return 
+        with h5py.File(fn, 'w') as f:
+            f.create_dataset('x_e', data=xgrids[0])
+            f.create_dataset('x_c', data=xgrids[1])
+            f.create_dataset('y_e', data=ygrids[0])
+            f.create_dataset('y_c', data=ygrids[1])
+            f.create_dataset('d_e', data=zgrids[0])
+            f.create_dataset('d_c', data=zgrids[1])
+            f.create_dataset('z_e', data=zgrids[2])
+            f.create_dataset('z_c', data=zgrids[3])
+            f.create_dataset('lc', data=lc)
+            f.create_dataset('rho_0', data=self.sim.cosm.mean_density0)
 
-        
+        print(f"* Wrote {fn}.")
 
+        return xgrids, ygrids, zgrids, lc
+        
     def _filter_by_fov(self, ok):
         """
 
