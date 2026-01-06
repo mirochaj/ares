@@ -48,10 +48,10 @@ known_lines = \
  'lya': 1216,
  'ha': 6563,
  'oiii': 5007,
- 'hbeta': 4861,
- 'hgamma': 4340,
- 'hdelta': 4102,
- 'hepsilon': 3970,
+ 'hb': 4861,
+ 'hg': 4340,
+ 'hd': 4102,
+ 'he': 3970,
  'oii': 3727,
  'pa': 1.87e4,
  'pah': 3.28e4,
@@ -1509,7 +1509,25 @@ class LightCone(object): # pragma: no cover
         fn = f"{final_dir}/delta_{coordinates}_coords.hdf5"
         
         if os.path.exists(fn) and (not clobber):
-            raise NotImplemented('help')
+            with h5py.File(fn, 'r') as f:
+                x_e = np.array(f[('x_e')])
+                x_c = np.array(f[('x_c')])
+                y_e = np.array(f[('y_e')])
+                y_c = np.array(f[('y_c')])
+                d_e = np.array(f[('d_e')])
+                d_c = np.array(f[('d_c')])
+                z_e = np.array(f[('z_e')])
+                z_c = np.array(f[('z_c')])
+                xgrids = x_e, x_c
+                ygrids = y_e, y_c
+                zgrids = d_e, d_c, z_e, z_c 
+                lc = np.array(f[('lc')])
+
+            if self.verbose:
+                (f"* Will save lightcone to {fn}.")
+
+            return xgrids, ygrids, zgrids, lc
+        
         elif self.verbose:
             print(f"* Will save lightcone to {fn}.")
 
