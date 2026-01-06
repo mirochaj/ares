@@ -2763,7 +2763,9 @@ class GalaxyCohort(GalaxyAggregate):
             elif (x is not None) and (abs(wave - _wave_) < R):
                 #raise NotImplementedError('should deprecate this')
                 # If lines are delta functions,
-                if 'erg/s/A' in units_out:
+                if units_out == 'erg/s':
+                    L_lines = _lum_
+                elif 'erg/s/A' in units_out:
                     L_lines = _lum_ / R
                 else:
                     # Line luminosities are provided in erg/s/(Msun/yr)
@@ -2780,7 +2782,7 @@ class GalaxyCohort(GalaxyAggregate):
     def _get_lum_stellar_pop(self, z, x=1600, use_tabs=True,
         band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False, Mh=None,
-        total_sat=True):
+        total_sat=True, separate_lines=False):
         """
         Determine the luminosity of stellar population(s) for all halos.
         """
@@ -2860,6 +2862,8 @@ class GalaxyCohort(GalaxyAggregate):
                 units_out='erg/s/Hz') * sfr
 
             if self.pf['pop_lum_per_sfr_off_wave'] == 0:
+                assert not separate_lines, \
+                    f"Should use `separate_lines` OR `pop_lum_per_sfr_off_wave`, not both"
                 Lh = Lh_l * 1.
             else:
                 # Need to interpolate in redshift, stellar mass, wavelength
@@ -2870,6 +2874,9 @@ class GalaxyCohort(GalaxyAggregate):
             if (not self.is_central_pop) and total_sat:
                 Lh = self.get_lum_sat_tot(z, Lh, use_tabs=use_tabs)
 
+                if separate_lines:
+                    Lh_l = self.get_lum_sat_tot(z, Lh_l, use_tabs=use_tabs)
+
             # This stuff should go in _get_lum_from_tab
             if (band is not None):
                 # If `band` was provided we've already integrated out the Hz^-1 or Ang^-1
@@ -2879,6 +2886,9 @@ class GalaxyCohort(GalaxyAggregate):
             elif units_out.lower().startswith('erg/s/a'):
                 wave = self.src.get_ang_from_x(x, units=units)
                 Lh = Lh * c * 1e8 / (np.mean(wave))**2
+
+                if separate_lines:
+                    Lh_l = Lh_l * c * 1e8 / (np.mean(wave))**2
             else:
                 raise NotImplementedError(f'Problem with units_out={units_out}')
 
@@ -2887,15 +2897,23 @@ class GalaxyCohort(GalaxyAggregate):
             #    ok *= self.halos.tab_M < self.get_Mmax(z)
 
             Lh[~ok] = 0
+            Lh_l[~ok] = 0
 
             if Mh is None:
-                return Lh
+                return (Lh, Lh_l) if separate_lines else Lh
             elif type(Mh) in numeric_types:
                 iM = np.argmin(np.abs(self.halos.tab_M - Mh))
-                return Lh[iM]
+                return (Lh[iM], Lh_l[iM]) if separate_lines else Lh[iM]
             else:
-                return 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
+                Ltot = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
                     np.log10(Lh), left=0, right=0)
+                if separate_lines:
+                    Ll = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
+                        np.log10(Lh_l), left=0, right=0)
+                    
+                    return Ltot, Ll
+                else:
+                    return Ltot
 
         ##
         # Loop over components (most often just one) and determine L
@@ -3113,7 +3131,7 @@ class GalaxyCohort(GalaxyAggregate):
         band=None, window=1, units='Angstrom',
         units_out='erg/s/A', load=True, raw=False, nebular_only=False,
         age=None, Mh=None, include_dust_transmission=True,
-        include_igm_transmission=True, total_sat=False):
+        include_igm_transmission=True, total_sat=False, separate_lines=False):
         """
         Return the luminosity of all halos at given redshift `z`.
 
@@ -3172,10 +3190,15 @@ class GalaxyCohort(GalaxyAggregate):
             # use same dust as host galaxies.
             include_dust_transmission = False
         elif self.pf['pop_star_formation']:
-            Lh = self._get_lum_stellar_pop(z, x=x, use_tabs=use_tabs,
+            L = self._get_lum_stellar_pop(z, x=x, use_tabs=use_tabs,
                 band=band, window=window,
                 units=units, units_out=units_out, load=load, raw=raw,
-                nebular_only=nebular_only, Mh=Mh, total_sat=total_sat)
+                nebular_only=nebular_only, Mh=Mh, total_sat=total_sat,
+                separate_lines=separate_lines)
+            if separate_lines:
+                Lh, Lh_l = L
+            else:
+                Lh = L
         elif self.pf['pop_bh_formation']:
             # In this case, luminosity just proportional to BH mass.
             zarr, data = self.get_histories()
@@ -3220,9 +3243,13 @@ class GalaxyCohort(GalaxyAggregate):
             return np.zeros_like(Lh)
         elif Mh is None:
             Lh = Lh * T
+            if separate_lines:
+                Lh_l = Lh_l * T
         else:
             _T_ = np.interp(np.log10(Mh), np.log10(self.halos.tab_M), T)
             Lh *= _T_
+            if separate_lines:
+                Lh_l *= _T_
 
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
@@ -3230,7 +3257,10 @@ class GalaxyCohort(GalaxyAggregate):
         if (Mh is None) and self.pf['pop_use_lum_cache']:
             self._cache_L_[kwtup] = Lh
 
-        return Lh
+        if separate_lines:
+            return Lh, Lh_l
+        else:
+            return Lh
 
     @property
     def _get_Av(self):

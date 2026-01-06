@@ -43,6 +43,20 @@ except ImportError:
 
 angles_90 = 90 * np.arange(4)
 
+known_lines = \
+{
+ 'lya': 1216,
+ 'ha': 6563,
+ 'oiii': 5007,
+ 'hbeta': 4861,
+ 'hgamma': 4340,
+ 'hdelta': 4102,
+ 'hepsilon': 3970,
+ 'oii': 3727,
+ 'pa': 1.87e4,
+ 'pah': 3.28e4,
+}
+
 class LightCone(object): # pragma: no cover
     """
     This should be inherited by the other classes in this submodule.
@@ -496,9 +510,14 @@ class LightCone(object): # pragma: no cover
         elif np.isfinite(seed):
             np.random.seed(seed)
 
-        # Check for str channel, e.g., wise_W1, euclid_J, sdss_r, etc.
-        if type(channel) == str:
+        # Check for str channel, e.g., wise_W1, euclidf_J, sdss_r, etc.
+        if (type(channel) == str) and channel.lower() in known_lines:
+            is_line_emission = True
+            is_photometry = False
+            flux = np.zeros_like(Mh)
+        elif type(channel) == str:
             is_photometry = True
+            is_line_emission = False
             mags = np.zeros_like(Mh)
             cam, _filt_ = channel.split('_')
 
@@ -508,7 +527,7 @@ class LightCone(object): # pragma: no cover
             else:
                 filt = _filt_
         else:
-            is_photometry = False
+            is_photometry = is_line_emission = False
             flux = np.zeros_like(Mh)
 
         # Sub-cycle through redshift slabs
@@ -524,8 +543,10 @@ class LightCone(object): # pragma: no cover
             # Support for proper photometry...
             if is_photometry:
                 # `waves_e` in Angstroms. These are in the rest frame.
-                waves_e = self.sim.pops[pid].phot.get_required_spectral_range((zsub_lo, zsub_hi), 
-                    cam=cam, filters=[filt], dlam=dlam)
+                waves_e = self.sim.pops[pid].phot.get_required_spectral_range(
+                    (zsub_lo, zsub_hi), 
+                    cam=cam, filters=[filt], dlam=dlam
+                )
                 
                 waves_c = bin_e2c(waves_e)
 
@@ -553,7 +574,16 @@ class LightCone(object): # pragma: no cover
                     
                     _flux_[:,j] = tmp / dfreq_obs[j]
                     
-                #
+            ##
+            # Line emission handled separately
+            elif is_line_emission:
+                _lumc_, _luml_ = self.sim.pops[pid].get_lum(zsub_mid, 
+                    x=known_lines[channel.lower()],
+                    Mh=Mh[okzsub==1], units='Ang',
+                    units_out='erg/s/hz', separate_lines=True)
+                
+                _flux_ = _luml_
+
             # ...or tophat over some channel width
             else: 
                 band = channel[0] * 1e4 / (1. + zsub_mid), \
@@ -589,10 +619,10 @@ class LightCone(object): # pragma: no cover
             d_corr = 1. / 4. / np.pi \
                 / (np.interp(zsub_mid, self.tab_z, self.tab_dL) * cm_per_mpc)**2
             
-            # Account for frequency squashing and possibly do photometrization
+            # Apply geometrical dilution, possibly do photometrization, then done
             if is_photometry:
                 # Fluxes are in erg/s/Hz rest frame, hence (1+z) factor
-                flux = _flux_ * d_corr #* (1. + zsub_mid)
+                flux = _flux_ * d_corr
 
                 _filt, _xfilt, _dxfilt, _mags_ = \
                     self.sim.pops[pid].phot.get_photometry(
@@ -601,9 +631,11 @@ class LightCone(object): # pragma: no cover
                            
                 # Second dimension is number of filters, which is always one here.
                 mags[okzsub==1] = _mags_[:,0].copy()
+            elif is_line_emission:
+                flux[okzsub==1] = _flux_ * d_corr
             else:
                 # Fluxes are in erg/s/Ang [rest frame], hence (1+z)^-1 factor
-                flux[okzsub==1] = _flux_ * d_corr #/ (1. + zsub_mid)
+                flux[okzsub==1] = _flux_ * d_corr
 
             # Move along
             zsub_lo += self.dz_max
@@ -1894,14 +1926,6 @@ class LightCone(object): # pragma: no cover
                         # or special quantities like Ly-a EW or luminosity.
                         # Note: if pops[popid] is a GalaxyEnsemble object
                         if type(channel) in [tuple, list, np.ndarray]:
-                            # Internally, these fluxes are always in
-                            # erg/s/cm^2/Ang, but then integrated over channel.
-                            # Will need channel width in Hz to recover specific
-                            # intensities averaged over band.
-                            #nu = c * 1e4 / np.mean(chan_mic)
-                            #dnu = c * 1e4 * (chan_mic[1] - chan_mic[0]) / np.mean(chan_mic)**2
-                            dnu = (c * 1e4 / chan_mic[0]) - (c * 1e4 / chan_mic[1])
-
                             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
                                 chan_mic, pid, seed=seed_kw['seed_lum'], dlam=dlam)
                             # This gets conversion factor from cgs (internal) to user's 
@@ -1915,6 +1939,13 @@ class LightCone(object): # pragma: no cover
                             _dat = self.sim.pops[pid].halos.get_Rvir(_red, _Mh) / 1e3    
                         elif channel in ['parents']:
                             _dat = _parents
+                        elif (type(channel) == str) and channel.lower() in known_lines:
+                            _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
+                                channel, pid, seed=seed_kw['seed_lum'])
+                            # This gets conversion factor from cgs (internal) to user's 
+                            # preferred `cat_units`.
+                            _dat *= (c * 1e8 / 6563.**2) * self.get_map_norm(cat_units)
+                            
                         elif channel.lower().startswith('ew'):
                             raise NotImplemented('help')
                         elif channel.lower() == 'sfr':
