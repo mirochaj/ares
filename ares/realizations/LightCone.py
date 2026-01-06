@@ -1524,7 +1524,7 @@ class LightCone(object): # pragma: no cover
                 lc = np.array(f[('lc')])
 
             if self.verbose:
-                (f"* Will save lightcone to {fn}.")
+                (f"* Loaded lightcone from {fn}.")
 
             return xgrids, ygrids, zgrids, lc
         
