@@ -1459,8 +1459,8 @@ class LightCone(object): # pragma: no cover
             deg_per_cmpc = arcmin_per_cmpc / 60.
 
             for i, _z_ in enumerate(zarr_c):
-                xarr_c_ang[i] = ra_c / deg_per_cmpc[i]
-                yarr_c_ang[i] = dec_c / deg_per_cmpc[i]
+                xarr_c_ang[i] = (ra_c / deg_per_cmpc[i]) * self.sim.cosm.h70
+                yarr_c_ang[i] = (dec_c / deg_per_cmpc[i]) * self.sim.cosm.h70
 
             return xarr_c_ang, yarr_c_ang, (Larr_e, Larr_c, zarr_e, zarr_c)
         else:
@@ -1506,8 +1506,12 @@ class LightCone(object): # pragma: no cover
         
         ##
         # Save to hdf5 file.
-        fn = f"{final_dir}/delta_{coordinates}_coords.hdf5"
-        
+        if coordinates == 'comoving':
+            fn = f"{final_dir}/delta_{coordinates}_coords.hdf5"
+        else:
+            fn = f"{final_dir}/delta_{coordinates}_coords_pix_{pix:.1f}.hdf5"
+
+        # Try to load pre-existing file         
         if os.path.exists(fn) and (not clobber):
             with h5py.File(fn, 'r') as f:
                 x_e = np.array(f[('x_e')])
