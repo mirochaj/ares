@@ -1467,7 +1467,7 @@ class LightCone(object): # pragma: no cover
             raise NotImplementedError('help')
 
     def generate_lightcone(self, fov, pix=None, coordinates='comoving',
-        lightcone_corr=True, interp_method='linear', clobber=False):
+        field='density', interp_method='linear', logmlim=None, clobber=False):
         """
         Generate a lightcone. So far, the only option is a density lightcone 
         but we could generalize this in the future.
@@ -1481,11 +1481,10 @@ class LightCone(object): # pragma: no cover
             Field of view, linear dimension [degrees].
         pix : int, float
             Pixel scale [arcseconds].
-            Only required for coordinates='angular'
-        lightcone_corr : bool 
-            If True, perform lightcone correction, i.e., interpolate properties
-            of co-eval cubes along line of sight if power spectrum evolves 
-            by more than given percentage from cube's front to back.
+            Only required for coordinates='angular'.
+        field : str
+            Field of interest. Default is 'density' (assumed to be fractional 
+            overdensity, delta). Other options forthcoming.
         interp_method : str 
             Will be passed to RegularGridInterpolator, and so should be 
             'linear', 'sliner', 'quadratic', 'cubic', etc.
@@ -1507,9 +1506,12 @@ class LightCone(object): # pragma: no cover
         ##
         # Save to hdf5 file.
         if coordinates == 'comoving':
-            fn = f"{final_dir}/delta_{coordinates}_coords.hdf5"
+            fn = f"{final_dir}/lcone_{field}_{coordinates}_coords.hdf5"
         else:
-            fn = f"{final_dir}/delta_{coordinates}_coords_pix_{pix:.1f}.hdf5"
+            fn = f"{final_dir}/lcone_{field}_{coordinates}_coords_pix_{pix:.1f}.hdf5"
+
+        if field.startswith('halo'):
+            fn = fn.replace(field, f"{field}_m_{logmlim[0]:.2f}_{logmlim[1]:.2f}")
 
         # Try to load pre-existing file         
         if os.path.exists(fn) and (not clobber):
@@ -1541,15 +1543,45 @@ class LightCone(object): # pragma: no cover
         for i, layer in enumerate(zlayers):
             
             # Note that the random seed for the density box only 
-            # depends on `i` but we pass logmlim and popid here 
+            # depends on `i` but we pass logmlim (10, 15) and popid here 
             # just to avoid breaking stuff.
             seed_kwargs = self.get_seed_kwargs(i, (10, 15), 0)
-            rho = self.get_density_field(z=zmid[i], 
-                seed=seed_kwargs['seed_box'],
-                lightcone_corr=lightcone_corr)
+            delta = self.get_density_field(z=zmid[i],  
+                    seed=seed_kwargs['seed_box'])
+            
+            if field == 'density':
+                rho = delta
+            
+            elif field.startswith('halo'):
+                
+                # Get mean halo abundance in #/cMpc^3 [note: this is *not* (cMpc/h)^-3]
+                nbar, mbar = self.get_mean_halo_density(zmid[i], zlayers[i],
+                    mmin=10**logmlim[0], mmax=10**logmlim[1])
+                
+                # If self.lightcone_corr == True, `nbar` and `mbar` will 
+                # both be arrays of the same shape as `delta` already.
+                # Doesn't matter for what follows, just FYI.
+
+                # Redundant with some of the bias_method stuff...
+                assert self.bias_model == 0
+                #ntot = nbar * (self.Lbox / self.sim.cosm.h70)**3
+
+                # Expected number of halos in each cell, just scaling mean number
+                # (over whole box) by 1+delta and voxel volume
+                if field.startswith('halo_num'):
+                    rho = nbar * (self.dx / self.sim.cosm.h70)**3 * (1. + delta)
+                # Expected halo mass density
+                elif field == 'halo_mass':
+                    rho = mbar * (self.dx / self.sim.cosm.h70)**3 * (1. + delta)
+                else:
+                    raise NotImplemented('help')
+            else:
+                raise NotImplemented('help')
             
             lc[:,:,self.dims*i:self.dims*(i+1)] = rho.copy()
 
+        ##
+        # Re-gridding starts here.
         if coordinates == 'comoving':
             pass
         elif coordinates == 'angular':

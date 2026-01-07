@@ -49,7 +49,7 @@ class LogNormal(LightCone): # pragma: no cover
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
         randomise_in_cell=True, base_dir='ares_mock', mem_concious=0,
         distribute_sats_spatially=True, profile_info=None,
-        dz_max=0.01, lightcone_max_evol=np.inf, **kwargs):
+        dz_max=0.01, lightcone_max_evol=np.inf, lightcone_corr=True, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -77,6 +77,7 @@ class LogNormal(LightCone): # pragma: no cover
         self.zlim = (zmin, zmax)
         self.dz_max = dz_max
         self.lightcone_max_evol = lightcone_max_evol
+        self.lightcone_corr = lightcone_corr
         self.seed_rho = seed_rho
         self.seed_halo_mass = seed_halo_mass
         self.seed_halo_pos = seed_halo_pos
@@ -201,7 +202,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         return zmid, np.array(mem_z) / 1e9, np.array(mem_c) / 1e9
 
-    def get_nbar(self, z, mmin, mmax=np.inf, fov=None, dz=None):
+    def get_nbar(self, z, ze, mmin, mmax=np.inf, fov=None, dz=None):
         """
         Return expected number density of halos at given z for given minimum
         mass.
@@ -226,13 +227,15 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
-        iz = np.argmin(np.abs(self.halos.tab_z - z))
-        ok = np.logical_and(self.halos.tab_M >= mmin,
-                            self.halos.tab_M < mmax)
+        #iz = np.argmin(np.abs(self.halos.tab_z - z))
+        #ok = np.logical_and(self.halos.tab_M >= mmin,
+        #                    self.halos.tab_M < mmax)
+#
+        #m = self.halos.tab_M
+        #dndlnm = self.halos.tab_dndlnm[iz,:]
+        #nbar = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
 
-        m = self.halos.tab_M
-        dndlnm = self.halos.tab_dndlnm[iz,:]
-        nbar = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
+        nbar, mbar = self.get_mean_halo_density(z, ze, mmin, mmax)
 
         # Correct for FOV
         if (fov is not None) and (dz is not None):
@@ -242,6 +245,66 @@ class LogNormal(LightCone): # pragma: no cover
             raise ValueError("Must provide `fov` AND `dz` or neither!")
 
         return nbar
+    
+    def get_mean_halo_density(self, z, ze, mmin, mmax):
+        """
+        Generates two numbers (or fields): the expected halo number density and
+        mass density.
+
+        Parameters
+        ----------
+
+        Returns
+        -------    
+    
+        """
+
+        ##
+        # In this case, we need to iterate through redshifts and re-compute HMF in
+        # each slice.
+        if self.lightcone_corr:
+            #zlayers = self.get_redshift_layers(zlim=self.zlim)
+            #zmids = zlayers.mean(axis=1)
+            #iz = np.argmin(np.abs(zmid - zmids))
+
+            Lpix = self.Lbox / float(self.dims)
+            zpix_e, zpix_c, zpix_Re = \
+                self.sim.cosm.get_lightcone_boundaries(ze, Lpix)
+
+            # Each co-eval chunk is just self.dims long
+            # Need corresponding redshift in each 
+            m = self.halos.tab_M
+            nb1d = np.zeros(self.dims)
+            mb1d = np.zeros(self.dims)
+            for i, _z_ in enumerate(zpix_c):
+                iz = np.argmin(np.abs(self.halos.tab_z - _z_))
+                ok = np.logical_and(self.halos.tab_M >= mmin,
+                                    self.halos.tab_M < mmax)
+    
+                dndlnm = self.halos.tab_dndlnm[iz,:]
+                nb1d[i] = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
+                mb1d[i] = np.trapezoid(dndlnm[ok==1] * m[ok==1], x=np.log(m[ok==1]))
+                
+            ##
+            # Make nbar and mbar 3-D just because they are likely to be multiplied
+            # by a 3-D array (like density field) outside this routine.
+            gridlike = np.ones([self.dims]*3)
+            nbar = nb1d[None,None,:] * gridlike
+            mbar = mb1d[None,None,:] * gridlike
+
+        # Otherwise, just use midpoint of co-eval cube
+        else:
+            iz = np.argmin(np.abs(self.halos.tab_z - z))
+            ok = np.logical_and(self.halos.tab_M >= mmin,
+                                self.halos.tab_M < mmax)
+    
+            m = self.halos.tab_M
+            dndlnm = self.halos.tab_dndlnm[iz,:]
+            nbar = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
+            mbar = np.trapezoid(dndlnm[ok==1] * m[ok==1], x=np.log(m[ok==1]))
+
+        # Done
+        return nbar, mbar
 
     def get_survey_vol(self, z, fov, dz):
         print("This could be more precise")
@@ -270,14 +333,14 @@ class LogNormal(LightCone): # pragma: no cover
 
         return power(k)
 
-    def get_density_field(self, z, seed=None, lightcone_corr=False):
+    def get_density_field(self, z, seed=None):
         """
         This is a wrapper around `get_box` that will optionally perform a
         lightcone correction, i.e., account for the fact that for sufficiently
         large boxes there will be evolution in P(k) along the line of sight.
         """
 
-        if not lightcone_corr:
+        if not self.lightcone_corr:
             return self.get_box(z=z, seed=seed).delta_x()
 
         ##
@@ -369,6 +432,10 @@ class LogNormal(LightCone): # pragma: no cover
             volume.
             If bias_model == 1, this is the actual number, i.e., assumes we
             have already done a Poisson draw given <N>.
+
+            If we've using lightcone corrections, this will be a 3-D array 
+            containing the expected number of halos in each voxel.
+
         delta_x : np.ndarray
             Halo (over-)density on a 3-D grid.
         m : np.ndarray
@@ -625,8 +692,7 @@ class LogNormal(LightCone): # pragma: no cover
         return nsers, pa, ellip
 
     def get_catalog_halos(self, zlim=None, logmlim=(11,12), popid=0, verbose=True,
-        satellites=False, logmlim_sats=None, max_sources=None,
-        lightcone_corr=False):
+        satellites=False, logmlim_sats=None, max_sources=None):
         """
         Get a halo catalog in (RA, DEC, redshift) coordinates.
 
@@ -733,7 +799,7 @@ class LogNormal(LightCone): # pragma: no cover
             ##
             # Optional: lightcone correction
             need_corr = False
-            if lightcone_corr:
+            if self.lightcone_corr:
                 # Use lightcone_max_evol parameter to determine how much
                 # to sub-sample. Restrict attention to range of halo masses
                 # for which we expect 1 /per box.
@@ -790,7 +856,7 @@ class LogNormal(LightCone): # pragma: no cover
             # Note that x, y, z are in cMpc / h units, not actual cMpc.
             # The values thus run from 0 to Lbox.
             if not need_corr:
-                halos = self.get_halo_population(z=zmid[i],
+                halos = self.get_halo_population(z=zmid[i], ze=(zlo, zhi),
                     mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
                     **seed_kwargs)
             else:
@@ -799,9 +865,9 @@ class LogNormal(LightCone): # pragma: no cover
                 # so we just need to handle sub-cycling over a few redshifts
                 ra = []; dec = []; red = []; mass = []
                 for ll, _z_ in enumerate(zsub):
-                    _halos = self.get_halo_population(z=zmid[i],
+                    _halos = self.get_halo_population(z=zmid[i], ze=(zlo, zhi),
                         mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
-                        zsub=_z_, lightcone_corr=1, **seed_kwargs)
+                        zsub=_z_, **seed_kwargs)
 
                     # Convert to lightcone coordinates to slice on redshift
                     _ra, _de, _red = \
@@ -1161,9 +1227,9 @@ class LogNormal(LightCone): # pragma: no cover
 
         return _x, _y, _z, mass
 
-    def get_halo_population(self, z, seed=None, seed_box=None, seed_pos=None,
+    def get_halo_population(self, z, ze=None, seed=None, seed_box=None, seed_pos=None,
         seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, popid=0,
-        verbose=True, call_gc=False, apply_focc=True, zsub=None, lightcone_corr=False, **_kw_):
+        verbose=True, call_gc=False, apply_focc=True, zsub=None, **_kw_):
         """
         Get a realization of a halo population.
 
@@ -1171,6 +1237,8 @@ class LogNormal(LightCone): # pragma: no cover
         ----------
         z : int, float
             Redshift, will be used to identify co-eval cube.
+        ze : tuple
+            Contains edges of co-eval cube in redshift (front, back).
         seed : int
             Random seed for halo masses.
         seed_box : int
@@ -1195,11 +1263,10 @@ class LogNormal(LightCone): # pragma: no cover
         # (id number in ARES, parent ID number [if satellite], name as str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
-        rho = self.get_density_field(z=z, seed=seed_box,
-            lightcone_corr=lightcone_corr)
+        rho = self.get_density_field(z=z, seed=seed_box)
 
         # Get mean halo abundance in #/cMpc^3 [note: this is *not* (cMpc/h)^-3]
-        nbar = self.get_nbar(zsub, mmin=mmin, mmax=mmax)
+        nbar = self.get_nbar(zsub, ze, mmin=mmin, mmax=mmax)
 
         # Compute expected number of halos in volume
         h = self.sim.cosm.h70
