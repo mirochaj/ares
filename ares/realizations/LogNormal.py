@@ -796,98 +796,14 @@ class LogNormal(LightCone): # pragma: no cover
 
             seed_kwargs = self.get_seed_kwargs(i, logmlim, pid)
 
-            ##
-            # Optional: lightcone correction
-            need_corr = False
-            if self.lightcone_corr:
-                # Use lightcone_max_evol parameter to determine how much
-                # to sub-sample. Restrict attention to range of halo masses
-                # for which we expect 1 /per box.
-                tol = self.lightcone_max_evol
-
-                izmi = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - zmid[i]))
-                Mh = self.sim.pops[0].halos.tab_M
-                ngtm = self.sim.pops[0].halos.tab_ngtm[izmi,:]
-                mmax = np.interp(10., ngtm[-1::-1] * L**3, Mh[-1::-1])
-                imax = np.argmin(np.abs(Mh - mmax))
-
-                okm = np.logical_and(Mh >= mmin, Mh < mmax)
-                izlo = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - zlo))
-                izhi = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - zhi))
-                hmf_lo = self.sim.pops[0].halos.tab_dndlnm[izlo,okm==1]
-                hmf_hi = self.sim.pops[0].halos.tab_dndlnm[izhi,okm==1]
-                err = np.abs(hmf_hi - hmf_lo) / hmf_hi
-
-                need_corr = np.any(err > tol)
-
-                # How many chunks do we need?
-                N = 2
-                dz = zhi - zlo
-                while np.any(err > tol):
-                    zsub_e = np.linspace(zlo, zhi, N+1)
-                    zsub = bin_e2c(zsub_e)
-
-                    err_prev = err.copy()
-
-                    hmfs = []
-                    err = np.zeros(okm.sum())
-                    for ll, _z_ in enumerate(zsub_e):
-                        _i_ = np.argmin(np.abs(self.sim.pops[0].halos.tab_z - _z_))
-                        hmfs.append(self.sim.pops[0].halos.tab_dndlnm[_i_,okm==1])
-
-                        if ll == 0:
-                            continue
-
-                        _err = np.abs(hmfs[ll] - hmfs[ll-1]) / hmfs[ll]
-                        err = np.maximum(err, _err)
-
-                    N += 1
-
-                    if np.allclose(err, err_prev) and self.verbose*verbose:
-                        print(f"HMF evolution along LoS reached minimum with N={N}")
-                        break
-
-                print(f"! Will sub-cycle in {N} intervals from ({zlo}, {zhi})")
-                ##
-                # Need to map these redshift intervals to cMpc / h units
-
-
             # Contains (x, y, z, mass)
             # Note that x, y, z are in cMpc / h units, not actual cMpc.
             # The values thus run from 0 to Lbox.
-            if not need_corr:
-                halos = self.get_halo_population(z=zmid[i], ze=(zlo, zhi),
-                    mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
-                    **seed_kwargs)
-            else:
-                # In this case, generate the halo population in segments.
-                # The density field will automatically be LC-corrected
-                # so we just need to handle sub-cycling over a few redshifts
-                ra = []; dec = []; red = []; mass = []
-                for ll, _z_ in enumerate(zsub):
-                    _halos = self.get_halo_population(z=zmid[i], ze=(zlo, zhi),
-                        mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
-                        zsub=_z_, **seed_kwargs)
-
-                    # Convert to lightcone coordinates to slice on redshift
-                    _ra, _de, _red = \
-                        self._get_catalog_from_coeval(_halos, zlo=zlo)
-
-                    # Select only objects in the right sub-interval
-                    oksub = np.logical_and(_red >= zsub_e[ll], _red < zsub_e[ll+1])
-
-                    # Cut out halos outside zsub_e[ll], zsub_e[ll+1]
-                    _x_, _y_, _z_, _m_ = _halos
-
-                    # Note that (x, y, z) here are still [0, Lbox],
-                    # but we constructed `oksub` from the redshifts properly.
-                    ra.extend(_x_[oksub==1])
-                    dec.extend(_y_[oksub==1])
-                    red.extend(_z_[oksub==1])
-                    mass.extend(_m_[oksub==1])
-
-                halos = np.array(ra), np.array(dec), np.array(red), np.array(mass)#np.array([ra, dec, red, mass]).T
-
+            #if not need_corr:
+            halos = self.get_halo_population(z=zmid[i], ze=(zlo, zhi),
+                mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
+                **seed_kwargs)
+            
             if (type(halos[0]) != np.ndarray) and (halos[0] is None):
                 ra = dec = red = mass = None
                 continue
