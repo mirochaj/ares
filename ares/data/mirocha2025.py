@@ -268,7 +268,7 @@ ihl_scaled['pq_func_par0[50]'] = 0.01 # 1% of stellar mass -> IHL
 ihl_scaled['pq_func_par1[50]'] = 1e12
 ihl_scaled['pq_func_par2[50]'] = 1.  # Linear Mh dependence
 ihl_scaled['pq_func_par3[50]'] = 1.  # Anchored to z=0
-ihl_scaled['pq_func_par4[50]'] = 0   # No evolution by default [illustrative]
+ihl_scaled['pq_func_par4[50]'] = 0.  # No evolution by default [illustrative]
 ihl_scaled['pq_val_ceil[50]'] = 0.7
 
 # Deterministic luminosity 

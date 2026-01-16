@@ -1991,6 +1991,8 @@ class LightCone(object): # pragma: no cover
                         elif channel in ['rvir']:
                             # in kpc internally for some reason, convert to cMpc
                             _dat = self.sim.pops[pid].halos.get_Rvir(_red, _Mh) / 1e3    
+                        elif channel in ['nsats']:
+                            _dat = self.get_Nsats(_Mh, logmlim=self.logmlim_sats)
                         elif channel in ['parents']:
                             _dat = _parents
                         elif (type(channel) == str) and channel.lower() in known_lines:

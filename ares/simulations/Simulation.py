@@ -289,21 +289,12 @@ class Simulation(object):
                 "If `waves` is 2-D, must have shape (num waves, 2)."
             waves_is_2d = True
 
-        # Prep scales
-        if scale_units.lower() in ['l', 'ell']:
-            scales_inv = np.sqrt(scales * (scales + 1))
-            # Squared below hence the sqrt here.
+        if flux_units.lower() == 'si':
+            to_ps_units = cm_per_m**4 / erg_per_s_per_nW**2
+        elif flux_units.lower() == 'mjy':
+            to_ps_units = 1e17
         else:
-            if scale_units.lower().startswith('deg'):
-                scale_rad = scales * (np.pi / 180.)
-            elif scale_units.lower() == 'arcmin':
-                scale_rad = (scales / 60.) * (np.pi / 180.)
-            elif scale_units.lower() == 'arcsec':
-                scale_rad = (scales / 3600.) * (np.pi / 180.)
-            else:
-                raise NotImplemented(f"Don't recognize `scale_units`={scale_units}")
-
-            scales_inv = 2 * np.pi / scale_rad
+            raise NotImplemented('help')
 
         if wave_units.lower().startswith('mic'):
             pass
@@ -333,8 +324,6 @@ class Simulation(object):
                 if i not in pops:
                     continue
 
-            
-
             for j, popx in enumerate(self.pops):
                 # Avoid double counting
                 if j > i:
@@ -351,8 +340,11 @@ class Simulation(object):
                     _npops = _px.shape[0]
                     # If we're covered by the cache, use it
                     if i < _npops:
-                        px[i,j,:,:] = _px[i,j,:,:].copy()
-                        ps_z[i,j,:,:,:] = _pz[i,j,:,:,:].copy()
+                        # Assumes cache_ipop_mtx is in 
+                        # same units as requested here!
+                        # Could add check later.
+                        px[i,j,:,:] = _px[i,j,:,:] / to_ps_units
+                        ps_z[i,j,:,:,:] = _pz[i,j,:,:,:] / to_ps_units
                         continue
 
                 for k, wave in enumerate(waves):
@@ -385,18 +377,14 @@ class Simulation(object):
         # Convention is that fluctuations for population `i` includes
         # all crosses with
 
-        self.px_natu = px.copy()
-        self.pz_natu = ps_z.copy()
+        #self.px_natu = px.copy()
+        #self.pz_natu = ps_z.copy()
 
         ##
         # Modify PS units before return
-        if flux_units.lower() == 'si':
-            px *= cm_per_m**4 / erg_per_s_per_nW**2
-            ps_z *= cm_per_m**4 / erg_per_s_per_nW**2
-        elif flux_units.lower() == 'mjy':
-            px *= 1e17
-            ps_z *= 1e17
-
+        px *= to_ps_units
+        ps_z *= to_ps_units
+        
         ptot = px.sum(axis=0).sum(axis=0)
 
         if pops is None:

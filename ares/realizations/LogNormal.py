@@ -49,7 +49,8 @@ class LogNormal(LightCone): # pragma: no cover
         bias_model=0, bias_params=None, bias_replacement=1, bias_within_bin=False,
         randomise_in_cell=True, base_dir='ares_mock', mem_concious=0,
         distribute_sats_spatially=True, profile_info=None,
-        dz_max=0.01, lightcone_max_evol=np.inf, lightcone_corr=True, **kwargs):
+        dz_max=0.01, lightcone_max_evol=np.inf, lightcone_corr=True, 
+        logmlim_sats=(8, 12), **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -91,6 +92,7 @@ class LogNormal(LightCone): # pragma: no cover
         self.apply_rotations = apply_rotations
         self.apply_translations = apply_translations
         self.distribute_sats_spatially = distribute_sats_spatially
+        self.logmlim_sats = logmlim_sats
 
         # Only used for NbodySimLC models
         self.zlayers = None
@@ -876,6 +878,27 @@ class LogNormal(LightCone): # pragma: no cover
 
         #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
         return ra, dec, red, mass, parents
+    
+    def get_Nsats(self, Mh, logmlim=None):
+        """
+        Figure out the expected number of satellites for halos given Mh.
+        """
+
+        # First, grab a few things we need. This is 2-D (Mc, Msat)
+        hmf_sub = self.halos.tab_dndlnm_sub
+
+        if logmlim is None:
+            ok_sub = np.ones_like(self.halos.tab_M)
+        else:
+            ok_sub = np.logical_and(self.halos.tab_M >= 10**logmlim[0],
+                                    self.halos.tab_M <  10**logmlim[1])
+
+        # Expected number of subhalos vs. central halo mass.
+        # Just need to do this once per `logmlim`.
+        Nexp = np.trapezoid(hmf_sub[:,ok_sub==1],
+            x=np.log(self.halos.tab_M[ok_sub==1]), axis=1)
+        
+        return np.interp(Mh, self.halos.tab_M, Nexp)
 
     def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, popid,
         logmlim=(11,15), seed=None, distribute_in_space=True):
@@ -909,16 +932,9 @@ class LogNormal(LightCone): # pragma: no cover
         # mass according to the subhalo mass function and in space
         # using an NFW profile.
 
-        # First, grab a few things we need. This is 2-D (Mc, Msat)
-        hmf_sub = self.halos.tab_dndlnm_sub
-
-        ok_sub = np.logical_and(self.halos.tab_M >= 10**logmlim[0],
-                                self.halos.tab_M <  10**logmlim[1])
-
         # Expected number of subhalos vs. central halo mass.
         # Just need to do this once per `logmlim`.
-        Nexp = np.trapezoid(hmf_sub[:,ok_sub==1],
-            x=np.log(self.halos.tab_M[ok_sub==1]), axis=1)
+        Nexp = self.get_Nsats(mass_c, logmlim=logmlim)
 
         # Array of radial separations [cMpc]
         d = self.sim.halos.tab_R_nfw

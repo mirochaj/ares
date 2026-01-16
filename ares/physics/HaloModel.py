@@ -1377,6 +1377,10 @@ class HaloModel(HaloMassFunction):
     
     @cached_property
     def tab_R_nfw(self):
+        """
+        Array of radii (comoving Mpc) over which we tabulate NFW profiles.f
+        """
+
         Rmi, Rma = -3, 1.
         dlogR = 0.2
         R = 10**np.arange(Rmi, Rma+dlogR, dlogR)
