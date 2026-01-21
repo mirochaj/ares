@@ -1467,7 +1467,8 @@ class LightCone(object): # pragma: no cover
             raise NotImplementedError('help')
 
     def generate_lightcone(self, fov, pix=None, coordinates='comoving',
-        field='density', interp_method='linear', logmlim=None, clobber=False):
+        field='density', interp_method='linear', logmlim=None, clobber=False,
+        use_pbar=1):
         """
         Generate a lightcone. So far, the only option is a density lightcone 
         but we could generalize this in the future.
@@ -1537,6 +1538,7 @@ class LightCone(object): # pragma: no cover
         elif self.verbose:
             print(f"* Will save lightcone to {fn}.")
 
+
         ##
         # Always need to first setup lightcone on normal grid
         lc = np.zeros((self.dims, self.dims, self.dims * len(zmid)))
@@ -1594,6 +1596,12 @@ class LightCone(object): # pragma: no cover
             yarr_c_ang = ygrids_a
 
             ra_e, ra_c, dec_e, dec_c = self.get_pixels(fov, pix)
+
+            # Progress bar
+            pb = ProgressBar(z_c.size,
+                name=f"lightcone ({self.zlim[0]:.2f} <= z < {self.zlim[1]:.2f})",                use=use_pbar)
+            pb.start()
+
             lc_a = np.zeros((ra_c.size, dec_c.size, z_c.size))
             for i, _z_ in enumerate(z_c):
 
@@ -1606,10 +1614,14 @@ class LightCone(object): # pragma: no cover
                 new_f = 10**interp(np.array([xg.ravel(), yg.ravel()]).T) - 1.
                 lc_a[:,:,i] = new_f.reshape(xg.shape, order='C')
 
+                pb.update(i)
+
                 # Slower approach for sanity check
                 #for j, xx in enumerate(xarr_c_ang[i]):
                 #    for k, yy in enumerate(yarr_c_ang[i]):
                 #        lc_a[j,k,i] = 10**interp((xx, yy)) - 1.
+
+            pb.finish()
 
             xgrids = (ra_e, ra_c)
             ygrids = (dec_e, dec_c)
