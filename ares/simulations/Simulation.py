@@ -159,8 +159,12 @@ class Simulation(object):
             else:
                 zf = self.pops[i].zdead
 
-            assert self.pops[i].pf['pop_mask'] is None, \
-                "Turn off mask (via `pop_mask`) before computing mean EBL!"
+            print('hey', self.pf['pop_mask{0}'], self.pops[i].pf['pop_mask'])
+            
+            if self.pops[i].pf['pop_mask'] is not None:
+                print(f"! WARNING: pop_mask != None, non-standard for mean EBL runs!")
+            #assert self.pops[i].pf['pop_mask'] is None, \
+            #    "Turn off mask (via `pop_mask`) before computing mean EBL!"
             
             if compute_via_counts:
                 assert bands is not None, "Must provide `bands`."
@@ -509,6 +513,81 @@ class Simulation(object):
             self.history['21cm_ps'] = self.sim_ps.history
 
         return self.sim_ps
+    
+    def get_bias(self, z, limit, wave=1600., cut_in_mass=False, absolute=False,
+        cut_in_flux=False, intensity_weight=False):
+        """
+        Compute linear bias of galaxies brighter than (or more massive than)
+        some cut-off.
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift of interest.
+        limit : int, float
+            This parameter controls either the limiting magnitude or the
+            limiting halo mass, depending on the value of `cut_in_mass`.
+            By default, our approach is to use apparent magnitudes in order to
+            connect to observations more explicitly. For example, `limit=26.5`
+            is a Roman-like magnitude cut on the galaxy population.
+        cut_in_mass : bool
+            If True, then `limit` is assumed to be a halo mass in Msun.
+        absolute : bool
+            Whether `limit` magnitudes are absolute or apparent AB mags.
+        cut_in_flux : bool
+            Not currently implement. Might be useful for comparing with
+            specroscopic surveys which often report sensitivities as a
+            limiting line luminosity in [erg/s/cm^2].
+
+        Returns
+        -------
+
+        """
+
+
+        iz = np.argmin(np.abs(z - self.halos.tab_z))
+
+        tab_M = self.halos.tab_M
+        tab_b = self.halos.tab_bias[iz,:]
+        tab_n = self.halos.tab_dndm[iz,:]
+        
+        top = np.zeros_like(self.halos.tab_M)
+        bot = np.zeros_like(self.halos.tab_M)
+        for i, pop in enumerate(self.pops):
+
+            
+            tab_f = pop.tab_focc[iz,:]
+
+            if cut_in_flux:
+                raise NotImplemented('help')
+            elif cut_in_mass:
+                if type(limit) in [list, tuple, np.ndarray]:
+                    lo, hi = limit
+                    ok = np.logical_and(tab_M >= lo, tab_M < hi)
+                else:
+                    ok = tab_M >= limit
+            else:
+                _filt, mags = pop.get_mags(z, x=wave, absolute=absolute)
+                ok = np.logical_and(mags <= limit, np.isfinite(mags))
+    
+            # Can add weighting by luminosity
+            if intensity_weight:
+                L = pop.get_lum(z, x=wave, units_out='erg/s/Hz', total_sat=1)
+            else:
+                L = np.ones_like(tab_M)
+
+            focc = tab_f if pop.is_central_pop else np.ones_like(tab_M)
+    
+            integ_top = tab_b[ok==1] * tab_n[ok==1] * focc[ok==1] * L[ok==1]
+            integ_bot = tab_n[ok==1] * focc[ok==1] * L[ok==1]
+    
+            top[ok==1] += integ_top
+            bot[ok==1] += integ_bot
+
+        b = np.trapezoid(top[ok==1] * tab_M[ok==1], x=np.log(tab_M[ok==1])) \
+          / np.trapezoid(bot[ok==1] * tab_M[ok==1], x=np.log(tab_M[ok==1]))
+
+        return b        
 
     def save(self, prefix, suffix='pkl', clobber=False, fields=None):
         """

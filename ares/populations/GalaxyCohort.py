@@ -2206,7 +2206,7 @@ class GalaxyCohort(GalaxyAggregate):
             absolute=True)
 
     def get_bias(self, z, limit, wave=1600., cut_in_mass=False, absolute=False,
-        cut_in_flux=False):
+        cut_in_flux=False, intensity_weight=False):
         """
         Compute linear bias of galaxies brighter than (or more massive than)
         some cut-off.
@@ -2253,8 +2253,14 @@ class GalaxyCohort(GalaxyAggregate):
             _filt, mags = self.get_mags(z, x=wave, absolute=absolute)
             ok = np.logical_and(mags <= limit, np.isfinite(mags))
 
-        integ_top = tab_b[ok==1] * tab_n[ok==1] * tab_f[ok==1]
-        integ_bot = tab_n[ok==1] * tab_f[ok==1]
+        # Can add weighting by luminosity
+        if intensity_weight:
+            L = self.get_lum(z, x=wave, units_out='erg/s/Hz')
+        else:
+            L = np.ones_like(tab_M)
+
+        integ_top = tab_b[ok==1] * tab_n[ok==1] * tab_f[ok==1] * L[ok==1]
+        integ_bot = tab_n[ok==1] * tab_f[ok==1] * L[ok==1]
 
         b = np.trapezoid(integ_top * tab_M[ok==1], x=np.log(tab_M[ok==1])) \
           / np.trapezoid(integ_bot * tab_M[ok==1], x=np.log(tab_M[ok==1]))
@@ -3670,7 +3676,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # If there's no mask, just use Mmax
-        if (self.pf['pop_mask'] is None):
+        if (self.pf['pop_mask'] is None) and (self.pf['pop_mask_wave'] is None):
             # Just apply Mmax at each redshift.
             for i, z in enumerate(self.halos.tab_z):
                 Mmax = self.get_Mmax(z)
@@ -3680,17 +3686,26 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Otherwise, general case
-        tmp_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size,
-            len(self.pf['pop_mask'])))
+        if self.pf['pop_mask_wave'] is not None:
+            tmp_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size, 1))
+        else:
+            tmp_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size,
+                len(self.pf['pop_mask'])))
 
         # Loop over different masks.
-        for h, mask in enumerate(self.pf['pop_mask']):
+        for h, mask in enumerate(self._get_mask_info()):
             mwave, mlim = mask
 
             # Synthesize galaxy mags one redshift at a time.
             for i, z in enumerate(self.halos.tab_z):
 
                 if (z < self.pf['final_redshift']):
+                    continue
+
+                if (z < self.zdead):
+                    continue
+
+                if (z > self.zform):
                     continue
 
                 # Convert the masking depth to luminosity at this redshift.
@@ -3760,6 +3775,12 @@ class GalaxyCohort(GalaxyAggregate):
         tab_mask[tab_mask<0] = 0
 
         return tab_mask
+    
+    def _get_mask_info(self):
+        if self.pf['pop_mask'] is not None:
+            return self.pf['pop_mask']
+        
+        return [(self.pf['pop_mask_wave'], self.pf['pop_mask_mag'])]
 
     def get_mask(self):
         """
@@ -3767,7 +3788,7 @@ class GalaxyCohort(GalaxyAggregate):
         the masking depth (as supplied via pop_mask) as a maximum halo mass.
         """
 
-        if self.pf['pop_mask'] is None:
+        if (self.pf['pop_mask'] is None) and (self.pf['pop_mask_wave'] is None):
             return self._tab_Mmax * np.ones_like(self.halos.tab_z)
 
         if (self.pf['pop_scatter_sfh'] > 0) and (not self.pf['pop_mask_use_adv']):
@@ -3782,7 +3803,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Loop over masking thresholds
             Mh_lim = self._tab_Mmax[i]
-            for j, mask in enumerate(self.pf['pop_mask']):
+            for j, mask in enumerate(self._get_mask_info()):
                 if len(mask) == 2:
                     mwave, mlim = mask
                     _mags, Mh_lim_j = self.get_Mmax_from_maglim(z, mwave, mlim)

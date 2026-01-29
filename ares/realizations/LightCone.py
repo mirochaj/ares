@@ -36,6 +36,11 @@ try:
 except ImportError:
     pass
 
+try:
+    import multiprocess
+except ImportError:
+    pass
+
 #try:
 #    from numba import njit, prange
 #except ImportError:
@@ -1468,7 +1473,7 @@ class LightCone(object): # pragma: no cover
 
     def generate_lightcone(self, fov, pix=None, coordinates='comoving',
         field='density', interp_method='linear', logmlim=None, clobber=False,
-        use_pbar=1):
+        use_pbar=1, nthreads=1):
         """
         Generate a lightcone. So far, the only option is a density lightcone 
         but we could generalize this in the future.
@@ -1599,11 +1604,23 @@ class LightCone(object): # pragma: no cover
 
             # Progress bar
             pb = ProgressBar(z_c.size,
-                name=f"lightcone ({self.zlim[0]:.2f} <= z < {self.zlim[1]:.2f})",                use=use_pbar)
+                name=f"lightcone ({self.zlim[0]:.2f} <= z < {self.zlim[1]:.2f})",                
+                use=use_pbar and nthreads == 1)
             pb.start()
 
-            lc_a = np.zeros((ra_c.size, dec_c.size, z_c.size))
-            for i, _z_ in enumerate(z_c):
+            def run_single_z_slc(run_info):
+                (i, return_result) = run_info
+
+                fn_chk = f"{fn.replace('.hdf5', "_checkpts")}/zslc_{str(i).zfill(5)}.hdf5"
+
+                if os.path.exists(fn_chk):
+
+                    if return_result:
+                        with h5py.File(fn_chk) as f:
+                            out = np.array(f[('img')])
+                        return out
+                    else:
+                        return
 
                 interp = RegularGridInterpolator((x_c, y_c), 
                     np.log10(1+lc[:,:,i]), method=interp_method)
@@ -1612,16 +1629,63 @@ class LightCone(object): # pragma: no cover
                 # to comoving scale.
                 xg, yg = np.meshgrid(xarr_c_ang[i], yarr_c_ang[i], indexing='ij')
                 new_f = 10**interp(np.array([xg.ravel(), yg.ravel()]).T) - 1.
-                lc_a[:,:,i] = new_f.reshape(xg.shape, order='C')
+                
+                out = new_f.reshape(xg.shape, order='C')
 
-                pb.update(i)
+                with h5py.File(fn_chk, 'w') as f:
+                    f.create_dataset('img', data=out)
+
+                # If nthreads == 1 we have the progressbar            
+                if nthreads > 1:
+                    print(f"! Wrote {fn_chk}")
+            
+                if return_result:
+                    with h5py.File(fn_chk) as f:
+                        out = np.array(f[('img')])
+                    return out
+                else:
+                    return
 
                 # Slower approach for sanity check
                 #for j, xx in enumerate(xarr_c_ang[i]):
                 #    for k, yy in enumerate(yarr_c_ang[i]):
                 #        lc_a[j,k,i] = 10**interp((xx, yy)) - 1.
 
+
+            t1 = time.time()
+
+            if not os.path.exists(fn.replace('.hdf5', "_checkpts")):
+                os.mkdir(fn.replace('.hdf5', "_checkpts"))
+                    
+            ##
+            # Actually run, possibly over nthreads
+            if (nthreads > 1):
+                p = multiprocess.Pool(nthreads)
+                run_info = [(i, False) for i in range(len(z_c))]
+
+                print(f"! Running {z_c.size} z slices with {nthreads} threads...")
+                p.map(run_single_z_slc, run_info)
+
+            else:
+                for i, _z_ in enumerate(z_c):
+                    run_single_z_slc((i, False))
+                    pb.update(i)
+
+
             pb.finish()
+
+            t2 = time.time()
+
+            print(f"! Done with lightcone in {(t2-t1) / 60.:.2} minutes.")
+
+            # Stitch together result
+            lc_a = np.zeros((ra_c.size, dec_c.size, z_c.size))
+            run_info = [(i, True) for i in range(len(z_c))]    
+
+            for i, _z_ in enumerate(z_c):
+                lc_a[:,:,i] = run_single_z_slc((i, True))
+        
+            
 
             xgrids = (ra_e, ra_c)
             ygrids = (dec_e, dec_c)
