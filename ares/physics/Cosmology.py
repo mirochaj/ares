@@ -578,6 +578,18 @@ class Cosmology(object):
         """
         Based on size of co-eval cubes (in Mpc/h), and redshift limits,
         determine all of the sub-intervals in redshift along line of sight.
+
+        Parameters
+        ----------
+        zlim : tuple
+            (Lower, upper) redshift bounds of interest.
+        Lbox : int, float 
+            Size of co-eval cubes in cMpc/h.
+
+        Returns
+        -------
+        A tuple containing (redshift chunk edges, redshift chunk midpoints,
+            chunk edges in co-moving LoS distance in cMpc [not cMpc/h!].)
         """
 
         zarr = np.linspace(0.001, 10, 1000)

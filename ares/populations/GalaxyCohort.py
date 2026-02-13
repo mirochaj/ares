@@ -2911,12 +2911,20 @@ class GalaxyCohort(GalaxyAggregate):
                 iM = np.argmin(np.abs(self.halos.tab_M - Mh))
                 return (Lh[iM], Lh_l[iM]) if separate_lines else Lh[iM]
             else:
-                Ltot = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
-                    np.log10(Lh), left=0, right=0)
+                ok = Lh > 0
+                if np.any(ok):
+                    Ltot = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M[ok==1]),
+                        np.log10(Lh[ok==1]), left=-np.inf, right=-np.inf)
+                else:
+                    Ltot = np.zeros_like(Mh)
                 if separate_lines:
-                    Ll = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M),
-                        np.log10(Lh_l), left=0, right=0)
-                    
+                    ok = Lh_l > 0
+                    if np.any(ok):
+                        Ll = 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M[ok==1]),
+                            np.log10(Lh_l[ok==1]), left=-np.inf, right=-np.inf)
+                    else:
+                        Ll = np.zeros_like(Mh)
+                        
                     return Ltot, Ll
                 else:
                     return Ltot

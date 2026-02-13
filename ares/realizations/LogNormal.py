@@ -115,15 +115,17 @@ class LogNormal(LightCone): # pragma: no cover
                 "Must provide `bias_params=[a,b]` for `bias_model>0`!"
 
         ##
-        # Adjust upper bound in zlim based on box size!
+        # Adjust upper bound in zlim based on box size?
+        # No, but do store separately the z limits that correspond
+        # to edges of co-eval cubes.
         ze, zmid, Re = self.get_domain_info(zlim=(zmin, zmax), Lbox=self.Lbox)
 
-        self.zlim = np.min(ze), np.max(ze)
-        if verbose:
-            print(f"# Overriding user-supplied zlim slightly to accommodate box size.")
-            print(f"# Old zlim=({zmin:.3f},{zmax:.3f})")
-            print(f"# New zlim=({self.zlim[0]:.3f},{self.zlim[1]:.3f})")
-            print(f"# Number of co-eval layers: {zmid.size}")
+        self.zlim_ex = np.min(ze), np.max(ze)
+        #if verbose:
+        #    print(f"# Overriding user-supplied zlim slightly to accommodate box size.")
+        #    print(f"# Old zlim=({zmin:.3f},{zmax:.3f})")
+        #    print(f"# New zlim=({self.zlim[0]:.3f},{self.zlim[1]:.3f})")
+        #    print(f"# Number of co-eval layers: {zmid.size}")
 
         ##
         # Initialize caches here to avoid repeated hasattr calls
@@ -437,7 +439,6 @@ class LogNormal(LightCone): # pragma: no cover
 
             If we've using lightcone corrections, this will be a 3-D array 
             containing the expected number of halos in each voxel.
-
         delta_x : np.ndarray
             Halo (over-)density on a 3-D grid.
         m : np.ndarray

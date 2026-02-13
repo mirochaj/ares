@@ -1120,11 +1120,11 @@ class DoublePowerLawExtendedEvolvingAsB13(BasePQ):
 
         y *= normcorr * p0
 
-        logTurn = np.log10(self.args[21]) + self.args[24] * (1 - a) \
+        if self.args[23] != 0:
+            logTurn = np.log10(self.args[21]) + self.args[24] * (1 - a) \
               + self.args[25] * np.log(1 + z) \
               + self.args[26] * z
-
-        y *= (1. + (x / 10**logTurn)**self.args[22])**self.args[23]
+            y *= (1. + (x / 10**logTurn)**self.args[22])**self.args[23]
 
         return y
 

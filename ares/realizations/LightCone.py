@@ -303,12 +303,15 @@ class LightCone(object): # pragma: no cover
 
     def get_domain_info(self, zlim=None, Lbox=None):
         """
-        Figure out how the domain will be divided up along the line of sight.
+        Figure out how the domain will be gridded up along the line of sight.
+
+        .. note:: Returned domain info will always correspond to an integer
+            number of Lbox along the line of sight.
 
         Parameters
         ----------
         zlim : tuple
-            Redshift range of interest.
+            Redshift range of interest, (lower boundary, upper boundary).
         Lbox : int, float
             Co-eval box size in cMpc / h. If not provided, we'll use the
             value in `self.Lbox`.
@@ -1623,7 +1626,8 @@ class LightCone(object): # pragma: no cover
                         return
 
                 interp = RegularGridInterpolator((x_c, y_c), 
-                    np.log10(1+lc[:,:,i]), method=interp_method)
+                    np.log10(1+lc[:,:,i]), method=interp_method,
+                    bounds_error=False)
             
                 # At each redshift, we have slightly different mapping from angle 
                 # to comoving scale.
@@ -1685,8 +1689,6 @@ class LightCone(object): # pragma: no cover
             for i, _z_ in enumerate(z_c):
                 lc_a[:,:,i] = run_single_z_slc((i, True))
         
-            
-
             xgrids = (ra_e, ra_c)
             ygrids = (dec_e, dec_c)
             zgrids = zgrids_a
@@ -1951,6 +1953,14 @@ class LightCone(object): # pragma: no cover
                     # Hack out galaxies outside our requested lightcone.
                     ok = np.logical_and(np.abs(_ra)  < fov / 2.,
                                         np.abs(_dec) < fov / 2.)
+                    
+                    # Hack out galaxies at z > zmax
+                    # We didn't used to do this because we adjusted zmax
+                    # (in zlim[1]) to always be the edge of a co-eval 
+                    # cube along the LoS. But, we now allow truncatation
+                    # along the LoS (to save time for cross-correlations in 
+                    # narrow z slices), hence the manual cut here.
+                    ok = np.logical_and(ok, _red < self.zlim[1])
 
                     # Isolate OK entries.
                     _ra = _ra[ok==1]
