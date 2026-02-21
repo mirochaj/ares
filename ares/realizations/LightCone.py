@@ -523,6 +523,7 @@ class LightCone(object): # pragma: no cover
             is_line_emission = True
             is_photometry = False
             flux = np.zeros_like(Mh)
+            found_gal = np.zeros_like(flux)
         elif type(channel) == str:
             is_photometry = True
             is_line_emission = False
@@ -534,10 +535,14 @@ class LightCone(object): # pragma: no cover
                 filt = (float(lo), float(hi))
             else:
                 filt = _filt_
+
+            found_gal = np.zeros_like(mags)
         else:
             is_photometry = is_line_emission = False
             flux = np.zeros_like(Mh)
+            found_gal = np.zeros_like(flux)
 
+        ##
         # Sub-cycle through redshift slabs
         while zsub_lo < zhi:
 
@@ -546,7 +551,9 @@ class LightCone(object): # pragma: no cover
             zsub_mid = np.mean([zsub_lo, zsub_hi])
 
             okzsub = np.logical_and(red >= zsub_lo, red < zsub_hi)
-
+            
+            found_gal[okzsub==1] += 1
+    
             ##
             # Support for proper photometry...
             if is_photometry:
@@ -648,6 +655,13 @@ class LightCone(object): # pragma: no cover
             # Move along
             zsub_lo += self.dz_max
         
+        ##
+        # Done with z sub-cycling
+
+        ##
+        # Make sure all galaxies are accounted for
+        assert np.sum(found_gal) == found_gal.size
+
         if is_photometry:
             return mags
         else:
@@ -1614,7 +1628,7 @@ class LightCone(object): # pragma: no cover
             def run_single_z_slc(run_info):
                 (i, return_result) = run_info
 
-                fn_chk = f"{fn.replace('.hdf5', "_checkpts")}/zslc_{str(i).zfill(5)}.hdf5"
+                fn_chk = f"{fn.replace('.hdf5', '_checkpts')}/zslc_{str(i).zfill(5)}.hdf5"
 
                 if os.path.exists(fn_chk):
 
@@ -2066,11 +2080,15 @@ class LightCone(object): # pragma: no cover
                         # or special quantities like Ly-a EW or luminosity.
                         # Note: if pops[popid] is a GalaxyEnsemble object
                         if type(channel) in [tuple, list, np.ndarray]:
+                            
+                            print(f"Working on flux catalog for zlayer={zlayer}...")
                             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
                                 chan_mic, pid, seed=seed_kw['seed_lum'], dlam=dlam)
                             # This gets conversion factor from cgs (internal) to user's 
                             # preferred `cat_units`
                             _dat *= self.get_map_norm(cat_units)
+
+                            assert np.all(_dat > 0)
                             
                         elif channel in ['Mh']:
                             _dat = _Mh

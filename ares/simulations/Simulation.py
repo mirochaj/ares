@@ -238,6 +238,8 @@ class Simulation(object):
             Wavelengths at which to compute power spectra in `wave_units`.
             Note that if 2-D, must have shape (number of bins, 2), in which
             case the power spectra will be computed in series of bandpasses.
+        waves2 : int, float, np.ndarray
+
         pops : list, tuple
             If provided, sets the ID numbers of populations that will be
             included in the model. In other words, any population *not* included
@@ -308,6 +310,10 @@ class Simulation(object):
         # Do some error-handling if waves is 2-D: means the user provided
         # bandpasses instead of a set of wavelengths.
 
+        # If waves2 is None, it means we're doing autos.
+        # In general, for each channel in `waves`, with index `k`,
+        # we'll cross-correlate with the k'th element of waves2.
+        # In principle 
         if waves2 is None:
             waves2 = waves
 
@@ -401,7 +407,7 @@ class Simulation(object):
 
         return scales, waves, ptot, px
     
-    def get_galaxy_number_counts(self, band, magbins, popid=None,
+    def get_galaxy_number_counts(self, band, magbins, popids=None,
         dlam=10, zmin=None, zmax=None, zbin=0.01):
         """
         Compute the number of galaxies per square degree for each source populations.
@@ -417,13 +423,17 @@ class Simulation(object):
         dx = (band[1] - band[0]) * 1e4
         
         assert dx > 3 * dlam
+
+        if popids is not None:
+            if type(popids) not in [list, tuple]:
+                popids = [popids]
         
         # Loop over populations and save results for each one separately
         num_by_pop = {}
         for i, pop in enumerate(self.pops):
 
-            if popid is not None:
-                if i != popid:
+            if popids is not None:
+                if i not in popids:
                     continue
 
             # Check zmin, zmax values 

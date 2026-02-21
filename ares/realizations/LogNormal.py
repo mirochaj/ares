@@ -819,7 +819,7 @@ class LogNormal(LightCone): # pragma: no cover
             # Convert to (ra, dec, redshift) coordinates.
             # Note: the conversion from cMpc/h to cMpc occurs inside
             # _get_catalog_from_coeval here:
-            _ra, _de, _red = self._get_catalog_from_coeval(halos, zlo=zlo)
+            _ra, _de, _red = self._get_catalog_from_coeval(halos, zlo=zlo, zhi=zhi)
             _m = halos[-1]
 
             # Note that halos outside the specific FoV and redshift
@@ -1064,7 +1064,7 @@ class LogNormal(LightCone): # pragma: no cover
         return np.array(ra), np.array(dec), np.array(red), np.array(mass), \
             np.array(par_id, dtype=int)
 
-    def _get_catalog_from_coeval(self, halos, zlo):
+    def _get_catalog_from_coeval(self, halos, zlo, zhi):
         """
         Make a catalog in lightcone coordinates (RA, DEC, redshift).
 
@@ -1093,7 +1093,19 @@ class LogNormal(LightCone): # pragma: no cover
         # Determine redshift by interpolating distance along z
         red = np.interp((zmpc / self.sim.cosm.h70) + d0, dofz,
             self.sim.cosm.tab_z)
-
+        
+        ##
+        # Because this interpolation is not absolutely perfect,
+        # a small fraction of galaxies at the edge of the domain
+        # can effectively leak into the next co-eval cube. Hence
+        # the kludgey next line, that makes sure numerical errors
+        # in the redshift (at the 10^-6 or 10^-7 level! ugh) don't
+        # cause problems downstream. Thanks, Mary, for finding this
+        # diabolical bug.
+        if np.any(red >= zhi):
+            # dz=1e-6 will never matter for us
+            red[red >= zhi] = zhi - 1e-6 
+        
         # Conversion from physical to angular coordinates
         deg_per_mpc = np.interp((zmpc / self.sim.cosm.h70) + d0, dofz, angl)
 

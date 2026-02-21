@@ -194,6 +194,28 @@ class HaloMassFunction(object):
         if not hasattr(self, '_cosm'):
             self._cosm = Cosmology(pf=self.pf, **self.pf)
         return self._cosm
+    
+    def get_Nsats(self, Mh, logmlim=None):
+        """
+        Figure out the expected number of satellites for halos given Mh.
+        """
+
+        # First, grab a few things we need. This is 2-D (Mc, Msat)
+        hmf_sub = self.tab_dndlnm_sub
+
+        if logmlim is None:
+            ok_sub = np.ones_like(self.tab_M)
+        else:
+            ok_sub = np.logical_and(self.tab_M >= 10**logmlim[0],
+                                    self.tab_M <  10**logmlim[1])
+
+        # Expected number of subhalos vs. central halo mass.
+        # Just need to do this once per `logmlim`.
+        Nexp = np.trapezoid(hmf_sub[:,ok_sub==1],
+            x=np.log(self.tab_M[ok_sub==1]), axis=1)
+        
+        return np.interp(Mh, self.tab_M, Nexp)
+
 
 
     def __getattr__(self, name):
