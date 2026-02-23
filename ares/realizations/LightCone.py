@@ -2079,9 +2079,7 @@ class LightCone(object): # pragma: no cover
                         # photometric info, e.g., ('roman', 'F087'),
                         # or special quantities like Ly-a EW or luminosity.
                         # Note: if pops[popid] is a GalaxyEnsemble object
-                        if type(channel) in [tuple, list, np.ndarray]:
-                            
-                            print(f"Working on flux catalog for zlayer={zlayer}...")
+                        if type(channel) in [tuple, list, np.ndarray]:                            
                             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
                                 chan_mic, pid, seed=seed_kw['seed_lum'], dlam=dlam)
                             # This gets conversion factor from cgs (internal) to user's 
