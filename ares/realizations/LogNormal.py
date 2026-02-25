@@ -968,7 +968,7 @@ class LogNormal(LightCone): # pragma: no cover
             side='right') - 1
         iz = np.searchsorted(self.halos.tab_z, red_c,
             side='right') - 1
-
+        
         mpc_per_deg = \
             self.sim.cosm.get_length_comoving_from_angle(red_c, 60.)
 
@@ -982,7 +982,8 @@ class LogNormal(LightCone): # pragma: no cover
             # Remaining dimension: halos.tab_R_nfw
             Sigma = self.halos.tab_Sigma_nfw[iz[i],iM[i],:]
 
-            Nsat_exp = int(Nexp[iM[i]])
+            # Integer-ify expected number of satellites
+            Nsat_exp = int(Nexp[i])
 
             # Note that some Nexp==0 objects should statistically end up
             # with one or even a few satellites, but this should be a really
@@ -995,10 +996,7 @@ class LogNormal(LightCone): # pragma: no cover
             np.random.seed(seeds_num[i])
             Nsat_act_tot = np.random.poisson(Nsat_exp)
 
-            # This looked OK
-            #print(i, np.log10(self.halos.tab_M[iM[i]]), Nsat_exp, Nsat_act_tot)
-            #input('<enter>')
-
+            # Can move on if we didn't get any
             if Nsat_act_tot == 0:
                 continue
 
