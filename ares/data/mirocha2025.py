@@ -693,6 +693,9 @@ for i in range(4, 26):
 subhalos_focc_ext['pop_focc{3}'] = 'link:focc:2'
 subhalos_focc_ext['pop_focc_inv{3}'] = True
 
+distinct_satellites = subhalos_smhm_ext.copy()
+distinct_satellites.update(subhalos_sfr_ext)
+
 # Scaling relationships for common strong lines
 # Each pair is rest wavelength [Angstroms] and L_line [erg/s/(Msun/yr)]
 lines = {}

@@ -1946,7 +1946,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def _get_lf_mags(self, z, bins=None, x=1600., use_tabs=True,
         units='Angstroms', window=1, absolute=True, cam=None, filters=None,
-        dlam=20):
+        dlam=20, mag_cen=None):
 
         if self.is_uvlf_parametric:
             assert absolute
@@ -1959,7 +1959,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         Lh, phi_of_L = self._get_lf_lum(z,
             x=x, units=units, window=window,
-            use_tabs=use_tabs, cam=cam, filters=filters, dlam=dlam)
+            use_tabs=use_tabs, cam=cam, filters=filters, dlam=dlam,
+            mag_cen=mag_cen)
                 
         MAB = self.magsys.get_mag_abs_from_lum(Lh)
 
@@ -2076,7 +2077,7 @@ class GalaxyCohort(GalaxyAggregate):
     def get_lf(self, z, bins=None, use_tabs=True,
         use_mags=True, use_logL=True, x=1600., units='Angstrom', window=1.,
         absolute=True, raw=False, nebular_only=False, band=None, cam=None,
-        filters=None, dlam=20, presets=None):
+        filters=None, dlam=20, presets=None, mag_cen=None):
         """
         Reconstructed luminosity function.
 
@@ -2136,13 +2137,14 @@ class GalaxyCohort(GalaxyAggregate):
             _x_, phi_of_x = self._get_lf_mags(z, bins=bins, x=x,
                 use_tabs=use_tabs, units=units,
                 window=window, absolute=absolute,
-                cam=cam, filters=filters, dlam=dlam)
+                cam=cam, filters=filters, dlam=dlam, mag_cen=mag_cen)
         else:
             # By default, we compute dn/dlnL.
             _lum_, dndlnL = self._get_lf_lum(z, x=x,
                 use_tabs=use_tabs,
                 units=units,
-                window=window, raw=raw, nebular_only=nebular_only, band=band)
+                window=window, raw=raw, nebular_only=nebular_only, band=band,
+                mag_cen=mag_cen)
                         
             # phi is dn/dlnL. Default is to return log10(L), but might need to convert to dn/dL
             # if user provides use_logL=False.
@@ -2924,7 +2926,7 @@ class GalaxyCohort(GalaxyAggregate):
                             np.log10(Lh_l[ok==1]), left=-np.inf, right=-np.inf)
                     else:
                         Ll = np.zeros_like(Mh)
-                        
+
                     return Ltot, Ll
                 else:
                     return Ltot
@@ -3101,6 +3103,7 @@ class GalaxyCohort(GalaxyAggregate):
             freqs = c * 1e8 / ltab_w
             lum = np.trapezoid(ltab[:,:,iw1:iw2+1], x=-freqs[iw1:iw2+1],
                 axis=-1)
+            
         elif x is not None:
             wave = self.src.get_ang_from_x(x, units=units)
             iw = np.argmin(np.abs(wave - ltab_w))
@@ -3856,7 +3859,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def _get_lf_lum(self, z, larr=None, x=1600., window=1, raw=False,
         nebular_only=False, band=None, units='Angstroms',
-        cam=None, filters=None, dlam=20, use_tabs=True):
+        cam=None, filters=None, dlam=20, use_tabs=True, mag_cen=None):
         """
         Compute the luminosity function at redshift z, dn/dlnL.
 
@@ -4084,26 +4087,34 @@ class GalaxyCohort(GalaxyAggregate):
             # Recall that at this point, Lh is the luminosity as a function
             # of subhalo mass. Need to sum up all subhalos over central
             # population
-
-            dndlnm_cen = dndm * self.halos.tab_M
-
+            # OR: if mag_cen is not None, we are computing the LF of satellites
+            # for centrals of a given magnitude (at same wavelength or band)
+            
+            ##
             # Shape of dndlnm_sub (centrals, satellites)
             dndm_sub = self.halos.tab_dndlnm_sub[:,:] / self.halos.tab_M
+    
+            if mag_cen is None:
+                dndlnm_cen = dndm * self.halos.tab_M
 
-            # 
-            dndlnL_sat = np.zeros_like(self.halos.tab_M)
-            for i, Msat in enumerate(self.halos.tab_M):
+                # 
+                dndlnL_sat = np.zeros_like(self.halos.tab_M)
+                for i, Msat in enumerate(self.halos.tab_M):
+    
+                    # Opposite of what we usually do. Integrating over central
+                    # halo abunance at fixed subhalo mass.
+    
+                    # focc independent of central galaxy
+                    integrand = self.halos.tab_dndlnm[iz,:] * focc[i] * fsurv[i] \
+                        * dndm_sub[:,i] * dmdlnL[i]#dMh_dlog10L[i]
+                    #dndlog10L = dndlog10L_c * dndm_sub[:,i] * dMh_dlog10L[i] \
+                    #    * focc[i] * fsurv[i]
+    
+                    dndlnL_sat[i] = np.trapezoid(integrand[ok==1], dx=self.halos.dlnm)
 
-                # Opposite of what we usually do. Integrating over central
-                # halo abunance at fixed subhalo mass.
-
-                # focc independent of central galaxy
-                integrand = self.halos.tab_dndlnm[iz,:] * focc[i] * fsurv[i] \
-                    * dndm_sub[:,i] * dmdlnL[i]#dMh_dlog10L[i]
-                #dndlog10L = dndlog10L_c * dndm_sub[:,i] * dMh_dlog10L[i] \
-                #    * focc[i] * fsurv[i]
-
-                dndlnL_sat[i] = np.trapezoid(integrand[ok==1], dx=self.halos.dlnm)
+            else:
+                i_cen = mag_cen
+                dndlnL_sat = focc * fsurv * dndm_sub[i_cen] * dmdlnL
 
             # 
             if (self.pf['pop_scatter_sfh'] > 0) or (self.pf['pop_scatter_sfr'] > 0):

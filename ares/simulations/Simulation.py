@@ -453,7 +453,7 @@ class Simulation(object):
                 x=x, units='Angstroms', window=dx, dlam=dlam, 
                 zmin=_zmin, zmax=_zmax, zbin=zbin)
             
-            num_by_pop[i] = num_pop
+            num_by_pop[i] = num_pop.copy()
         
         return num_by_pop
 

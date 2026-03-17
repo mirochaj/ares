@@ -1125,7 +1125,7 @@ class DoublePowerLawExtendedEvolvingAsB13(BasePQ):
               + self.args[25] * np.log(1 + z) \
               + self.args[26] * z
             y *= (1. + (x / 10**logTurn)**self.args[22])**self.args[23]
-
+            
         return y
 
 class Okamoto(BasePQ):

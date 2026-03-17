@@ -62,6 +62,8 @@ known_lines = \
  'pah': 3.28e4,
 }
 
+tiny_flux = 1e-80
+
 class LightCone(object): # pragma: no cover
     """
     This should be inherited by the other classes in this submodule.
@@ -542,6 +544,8 @@ class LightCone(object): # pragma: no cover
             flux = np.zeros_like(Mh)
             found_gal = np.zeros_like(flux)
 
+        is_intensity = (not is_photometry)
+
         ##
         # Sub-cycle through redshift slabs
         while zsub_lo < zhi:
@@ -610,7 +614,7 @@ class LightCone(object): # pragma: no cover
                     Mh=Mh[okzsub==1], units='Ang',
                     units_out='erg/s/Ang', band=tuple(band)) \
                     / dfreq_obs
-            
+                            
             ##
             # Add luminosity scatter here!
             sigma = self.sim.pops[pid].pf['pop_scatter_sfh']
@@ -661,6 +665,36 @@ class LightCone(object): # pragma: no cover
         ##
         # Make sure all galaxies are accounted for
         assert np.sum(found_gal) == found_gal.size
+
+        if np.any(flux == 0) and is_intensity:
+            # This can be OK for low-mass halos in models with really low SMHM,
+            # basically we end up asking for luminosity off the low edge of
+            # our lookup table.
+            print('hey', is_photometry, pid, Mh.shape, flux.shape)
+            smhm_0 = self.sim.pops[pid].get_smhm(z=zsub_mid, Mh=Mh[flux==0])
+
+            out_of_bounds = np.logical_or(
+                Mh[flux==0] * smhm_0 < 10**self.sim.pops[pid]._tab_lum_Ms.min(),
+                Mh[flux==0] * smhm_0 > 10**self.sim.pops[pid]._tab_lum_Ms.max())
+
+            print(np.sum(flux==0), out_of_bounds.shape, np.sum(out_of_bounds), smhm_0.shape, Mh[flux==0].shape)
+            print(self.sim.pops[pid]._tab_lum_Ms.min(), self.sim.pops[pid]._tab_lum_Ms.max())
+
+            min_0 = np.min(Mh[flux==0] * smhm_0)
+            max_0 = np.max(Mh[flux==0] * smhm_0)
+            print(np.log10(min_0), np.log10(max_0))
+            
+            
+            print('hey', smhm_0.size, Mh[flux==0].size)
+            print(np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)])
+            print(np.log10(Mh[flux==0])[np.logical_not(out_of_bounds)])
+
+            assert np.all(np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)] < 6), \
+                "This is hacky"
+            
+            flux[flux==0] = tiny_flux
+            #assert np.all(out_of_bounds), \
+            #    "Have some galaxies with zero flux that lie within SED lookup table bounds!"
 
         if is_photometry:
             return mags
@@ -2086,7 +2120,7 @@ class LightCone(object): # pragma: no cover
                             # preferred `cat_units`
                             _dat *= self.get_map_norm(cat_units)
 
-                            assert np.all(_dat > 0)
+                            assert np.all(_dat > 0), f"Have {sum(_dat == 0)} fluxes == 0!"
                             
                         elif channel in ['Mh']:
                             _dat = _Mh
