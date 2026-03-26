@@ -1,0 +1,493 @@
+"""
+
+PreProcessing.py
+
+Author: Jordan Mirocha
+Affiliation: Caltech
+Created on: Thu Mar 26 10:13:30 2026
+
+Description:
+
+"""
+
+import os
+import sys
+import h5py
+import time
+import pickle
+import numpy as np
+from ..sources import Galaxy
+from . import ParameterBundle
+from itertools import product
+from ..simulations import Simulation
+from ..physics.Constants import s_per_myr
+
+try:
+    from multiprocess import Pool, current_process
+except ImportError:
+    pass
+
+class DummyPool(object):
+    def __init__(self, processes=1):
+        pass 
+    def map(self, func, params):
+        return [func(param) for param in params]
+    def close(self):
+        pass
+
+sfh_options = ['exp_decl', 'exp_rise', 'const', 'exp_decl_trunc', 'fail']
+
+def load_checkpoint(fn, x, verbose=False):
+
+    with open(fn, 'rb') as f:
+        x, sfr, (m_rec, sfr_rec), sfh, tau = pickle.load(f)
+    #try:
+    #    waves, lum = np.loadtxt(fn, unpack=True)
+    #except ValueError:
+    #    print(f'Failed to load {fn}.')
+    #    raise ValueError(f'Failed to load {fn}')
+#
+    #f = open(fn, 'r')
+    #hdr = f.readline()[1:].split(';')
+    #sfh = hdr[0].strip().split('=')[-1]
+    #sfh_num = sfh_options.index(sfh)
+    #tau = float(hdr[1].strip().split('=')[-1])
+    #sfr = float(hdr[2].strip().split('=')[-1])
+    #m_rec = float(hdr[3].strip().split('=')[-1])
+    #sfr_rec = float(hdr[4].strip().split('=')[-1])
+    #f.close()
+
+    if verbose:
+        print(f"! Loaded {fn}.")
+
+    return x, sfr, (m_rec, sfr_rec), sfh, tau
+    
+def get_checkpoint_dir(output_dir):
+    return f'{output_dir}/sed_corr'
+
+def get_checkpoint_fn(x, pop_idnum, output_dir, spec=False):
+    z, _mass_ = x
+
+    if z < 0.1:
+        fn = f'corr_z_{z:.4f}_m_{_mass_:.2f}_pop_{pop_idnum}'
+    else:
+        fn = f'corr_z_{z:.2f}_m_{_mass_:.2f}_pop_{pop_idnum}'
+    
+    if spec:
+        fn += '_spec'
+    else:
+        fn += '_info'
+        
+    fn += '.pkl'
+
+    fn_out = f'{get_checkpoint_dir(output_dir)}/{fn}'
+
+    return fn_out 
+
+def get_sfh_params(x, pop, pop_small_dt, pars_g, output_dir, mtol=1e-2,
+    sfh_model_override=None, tau_guess=1e3, clobber_checkpoints=0,
+    debug=False):
+    """
+    Determine the SFH parameters for a galaxy with given properties `x`.
+
+    Parameters
+    ----------
+    x : tuple, list, np.ndarray 
+        For now, just two elements: redshift, stellar mass / Msun
+
+    Note
+    ----
+    The input mass is assumed to be the OBSERVED mass.    
+
+    """ 
+
+    galaxy = Galaxy(**pars_g)
+
+    # _mass_ is really log10(stellar mass / Msun)
+    z, _mass_ = x
+
+    fn_out = get_checkpoint_fn(x, pop.id_num, output_dir, spec=0)
+
+    if (not clobber_checkpoints) and os.path.exists(fn_out):
+        if debug:
+            print(f'loaded {fn_out}')
+        return load_checkpoint(fn_out, x)
+    
+    if debug:
+        print(f"Will generate {fn_out}...")
+
+    t = pop.cosm.t_of_z(z) / s_per_myr
+
+    mass_obs = 10**_mass_
+    mass_sys = pop.get_mstell_sys(z=z, Mh=None)
+    mass_true = 10**(_mass_ - mass_sys)
+
+    # Get appropriate SFR for such an object
+    #ssfr_true = pop.get_ssfr(z, mass_true)
+    #ssfr_sys = pop.get_ssfr_sys(z=z)
+    #ssfr_obs = 10**(np.log10(ssfr_true) + ssfr_sys)
+
+    pop_idnum = pop.id_num
+
+    sfr_all_halos = pop.get_sfr(z=z, Mh=pop.halos.tab_M)
+    smhm = pop.get_smhm(z=z, Mh=pop.halos.tab_M)
+    sfr_true = np.interp(mass_true, smhm * pop.halos.tab_M, sfr_all_halos)
+    
+    if pop_idnum == 1:
+        sfr_true /= pop.pf['pop_sfr_below_ms']
+
+    #if pop_idnum == 0:
+    #    #sfr_obs = mass_obs * ssfr_obs[0]
+    #    sfr_obs = pop.get_sfr_obs(z, mass_true)
+    #else:
+    #    sfr_obs = mass_obs * ssfr_obs[0] / below_main_sequence_by
+#
+    sfr_sys = pop.get_sfr_sys(z=z, Mh=None)
+    sfr_obs = 10**(np.log10(sfr_true) + sfr_sys)
+
+    mass_use = mass_true
+    sfr_use = sfr_true
+
+    # [optional] assume t0 is some user-defined value
+    kw_t0 = {}
+
+    if sfh_model_override is not None:
+        sfh_model = sfh_model_override
+    else:
+        sfh_model = 'exp_decl'
+
+    # Do the real work: get parameters of SFH that produce stellar mass 
+    # `mass_use` and SFR `sfr_use` at redshift `z` (or time `t`).
+    # Note: xtol=1e-4 corresponds to century-level convergence in tau or t0
+    #       ftol refers to acceptable convergence in np.log10(mass_in / mass_out)
+    #       so if we've converged to 1e-4 we're well below mtol=0.01.
+
+    sfh_kw = galaxy.get_kwargs(t, mass_use, sfr_use,
+        sfh=sfh_model,
+        tau_guess=tau_guess, 
+        xtol=1e-4, ftol=1e-4, mtol=mtol,
+        mass_return=True, disp=0, 
+        **kw_t0)
+            
+    # Save recovered mass and SFR for print-out and convergence check.        
+    m_rec = sfh_kw['mass_obs']
+    sfr_rec = sfh_kw['sfr_obs']
+
+    if debug:
+        print("!"*40)
+        print(f"*"*80)
+        print(f"! Found tau={sfh_kw['tau']:.2e} in {t2-t1:.1f} sec")
+        print(f"*"*80)
+        print(f"! Check on z={z:.4f}, log10(Mstell)={np.log10(mass_use):.4f}")
+        print(f"! Recovered mass is {np.log10(m_rec):.4f}")
+        print(f"! Check on z={z:.4f}, log10(SFR)={np.log10(sfr_use):.4f}")
+        print(f"! Recovered SFR is {np.log10(sfr_rec):.4f}")
+        print("!"*40)
+
+        print(sfh_kw)
+
+        if (np.isinf(m_rec) or np.isnan(m_rec)) or (np.isinf(sfr_rec) or np.isnan(sfr_rec)):
+            import matplotlib.pyplot as plt 
+
+            t_hr = pop_small_dt.halos.tab_t
+            sfh_hr = galaxy.get_sfr(t_hr, tobs=t, **sfh_kw)
+    
+            plt.plot(t_hr, sfh_hr)
+
+            print(sfh_hr)
+
+            input('<enter>')
+
+    ##
+    # 
+    converged = (np.abs(np.log10(mass_use/m_rec)) <= mtol) \
+        and (np.abs(np.log10(sfr_use/sfr_rec)) <= mtol)
+    
+    if not converged:
+        print(f"! Not converged: dMst={np.abs(np.log10(mass_use/m_rec)):.4f}, dSFR={np.abs(np.log10(sfr_use/sfr_rec)):.4f}")
+
+    with open(fn_out, 'wb') as f:
+        pickle.dump((x, sfr_use, (m_rec, sfr_rec), sfh_kw, converged), f)
+
+    if debug:
+        print(f"! Saved {fn_out}")
+
+    return x, sfr_use, (m_rec, sfr_rec), sfh_kw, converged
+
+def generate_sed(sfh_results, pop, pop_small_dt, pars_g, output_dir, waves):
+
+    x, sfr_use, (m_rec, sfr_rec), sfh_kw, converged = sfh_results
+    z, m = x 
+
+    galaxy = Galaxy(**pars_g)
+
+    fn_out_spec = get_checkpoint_fn(x, pop.id_num, output_dir, spec=1)
+    if os.path.exists(fn_out_spec):
+        with open(fn_out_spec, 'rb') as f:
+            waves, spec = pickle.load(f)
+        print(f"! Loaded {fn_out_spec}.")
+
+    # Switch to Myr time resolution for low-mass galaxies
+    t_hr = np.arange(pop_small_dt.halos.tab_t.min(), 
+        pop_small_dt.halos.tab_t.max() + 1, 1)
+    
+    # Synthesize SFH   
+    t = pop.cosm.t_of_z(z) / s_per_myr
+    sfh_hr = galaxy.get_sfr(t_hr, tobs=t, **sfh_kw)
+    # Get spectrum
+    spec = galaxy.get_spec(z, t=t_hr, sfh=sfh_hr, waves=waves, hist={})
+    # Save
+    with open(fn_out_spec, 'wb') as f:
+        pickle.dump((waves, spec), f)
+    print(f"Wrote {fn_out_spec}.")
+
+    return waves, spec
+    
+def generate_sed_tab(base_kwargs, output_dir, pop_idnum, 
+    mtol=1e-2, mtol_num=3e-1,
+    dlam=10, lam_min=900, lam_max=5e4,
+    clobber_checkpoints=0, clobber_final_database=1, 
+    use_multiprocess=1, nthreads=1):
+    """
+    Generate
+    """
+
+    fn_out_final = f'{output_dir}/sedtab_pop_{pop_idnum}.hdf5'
+
+    if os.path.exists(fn_out_final) and (not clobber_final_database):
+        print(f"{fn_out_final} exists! Moving on...")
+        return fn_out_final
+
+    if use_multiprocess and nthreads > 1:
+        size = nthreads
+        is_root = current_process().name == 'MainProcess'
+        JobPool = Pool
+    else:   
+        size = 1
+        is_root = 1
+        JobPool = DummyPool
+        
+    # 
+    waves = np.arange(lam_min, lam_max + dlam, dlam)
+    
+    # Key 2-D parameter space
+    mass_bins = np.arange(2, 12.6, 0.05)
+    zbins = 10**np.arange(-2, 1.5, 0.05)
+        
+    # Setup pars
+    #############################################################################
+    pars = base_kwargs    
+    pars['verbose'] = False
+    
+    # Use this to get (SFR, Mstell) relations over z
+    sim_base = Simulation(**pars)
+    
+    # Just need this to grab high time res grid
+    pars_small_dt = base_kwargs.copy()
+    pars_small_dt.update(ParameterBundle('mirocha2025:slow'))
+    pars_small_dt['verbose'] = False
+    
+    sim_small_dt = Simulation(**pars_small_dt)
+    
+    below_main_sequence_by = pars['pop_sfr_below_ms{1}']
+    
+    # This is for the ares.sources.Galaxy instance that figures out 
+    # SFHs for us and does spectral synthesis
+    pars_g = {}
+    pars_g['source_aging'] = True
+    pars_g['source_ssp'] = True
+    pars_g['source_sed_degrade'] = None
+    pars_g['source_sed'] = pars['pop_sed{0}']
+    pars_g['source_imf'] = 'chabrier'
+    pars_g['source_tracks'] = 'Padova1994'
+    pars_g['source_Z'] = 0.02
+    
+    ##
+    # How to model SFH? Generalize in future.
+    pars_g['source_sfh'] = 'exp_decl'
+    
+    # Always start with exp_decl, then try exp_rise (if star-forming), but
+    # ultimately use a constant SFH if those fail.
+    pars_g['source_sfh_fallback_last_resort'] = True
+    pars_g['source_sfh_fallback'] = 'const' if pop_idnum == 1 else 'exp_rise'
+    pars_g['verbose'] = False
+    
+    # Need pop instances to retrieve target mass and SFR, time/redshift arrays, etc.
+    # Don't freak out that we're not indexing with `pop_idnum`. We don't need 
+    # galaxy:halo scaling relations. We're just computing stuff on a grid of stellar 
+    # mass and redshift -- how that M_stell relates to galaxies happens outside this scope.
+    # Would need to update this if SFGs and QGs had different obs/true systematics, 
+    pop = sim_base.pops[pop_idnum]
+    pop_small_dt = sim_small_dt.pops[0]
+    
+    assert zbins.min() >= sim_base.pops[0].halos.tab_z.min()
+    
+    ##
+    # Setup output data structure
+    corr_all = -np.inf * np.ones((len(zbins), len(mass_bins), len(waves)))
+    
+    lum_all = corr_all.copy()
+    
+    # Store best-fit pars
+    pars_all = -np.inf * np.ones((len(zbins), len(mass_bins), 2))
+    sfh_all = -np.inf * np.ones((len(zbins), len(mass_bins), 1))
+    tau_all = -np.inf * np.ones((len(zbins), len(mass_bins), 1))
+    sfr_all = -np.inf * np.ones((len(zbins), len(mass_bins)))
+    
+    sfh_options = ['exp_decl', 'exp_rise', 'const', 'exp_decl_trunc', 'fail']
+    
+    # Construct all possible combinations of (z, Ms)
+    all_params = [element for element in product(zbins, mass_bins[-1::-1])]
+    
+    ##
+    # Setup output directory
+    if (not os.path.exists(get_checkpoint_dir(output_dir))) and is_root:
+        os.mkdir(get_checkpoint_dir(output_dir))
+    
+    def find_unpicklable(obj, path="root"):
+        try:
+            pickle.dumps(obj)
+        except Exception:
+            print(f"Unpicklable at: {path}")
+            if isinstance(obj, dict):
+                for k, v in obj.items():
+                    find_unpicklable(v, f"{path}[{k!r}]")
+            elif isinstance(obj, (list, tuple)):
+                for i, v in enumerate(obj):
+                    find_unpicklable(v, f"{path}[{i}]")
+    
+    
+
+    ##
+    # Run it
+    if is_root:
+        print(f"! Generating SFHs for pop={pop_idnum}...")
+        p = JobPool(processes=size)
+        t1 = time.time()
+
+        def sfh_func(y):
+            return get_sfh_params(y, pop, pop_small_dt, pars_g, output_dir, 
+                mtol=mtol)
+        all_results = p.map(sfh_func, all_params)
+        p.close()
+        t2 = time.time()
+        print(f"! Done getting SFH kwargs in {t2-t1:.2f} sec. Time to generate SEDs")
+    else:
+        sys.exit(0)
+
+    ##
+    # Generate SEDs
+    if is_root:
+        print(f"! Generating SEDs for pop={pop_idnum} using {size} threads...")
+        p = JobPool(processes=size)
+        t1 = time.time()
+
+        def sed_func(y):
+            return generate_sed(
+                y, pop, pop_small_dt, pars_g, output_dir, waves)
+
+        all_seds = p.map(sed_func, all_results)
+        p.close()
+        t2 = time.time()
+        print(f"! Done getting SEDs in {t2-t1:.2f} sec.")
+    else:
+        sys.exit(0)
+
+    ##
+    # Save a file with the whole parameter space
+    corr_all = -np.inf * np.ones((len(zbins), len(mass_bins), len(waves)))
+    lum_all = -np.inf * np.ones((len(zbins), len(mass_bins), len(waves)))
+    
+    # Store best-fit pars
+    pars_all = -np.inf * np.ones((len(zbins), len(mass_bins), 2))
+    sfh_all = -np.inf * np.ones((len(zbins), len(mass_bins)))
+    tau_all = -np.inf * np.ones((len(zbins), len(mass_bins)))
+    
+    mrec_all = -np.inf * np.ones((len(zbins), len(mass_bins)))
+    sfrrec_all = -np.inf * np.ones((len(zbins), len(mass_bins)))
+
+    ##
+    # Need to run first to take advantage of threading.
+    
+    for result in all_results:
+    
+        if result is None:
+            continue
+        
+        x = result[0]
+        z, m = x 
+
+        iz = np.argmin(np.abs(z - zbins))
+        iM = np.argmin(np.abs(m - mass_bins))
+
+        # Load
+        #result = get_sfh_params(x, sim_base, pop, 
+        #    pop_small_dt, galaxy, output_dir, mtol=mtol)
+            
+        if result is None:
+            continue 
+
+        x, sfr, (m_rec, sfr_rec), sfh_kw, converged = result
+
+        fn_out_spec = get_checkpoint_fn(x, pop_idnum, output_dir, spec=1)
+
+        #if os.path.exists(fn_out_spec):
+        with open(fn_out_spec, 'rb') as f:
+            waves, spec = pickle.load(f)
+        print(f"! Loaded {fn_out_spec}.")
+            
+        #else:
+#
+        #    if not converged:
+        #        continue
+        #
+        #    # Switch to Myr time resolution for low-mass galaxies
+        #    t_hr = np.arange(pop_small_dt.halos.tab_t.min(), 
+        #        pop_small_dt.halos.tab_t.max() + 1, 1)
+    #
+        #    # Synthesize SFH   
+        #    t = pop.cosm.t_of_z(z) / s_per_myr
+        #    sfh_hr = galaxy.get_sfr(t_hr, tobs=t, **sfh_kw)
+    #
+        #    # Get spectrum
+        #    spec = galaxy.get_spec(z, t=t_hr, sfh=sfh_hr, waves=waves, hist={})
+#
+        #    # Save
+        #    with open(fn_out_spec, 'wb') as f:
+        #        pickle.dump((waves, spec), f)
+#
+        #    print(f"Wrote {fn_out_spec}.")
+    #
+        ##
+        # Save stuff
+        sfh_all[iz,iM] = sfh_options.index(sfh_kw['sfh'])
+        sfr_all[iz,iM] = sfr
+        tau_all[iz,iM] = sfh_kw['tau']
+    
+        mrec_all[iz,iM] = m_rec
+        sfrrec_all[iz,iM] = sfr_rec
+    
+        lum_all[iz,iM,:] = spec.copy()
+    
+    failed = sfh_all == 4
+    
+    # Save table for use in modeling
+    if os.path.exists(fn_out_final) and (not clobber_final_database):
+        sys.exit(0)
+    
+    with h5py.File(fn_out_final, 'w') as f:
+        f.create_dataset('z', data=zbins)
+        f.create_dataset('Ms', data=mass_bins)
+        f.create_dataset('SFR', data=sfr_all)
+        f.create_dataset('Ms_rec', data=mrec_all)
+        f.create_dataset('SFR_rec', data=sfrrec_all)
+        f.create_dataset('waves', data=waves)
+        f.create_dataset('lum', data=lum_all)
+        f.create_dataset('tau', data=tau_all)
+        f.create_dataset('sfh', data=sfh_all)
+    
+    print(f"Wrote {fn_out_final}.")
+
+    return fn_out_final
+    
+    

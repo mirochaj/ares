@@ -13,9 +13,7 @@ Description:
 import re
 import os
 import copy
-
 import numpy as np
-
 from ..data import ARES
 from ..physics.Constants import c
 from ..physics.Cosmology import Cosmology
@@ -128,6 +126,8 @@ class Survey(object):
             return self._read_wise(filters)
         elif self.camera == '2mass':
             return self._read_2mass(filters)
+        elif self.camera == 'galex':
+            return self._read_galex(filters)
         elif self.camera == 'euclid':
             return self._read_euclid(filters)
         elif self.camera == 'spherex':
@@ -395,6 +395,27 @@ class Survey(object):
             x, y, z = np.loadtxt(full_path, unpack=True)
             data[filt] = self._get_filter_prop(np.array(x), np.array(y), cent[i])
 
+            self._filter_cache[filt] = copy.deepcopy(data[filt])
+
+        return data
+    
+    def _read_galex(self, filters=None):
+        if not hasattr(self, '_filter_cache'):
+            self._filter_cache = {}
+
+        path = os.path.join(_path, "galex")
+
+        A = np.pi * (0.5 * 50.)**2 # cm^2
+
+        data = {}
+        cent = 0.1535, 0.2300
+        for i, filt in enumerate(['FUV', 'NUV']):
+            full_path = os.path.join(path, f"GALEX.{filt}")
+            x, y = np.loadtxt(full_path, unpack=True)
+
+            # `y` is effective area
+
+            data[filt] = self._get_filter_prop(np.array(x) / 1e4, np.array(y) / A, cent[i])
             self._filter_cache[filt] = copy.deepcopy(data[filt])
 
         return data

@@ -741,8 +741,9 @@ class ParameterBundle(dict):
 
         return ParameterBundle(**tmp1)
 
-    def copy(self):
-        return ParameterBundle(**self)
+    # For some reason this removes some elements...?!
+    #def copy(self):   
+    #    return ParameterBundle(**self)
 
     @property
     def num(self):

@@ -2877,7 +2877,7 @@ class GalaxyCohort(GalaxyAggregate):
                 # Need to interpolate in redshift, stellar mass, wavelength
                 Ms_obs = self.get_mstell_obs(z=z, Mh=self.halos.tab_M)
                 Lh_c = self._get_lum_from_tab(z, Ms=Ms_obs, x=x, band=band, units=units)
-                Lh = Lh_c + Lh_l
+                Lh = Lh_c * fesc + Lh_l
 
             if (not self.is_central_pop) and total_sat:
                 Lh = self.get_lum_sat_tot(z, Lh, use_tabs=use_tabs)

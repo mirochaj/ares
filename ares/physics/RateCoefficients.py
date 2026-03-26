@@ -16,11 +16,11 @@ import numdifftools as nd
 from ..util.Math import interp1d
 from ..util.Math import central_difference
 
-T = None
+#T = None
 rate_sources = ['fk94']
 
 class RateCoefficients(object):
-    def __init__(self, grid=None, rate_src='fk94', T=T, recombination='B',
+    def __init__(self, grid=None, rate_src='fk94', recombination='B',
         interp_rc='linear'):
         """
         Parameters
@@ -34,7 +34,7 @@ class RateCoefficients(object):
         self.grid = grid
         self.rate_src = rate_src
         self.interp_rc = interp_rc
-        self.T = T
+        #self.T = T
 
         self.rec = recombination
         

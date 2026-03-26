@@ -6,6 +6,9 @@ For smf_tot, values are corrected as seen in Behroozi et al. 2013 (http://arxiv.
 
 import numpy as np
 
+#umach = ares.data.read('umachine_dr1')
+#m13 = umach.get_data('smf', sources=['moustakas'])['moustakas']
+
 info = \
 {
  'reference':'Moustakas, et al. 2013, ApJ, 767, 50',

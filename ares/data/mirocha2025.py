@@ -105,7 +105,7 @@ centrals_sf = \
  'pq_func_par20[0]': 0.0,           # high
 
  # Extension!
- 'pq_func_par21[0]': 5.0, # evolution done in log10(Mturn), hence default > 0
+ 'pq_func_par21[0]': 1e5, # Mturn
  'pq_func_par22[0]': 0.0,
  'pq_func_par23[0]': 0.0,
  'pq_func_par24[0]': 0.0,
@@ -239,6 +239,7 @@ centrals_q['pop_sfr'] = None
 centrals_q['pop_ssp'] = True
 centrals_q['pop_age'] = 5e3
 centrals_q['pop_Z'] = 0.02
+centrals_q['pop_fstar'] = 'pop_Mmin{0}'
 centrals_q['pop_fstar'] = 'link:fstar:0'
 centrals_q['pop_focc'] = 'link:focc:0'
 centrals_q['pop_nebular'] = 0
@@ -329,6 +330,7 @@ ihl_b19['pq_func_par3[50]'] = -0.8
 ihl_b19['pq_val_ceil[50]'] = 0.99
 
 satellites_sf = centrals_sf.copy()
+satellites_sf['pop_fstar'] = 'pop_Mmin{0}'
 satellites_sf['pop_focc'] = 'link:focc:0'
 satellites_sf['pop_focc_inv'] = False
 satellites_sf['pop_centrals'] = 0
@@ -351,6 +353,7 @@ for par in centrals_sf:
 satellites_sf['pop_sfr'] = 'link:sfr:0'
 
 satellites_q = centrals_q.copy()
+satellites_q['pop_fstar'] = 'pop_Mmin{0}'
 satellites_q['pop_focc'] = 'link:focc:2'
 satellites_q['pop_focc_inv'] = True
 satellites_q['pop_centrals'] = 0

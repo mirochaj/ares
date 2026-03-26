@@ -270,6 +270,12 @@ aux_data = {
         "nircam_throughputs_22April2016_v4.tar.gz",
         None,
     ],
+    "galex": [
+        "http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=GALEX/",
+        "GALEX.FUV",
+        "GALEX.NUV",
+        None,
+    ],
     "wfc3": [
         "http://svo2.cab.inta-csic.es/svo/theory/fps3/getdata.php?format=ascii&id=HST/",
         "WFC3_IR.F098M",
