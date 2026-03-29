@@ -241,7 +241,7 @@ def generate_sed(sfh_results, pop, pop_small_dt, pars_g, output_dir, waves):
         pickle.dump((waves, spec), f)
     print(f"Wrote {fn_out_spec}.")
 
-    return waves, spec
+    return x, waves, spec
     
 def generate_sed_tab(base_kwargs, output_dir, pop_idnum, 
     mtol=1e-2, mtol_num=3e-1,
@@ -273,6 +273,8 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
     # Key 2-D parameter space
     mass_bins = np.arange(2, 12.6, 0.05)
     zbins = 10**np.arange(-2, 1.5, 0.05)
+
+    num_seds = mass_bins.size * zbins.size
         
     # Setup pars
     #############################################################################
@@ -344,72 +346,79 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
     if (not os.path.exists(get_checkpoint_dir(output_dir))) and is_root:
         os.mkdir(get_checkpoint_dir(output_dir))
     
-    def find_unpicklable(obj, path="root"):
-        try:
-            pickle.dumps(obj)
-        except Exception:
-            print(f"Unpicklable at: {path}")
-            if isinstance(obj, dict):
-                for k, v in obj.items():
-                    find_unpicklable(v, f"{path}[{k!r}]")
-            elif isinstance(obj, (list, tuple)):
-                for i, v in enumerate(obj):
-                    find_unpicklable(v, f"{path}[{i}]")
+    print(f"! SED table will have {num_seds} elements.")
     
-    
-
     ##
     # Run it
-    if is_root:
-        print(f"! Generating SFHs for pop={pop_idnum}...")
-        p = JobPool(processes=size)
-        t1 = time.time()
-
-        def sfh_func(y):
-            return get_sfh_params(y, pop, pop_small_dt, pars_g, output_dir, 
-                mtol=mtol)
-        all_results = p.map(sfh_func, all_params)
-        p.close()
-        t2 = time.time()
-        print(f"! Done getting SFH kwargs in {t2-t1:.2f} sec. Time to generate SEDs")
-    else:
-        sys.exit(0)
+    print(f"! Generating SFHs for pop={pop_idnum}...")
+    p = JobPool(processes=size)
+    t1 = time.time()
+    def sfh_func(y):
+        return get_sfh_params(y, pop, pop_small_dt, pars_g, output_dir, 
+            mtol=mtol)
+    all_results = p.map(sfh_func, all_params)
+    p.close()
+    t2 = time.time()
+    print(f"! Done getting SFH kwargs in {t2-t1:.2f} sec. Time to generate SEDs")
 
     ##
     # Generate SEDs
-    if is_root:
-        print(f"! Generating SEDs for pop={pop_idnum} using {size} threads...")
-        p = JobPool(processes=size)
-        t1 = time.time()
-
-        def sed_func(y):
-            return generate_sed(
-                y, pop, pop_small_dt, pars_g, output_dir, waves)
-
-        all_seds = p.map(sed_func, all_results)
-        p.close()
-        t2 = time.time()
-        print(f"! Done getting SEDs in {t2-t1:.2f} sec.")
-    else:
-        sys.exit(0)
+    print(f"! Generating SEDs for pop={pop_idnum} using {size} threads...")
+    p = JobPool(processes=size)
+    t1 = time.time()
+    def sed_func(y):
+        return generate_sed(
+            y, pop, pop_small_dt, pars_g, output_dir, waves)
+    all_seds = p.map(sed_func, all_results)
+    p.close()
+    t2 = time.time()
+    print(f"! Done getting SEDs in {t2-t1:.2f} sec.")
 
     ##
     # Save a file with the whole parameter space
     corr_all = -np.inf * np.ones((len(zbins), len(mass_bins), len(waves)))
     lum_all = -np.inf * np.ones((len(zbins), len(mass_bins), len(waves)))
-    
+
     # Store best-fit pars
     pars_all = -np.inf * np.ones((len(zbins), len(mass_bins), 2))
     sfh_all = -np.inf * np.ones((len(zbins), len(mass_bins)))
     tau_all = -np.inf * np.ones((len(zbins), len(mass_bins)))
-    
+
     mrec_all = -np.inf * np.ones((len(zbins), len(mass_bins)))
     sfrrec_all = -np.inf * np.ones((len(zbins), len(mass_bins)))
 
     ##
-    # Need to run first to take advantage of threading.
-    
+    # By here, everything should have run already.
+    # No need to read back in from disk -- everything we need is
+    # stored in all_results and all_seds
+
+    ##
+    # The reason we do two separate loops here is because 
+    # there's no guarantee that elements of all_results and
+    # all_spec will match given that we're farming out the 
+    # work to different threads.
     for result in all_results:
+        if result is None:
+            continue
+        
+        x = result[0]
+        z, m = x 
+        iz = np.argmin(np.abs(z - zbins))
+        iM = np.argmin(np.abs(m - mass_bins))
+
+        x, sfr, (m_rec, sfr_rec), sfh_kw, converged = result
+
+        ##
+        # Save stuff
+        sfh_all[iz,iM] = sfh_options.index(sfh_kw['sfh'])
+        sfr_all[iz,iM] = sfr
+        tau_all[iz,iM] = sfh_kw['tau']
+    
+        mrec_all[iz,iM] = m_rec
+        sfrrec_all[iz,iM] = sfr_rec
+    
+    
+    for result in all_seds:
     
         if result is None:
             continue
@@ -424,50 +433,17 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
         #result = get_sfh_params(x, sim_base, pop, 
         #    pop_small_dt, galaxy, output_dir, mtol=mtol)
             
-        if result is None:
-            continue 
-
-        x, sfr, (m_rec, sfr_rec), sfh_kw, converged = result
-
-        fn_out_spec = get_checkpoint_fn(x, pop_idnum, output_dir, spec=1)
-
-        #if os.path.exists(fn_out_spec):
-        with open(fn_out_spec, 'rb') as f:
-            waves, spec = pickle.load(f)
-        print(f"! Loaded {fn_out_spec}.")
+        #x, sfr, (m_rec, sfr_rec), sfh_kw, converged = result
+#
+        #fn_out_spec = get_checkpoint_fn(x, pop_idnum, output_dir, spec=1)
+#
+        ##if os.path.exists(fn_out_spec):
+        #with open(fn_out_spec, 'rb') as f:
+        #    waves, spec = pickle.load(f)
+        #print(f"! Loaded {fn_out_spec}.")
             
-        #else:
-#
-        #    if not converged:
-        #        continue
-        #
-        #    # Switch to Myr time resolution for low-mass galaxies
-        #    t_hr = np.arange(pop_small_dt.halos.tab_t.min(), 
-        #        pop_small_dt.halos.tab_t.max() + 1, 1)
-    #
-        #    # Synthesize SFH   
-        #    t = pop.cosm.t_of_z(z) / s_per_myr
-        #    sfh_hr = galaxy.get_sfr(t_hr, tobs=t, **sfh_kw)
-    #
-        #    # Get spectrum
-        #    spec = galaxy.get_spec(z, t=t_hr, sfh=sfh_hr, waves=waves, hist={})
-#
-        #    # Save
-        #    with open(fn_out_spec, 'wb') as f:
-        #        pickle.dump((waves, spec), f)
-#
-        #    print(f"Wrote {fn_out_spec}.")
-    #
-        ##
-        # Save stuff
-        sfh_all[iz,iM] = sfh_options.index(sfh_kw['sfh'])
-        sfr_all[iz,iM] = sfr
-        tau_all[iz,iM] = sfh_kw['tau']
-    
-        mrec_all[iz,iM] = m_rec
-        sfrrec_all[iz,iM] = sfr_rec
-    
-        lum_all[iz,iM,:] = spec.copy()
+        # result is (x, waves, spectrum)
+        lum_all[iz,iM,:] = result[-1].copy()
     
     failed = sfh_all == 4
     

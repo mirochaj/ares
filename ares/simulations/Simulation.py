@@ -213,7 +213,7 @@ class Simulation(object):
                     flux = _flux
                 else:
                     x = bands.mean(axis=1)
-                    flux = np.interp(x, _x, _flux)            
+                    flux = np.interp(x, _x, _flux)
 
             data[i] = x, flux
 
