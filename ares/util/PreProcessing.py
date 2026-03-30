@@ -84,7 +84,7 @@ def get_checkpoint_fn(x, pop_idnum, output_dir, spec=False):
 
     return fn_out 
 
-def get_sfh_params(x, sim_base, pop, pop_small_dt, pars_g, output_dir, mtol=1e-2,
+def get_sfh_params(x, pop_ms, pop, pop_small_dt, pars_g, output_dir, mtol=1e-2,
     sfh_model_override=None, tau_guess=1e3, clobber_checkpoints=0,
     debug=False):
     """
@@ -132,8 +132,7 @@ def get_sfh_params(x, sim_base, pop, pop_small_dt, pars_g, output_dir, mtol=1e-2
     smhm = pop.get_smhm(z=z, Mh=pop.halos.tab_M)
     
     if pop_idnum == 1:
-        id_bb = pop.pf['pop_sfr_below_ms_of_pop']
-        sfr_all_halos = sim_base.pops[id_bb].get_sfr(z=z, Mh=pop.halos.tab_M)
+        sfr_all_halos = pop_ms.get_sfr(z=z, Mh=pop.halos.tab_M)
         corr = pop.pf['pop_sfr_below_ms']
     else:
         sfr_all_halos = pop.get_sfr(z=z, Mh=pop.halos.tab_M)
@@ -291,9 +290,7 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
     pars_small_dt['verbose'] = False
     
     sim_small_dt = Simulation(**pars_small_dt)
-    
-    below_main_sequence_by = pars['pop_sfr_below_ms{1}']
-    
+        
     # This is for the ares.sources.Galaxy instance that figures out 
     # SFHs for us and does spectral synthesis
     pars_g = {}
@@ -322,7 +319,13 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
     # Would need to update this if SFGs and QGs had different obs/true systematics, 
     pop = sim_base.pops[pop_idnum]
     pop_small_dt = sim_small_dt.pops[0]
-    
+
+    if pop_idnum == 1:
+        id_bb = pop.pf['pop_sfr_below_ms_of_pop']
+        pop_ms = sim_base.pops[id_bb]
+    else:
+        pop_ms = pop
+
     assert zbins.min() >= sim_base.pops[0].halos.tab_z.min()
     
     ##
@@ -357,8 +360,9 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
     p = JobPool(processes=size)
         
     def sfh_func(y):
-        return get_sfh_params(y, sim_base, pop, pop_small_dt, pars_g, output_dir, 
+        return get_sfh_params(y, pop_ms, pop, pop_small_dt, pars_g, output_dir, 
             mtol=mtol)
+    
     all_results = p.map(sfh_func, all_params)
     p.close()
 
