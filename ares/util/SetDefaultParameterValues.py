@@ -684,6 +684,9 @@ def PopulationParameters():
     "pop_frd": None,
     "pop_fshock": 1.0,
 
+    "pop_sfr_below_ms": None,
+    "pop_sfr_below_ms_of_pop": 0,
+
     # Halo model stuff
     "pop_prof_1h": None,
     "pop_1h_nebular_only": False,

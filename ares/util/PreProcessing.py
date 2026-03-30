@@ -84,7 +84,7 @@ def get_checkpoint_fn(x, pop_idnum, output_dir, spec=False):
 
     return fn_out 
 
-def get_sfh_params(x, pop, pop_small_dt, pars_g, output_dir, mtol=1e-2,
+def get_sfh_params(x, sim_base, pop, pop_small_dt, pars_g, output_dir, mtol=1e-2,
     sfh_model_override=None, tau_guess=1e3, clobber_checkpoints=0,
     debug=False):
     """
@@ -129,19 +129,19 @@ def get_sfh_params(x, pop, pop_small_dt, pars_g, output_dir, mtol=1e-2,
 
     pop_idnum = pop.id_num
 
-    sfr_all_halos = pop.get_sfr(z=z, Mh=pop.halos.tab_M)
     smhm = pop.get_smhm(z=z, Mh=pop.halos.tab_M)
-    sfr_true = np.interp(mass_true, smhm * pop.halos.tab_M, sfr_all_halos)
     
     if pop_idnum == 1:
-        sfr_true /= pop.pf['pop_sfr_below_ms']
+        id_bb = pop.pf['pop_sfr_below_ms_of_pop']
+        sfr_all_halos = sim_base.pops[id_bb].get_sfr(z=z, Mh=pop.halos.tab_M)
+        corr = pop.pf['pop_sfr_below_ms']
+    else:
+        sfr_all_halos = pop.get_sfr(z=z, Mh=pop.halos.tab_M)
+        corr = 1.
 
-    #if pop_idnum == 0:
-    #    #sfr_obs = mass_obs * ssfr_obs[0]
-    #    sfr_obs = pop.get_sfr_obs(z, mass_true)
-    #else:
-    #    sfr_obs = mass_obs * ssfr_obs[0] / below_main_sequence_by
-#
+    sfr_true = np.interp(mass_true, smhm * pop.halos.tab_M, sfr_all_halos)
+    sfr_true /= corr
+
     sfr_sys = pop.get_sfr_sys(z=z, Mh=None)
     sfr_obs = 10**(np.log10(sfr_true) + sfr_sys)
 
@@ -205,6 +205,7 @@ def get_sfh_params(x, pop, pop_small_dt, pars_g, output_dir, mtol=1e-2,
     
     if not converged:
         print(f"! Not converged: dMst={np.abs(np.log10(mass_use/m_rec)):.4f}, dSFR={np.abs(np.log10(sfr_use/sfr_rec)):.4f}")
+        print(f"! sfr_rec={sfr_rec}, sfr_use={sfr_use}")
 
     with open(fn_out, 'wb') as f:
         pickle.dump((x, sfr_use, (m_rec, sfr_rec), sfh_kw, converged), f)
@@ -225,7 +226,7 @@ def generate_sed(sfh_results, pop, pop_small_dt, pars_g, output_dir, waves):
     if os.path.exists(fn_out_spec):
         with open(fn_out_spec, 'rb') as f:
             waves, spec = pickle.load(f)
-        print(f"! Loaded {fn_out_spec}.")
+        return x, waves, spec
 
     # Switch to Myr time resolution for low-mass galaxies
     t_hr = np.arange(pop_small_dt.halos.tab_t.min(), 
@@ -351,27 +352,34 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
     ##
     # Run it
     print(f"! Generating SFHs for pop={pop_idnum}...")
-    p = JobPool(processes=size)
     t1 = time.time()
+
+    p = JobPool(processes=size)
+        
     def sfh_func(y):
-        return get_sfh_params(y, pop, pop_small_dt, pars_g, output_dir, 
+        return get_sfh_params(y, sim_base, pop, pop_small_dt, pars_g, output_dir, 
             mtol=mtol)
     all_results = p.map(sfh_func, all_params)
     p.close()
+
     t2 = time.time()
+    
     print(f"! Done getting SFH kwargs in {t2-t1:.2f} sec. Time to generate SEDs")
 
     ##
     # Generate SEDs
     print(f"! Generating SEDs for pop={pop_idnum} using {size} threads...")
-    p = JobPool(processes=size)
     t1 = time.time()
+    p = JobPool(processes=size)
+        
     def sed_func(y):
         return generate_sed(
             y, pop, pop_small_dt, pars_g, output_dir, waves)
     all_seds = p.map(sed_func, all_results)
     p.close()
+    
     t2 = time.time()
+    
     print(f"! Done getting SEDs in {t2-t1:.2f} sec.")
 
     ##
