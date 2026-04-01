@@ -27,6 +27,16 @@ try:
 except ImportError:
     pass
 
+try:
+    from schwimmbad import MPIPool
+except ImportError:
+    pass
+
+try:
+    from mpi4py import MPI
+except ImportError:
+    pass
+
 class DummyPool(object):
     def __init__(self, processes=1):
         pass 
@@ -39,8 +49,12 @@ sfh_options = ['exp_decl', 'exp_rise', 'const', 'exp_decl_trunc', 'fail']
 
 def load_checkpoint(fn, x, verbose=False):
 
-    with open(fn, 'rb') as f:
-        x, sfr, (m_rec, sfr_rec), sfh, tau = pickle.load(f)
+    try:
+        with open(fn, 'rb') as f:
+            x, sfr, (m_rec, sfr_rec), sfh, tau = pickle.load(f)
+    except EOFError:
+        print(f"Failed to open {fn}. Will re-generate.")
+        return None
     #try:
     #    waves, lum = np.loadtxt(fn, unpack=True)
     #except ValueError:
@@ -109,10 +123,16 @@ def get_sfh_params(x, pop_ms, pop, pop_small_dt, pars_g, output_dir, mtol=1e-2,
     fn_out = get_checkpoint_fn(x, pop.id_num, output_dir, spec=0)
 
     if (not clobber_checkpoints) and os.path.exists(fn_out):
+        
+        result = load_checkpoint(fn_out, x)
+
         if debug:
             print(f'loaded {fn_out}')
-        return load_checkpoint(fn_out, x)
     
+        if result is not None:
+            return result
+        
+        
     if debug:
         print(f"Will generate {fn_out}...")
 
@@ -246,7 +266,7 @@ def generate_sed(sfh_results, pop, pop_small_dt, pars_g, output_dir, waves):
 def generate_sed_tab(base_kwargs, output_dir, pop_idnum, 
     mtol=1e-2, mtol_num=3e-1,
     dlam=10, lam_min=900, lam_max=5e4,
-    clobber_checkpoints=0, clobber_final_database=1, 
+    clobber_checkpoints=0, clobber_final_database=0, 
     use_multiprocess=1, nthreads=1):
     """
     Generate
@@ -255,14 +275,20 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
     fn_out_final = f'{output_dir}/sedtab_pop_{pop_idnum}.hdf5'
 
     if os.path.exists(fn_out_final) and (not clobber_final_database):
-        print(f"{fn_out_final} exists! Moving on...")
+        print(f"Found {fn_out_final}, will load since clobber_final_database=0.")
         return fn_out_final
 
-    if use_multiprocess and nthreads > 1:
-        size = nthreads
-        is_root = current_process().name == 'MainProcess'
-        JobPool = Pool
-    else:   
+    if nthreads > 1:
+        if use_multiprocess:
+            size = nthreads
+            is_root = current_process().name == 'MainProcess'
+            JobPool = Pool
+        else:
+            size = MPI.COMM_WORLD.size
+            rank = MPI.COMM_WORLD.rank
+            JobPool = MPIPool
+            is_root = rank == 0
+    else:
         size = 1
         is_root = 1
         JobPool = DummyPool
@@ -350,41 +376,61 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
     if (not os.path.exists(get_checkpoint_dir(output_dir))) and is_root:
         os.mkdir(get_checkpoint_dir(output_dir))
     
-    print(f"! SED table will have {num_seds} elements.")
+    if is_root:
+        print(f"! SED table will have {num_seds} elements.")
     
     ##
     # Run it
-    print(f"! Generating SFHs for pop={pop_idnum}...")
+    if is_root:
+        print(f"! Generating SFHs for pop={pop_idnum}...")
+    
     t1 = time.time()
 
-    p = JobPool(processes=size)
-        
-    def sfh_func(y):
-        return get_sfh_params(y, pop_ms, pop, pop_small_dt, pars_g, output_dir, 
-            mtol=mtol)
-    
-    all_results = p.map(sfh_func, all_params)
-    p.close()
+    ## 
+    # Setup the appropriate pool
+    if use_multiprocess and nthreads > 1:
+        p = JobPool(processes=size, maxtasksperchild=50)
+    elif nthreads > 1:
+        assert not use_multiprocess
+        assert size == nthreads
+        p = JobPool(use_dill=1)
+        if not p.is_master():
+            p.wait()
+            sys.exit(0)
+            
+    else:
+        p = JobPool()
 
+    def sfh_func(y):
+        return get_sfh_params(y, pop_ms, pop, pop_small_dt, 
+            pars_g, output_dir, mtol=mtol)
+    
+    all_results = list(p.map(sfh_func, all_params))
+    
     t2 = time.time()
     
-    print(f"! Done getting SFH kwargs in {t2-t1:.2f} sec. Time to generate SEDs")
+    if is_root:
+        print(f"! Done getting SFH kwargs in {t2-t1:.2f} sec. Time to generate SEDs")
 
     ##
     # Generate SEDs
-    print(f"! Generating SEDs for pop={pop_idnum} using {size} threads...")
+    if is_root:
+        print(f"! Generating SEDs for pop={pop_idnum} using {size} threads...")
+    
     t1 = time.time()
-    p = JobPool(processes=size)
-        
+    
     def sed_func(y):
         return generate_sed(
             y, pop, pop_small_dt, pars_g, output_dir, waves)
-    all_seds = p.map(sed_func, all_results)
+    
+    all_seds = list(p.map(sed_func, all_results))
+
     p.close()
     
     t2 = time.time()
     
-    print(f"! Done getting SEDs in {t2-t1:.2f} sec.")
+    if is_root:
+        print(f"! Done getting SEDs in {t2-t1:.2f} sec.")
 
     ##
     # Save a file with the whole parameter space
