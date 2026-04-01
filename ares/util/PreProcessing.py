@@ -37,7 +37,8 @@ try:
     rank = MPI.COMM_WORLD.rank
     size = MPI.COMM_WORLD.size
 except ImportError:
-    pass
+    rank = 0
+    size = 1
 
 class DummyPool(object):
     def __init__(self, processes=1):
@@ -245,9 +246,13 @@ def generate_sed(sfh_results, pop, pop_small_dt, pars_g, output_dir, waves):
 
     fn_out_spec = get_checkpoint_fn(x, pop.id_num, output_dir, spec=1)
     if os.path.exists(fn_out_spec):
-        with open(fn_out_spec, 'rb') as f:
-            waves, spec = pickle.load(f)
-        return x, waves, spec
+        try:
+            with open(fn_out_spec, 'rb') as f:
+                waves, spec = pickle.load(f)
+            return x, waves, spec
+        except EOFError:
+            print(f"Error opening {fn_out_spec}. Will re-generate.")
+            pass
 
     # Switch to Myr time resolution for low-mass galaxies
     t_hr = np.arange(pop_small_dt.halos.tab_t.min(), 
@@ -282,16 +287,12 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
 
     if (nthreads > 1) or (size > 1):
         if use_multiprocess:
-            size = nthreads
             is_root = current_process().name == 'MainProcess'
             JobPool = Pool
         else:
-            size = MPI.COMM_WORLD.size
-            rank = MPI.COMM_WORLD.rank
             JobPool = MPIPool
             is_root = rank == 0
     else:
-        size = 1
         is_root = 1
         JobPool = DummyPool
         
@@ -391,14 +392,13 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
     ## 
     # Setup the appropriate pool
     if use_multiprocess and nthreads > 1:
-        p = JobPool(processes=size, maxtasksperchild=50)
-    elif (nthreads > 1) or (size > 1):
+        p = JobPool(processes=nthreads, maxtasksperchild=50)
+    elif (size > 1):
         assert not use_multiprocess
-        assert size == nthreads
         p = JobPool(use_dill=1)
-        if not p.is_master():
-            p.wait()
-            sys.exit(0)
+        #if not p.is_master():
+        #    p.wait()
+        #    sys.exit(0)
             
     else:
         p = JobPool()
