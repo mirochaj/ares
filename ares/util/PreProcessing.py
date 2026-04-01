@@ -34,6 +34,8 @@ except ImportError:
 
 try:
     from mpi4py import MPI
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
 except ImportError:
     pass
 
@@ -278,7 +280,7 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
         print(f"Found {fn_out_final}, will load since clobber_final_database=0.")
         return fn_out_final
 
-    if nthreads > 1:
+    if (nthreads > 1) or (size > 1):
         if use_multiprocess:
             size = nthreads
             is_root = current_process().name == 'MainProcess'
@@ -390,7 +392,7 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
     # Setup the appropriate pool
     if use_multiprocess and nthreads > 1:
         p = JobPool(processes=size, maxtasksperchild=50)
-    elif nthreads > 1:
+    elif (nthreads > 1) or (size > 1):
         assert not use_multiprocess
         assert size == nthreads
         p = JobPool(use_dill=1)
