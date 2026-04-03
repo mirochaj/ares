@@ -10,6 +10,7 @@ Description:
 
 """
 
+import gc
 import os
 import sys
 import h5py
@@ -267,6 +268,9 @@ def generate_sed(sfh_results, pop, pop_small_dt, pars_g, output_dir, waves):
     with open(fn_out_spec, 'wb') as f:
         pickle.dump((waves, spec), f)
     print(f"Wrote {fn_out_spec}.")
+
+    del galaxy, t, sfh_hr
+    gc.collect()
 
     return x, waves, spec
     
