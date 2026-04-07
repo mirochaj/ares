@@ -2934,7 +2934,32 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Loop over components (most often just one) and determine L
         Lh = np.zeros_like(self.halos.tab_M, dtype=np.float64)
+        ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
+                            self.halos.tab_M <  self.get_Mmax(z))
+        
         for i, src in enumerate(self.srcs):
+
+            ##
+            # Check for non-stellar stellar sources first (ugh! Think: HMXBs)
+            if src.pf['source_rad_yield'] != 'from_sed':
+
+                # rad_yield is erg/s/(Msun/yr)
+                # get_spectrum is normalized such that an integral from
+                # source_Emin to source_Emax (in eV) -> 1
+                L_sfr = src.pf['source_rad_yield'] \
+                        * src.get_spectrum(x, units=units)
+                
+                if units_out.lower() == 'erg/s/hz':
+                    L_sfr *= ev_per_hz
+                else:
+                    raise ValueError(f'unknown units={units_out}')
+
+
+                _Lh_ = sfr * L_sfr
+                _Lh_[~ok] = 0
+                Lh += _Lh_
+                continue
+
             Zfe = src.pf['source_Z']
             age_def = self.pf['pop_age_definition']
 
@@ -3055,8 +3080,7 @@ class GalaxyCohort(GalaxyAggregate):
                     _Lh_= self.get_lum_sat_tot(z, Ls, use_tabs=use_tabs)
 
 
-            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
-                self.halos.tab_M < self.get_Mmax(z))
+            
             _Lh_[~ok] = 0
             ##
             Lh += _Lh_
