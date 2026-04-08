@@ -1597,7 +1597,8 @@ class LightCone(object): # pragma: no cover
 
         ##
         # Always need to first setup lightcone on normal grid
-        lc = np.zeros((self.dims, self.dims, self.dims * len(zmid)))
+        #lc = np.zeros((self.dims, self.dims, self.dims * len(zmid)))
+        lc = np.zeros((self.dims, self.dims, len(z_c)))
         for i, layer in enumerate(zlayers):
             
             # Note that the random seed for the density box only 
@@ -1636,7 +1637,16 @@ class LightCone(object): # pragma: no cover
             else:
                 raise NotImplemented('help')
             
-            lc[:,:,self.dims*i:self.dims*(i+1)] = rho.copy()
+            ##
+            # As of early 2026 we allow users to truncate the z range rather than
+            # always including an integer number of co-eval cubes along the LoS.
+            # So, we have to be a little careful on the last slice.
+            if i < len(zlayers) - 1:
+                lc[:,:,self.dims*i:self.dims*(i+1)] = rho.copy()
+            else:
+                nlos = lc.shape[-1] - self.dims*i
+                lc[:,:,self.dims*i:] = rho[:,:,0:nlos].copy()
+
 
         ##
         # Re-gridding starts here.
@@ -1760,6 +1770,8 @@ class LightCone(object): # pragma: no cover
             f.create_dataset('rho_0', data=self.sim.cosm.mean_density0)
 
         print(f"* Wrote {fn}.")
+
+        print('zgrids check 2', len(zgrids[3]))
 
         return xgrids, ygrids, zgrids, lc
         

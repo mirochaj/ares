@@ -289,12 +289,12 @@ class Simulation(object):
         if type(waves) != np.ndarray:
             waves = np.array([waves])
 
-        waves_is_2d = False
         if waves.ndim == 2:
             assert waves.shape[1] == 2, \
                 "If `waves` is 2-D, must have shape (num waves, 2)."
-            waves_is_2d = True
 
+        # Eventually might modify for cross-correlations
+        # Could keep flux_units2 to correspond to waves2 or something.
         if flux_units.lower() == 'si':
             to_ps_units = cm_per_m**4 / erg_per_s_per_nW**2
         elif flux_units.lower() == 'mjy':
@@ -387,25 +387,23 @@ class Simulation(object):
         # Convention is that fluctuations for population `i` includes
         # all crosses with
 
-        #self.px_natu = px.copy()
-        #self.pz_natu = ps_z.copy()
-
         ##
         # Modify PS units before return
         px *= to_ps_units
         ps_z *= to_ps_units
         
+        # Sum over source populations
         ptot = px.sum(axis=0).sum(axis=0)
 
         if pops is None:
             hist = self.history # poke
-            self._history['ps_nirb'] = scales, waves, ptot, px
+            self._history['ps_nirb'] = ptot
 
         self.ps_auto = ps
-        self.ps_cross = px
-        self.ps_zall = ps_z
+        self.ps_by_pop = px
+        self.ps_by_z = ps_z
 
-        return scales, waves, ptot, px
+        return ptot
     
     def get_galaxy_number_counts(self, band, magbins, popids=None,
         dlam=10, zmin=None, zmax=None, zbin=0.01):
