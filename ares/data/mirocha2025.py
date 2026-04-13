@@ -239,7 +239,7 @@ centrals_q['pop_sfr'] = None
 centrals_q['pop_ssp'] = True
 centrals_q['pop_age'] = 5e3
 centrals_q['pop_Z'] = 0.02
-centrals_q['pop_fstar'] = 'pop_Mmin{0}'
+centrals_q['pop_Mmin'] = 'pop_Mmin{0}'
 centrals_q['pop_fstar'] = 'link:fstar:0'
 centrals_q['pop_focc'] = 'link:focc:0'
 centrals_q['pop_nebular'] = 0
@@ -330,7 +330,7 @@ ihl_b19['pq_func_par3[50]'] = -0.8
 ihl_b19['pq_val_ceil[50]'] = 0.99
 
 satellites_sf = centrals_sf.copy()
-satellites_sf['pop_fstar'] = 'pop_Mmin{0}'
+satellites_sf['pop_Mmin'] = 'pop_Mmin{0}'
 satellites_sf['pop_focc'] = 'link:focc:0'
 satellites_sf['pop_focc_inv'] = False
 satellites_sf['pop_centrals'] = 0
@@ -353,7 +353,7 @@ for par in centrals_sf:
 satellites_sf['pop_sfr'] = 'link:sfr:0'
 
 satellites_q = centrals_q.copy()
-satellites_q['pop_fstar'] = 'pop_Mmin{0}'
+satellites_q['pop_Mmin'] = 'pop_Mmin{0}'
 satellites_q['pop_focc'] = 'link:focc:2'
 satellites_q['pop_focc_inv'] = True
 satellites_q['pop_centrals'] = 0
@@ -1024,16 +1024,47 @@ scatter_flex = \
 #base.update(sed_modeling)
 #base.update(lines_wprof)
 
+smhm_same = setup.copy()
+smhm_diff = setup.copy()
+smhm_diff.update(smhm_Q)
+
+# Dust
+smhm_same.update(dust_dplx)
+smhm_diff.update(dust_dplx)
+
+# SED modeling
+smhm_same.update(sed_modeling_univ)
+smhm_same.update(lines_wprof)
+smhm_diff.update(sed_modeling_univ)
+smhm_diff.update(lines_wprof)
+
+# Eventually, add best fit parameters here.
+
+
+# Soon-to-be deprecated
 smhm_univ = setup.copy()
 smhm_univ.update(smhm_Q)
 smhm_univ.update(dust_dplx)
-smhm_univ.update(_base_smhm_univ)
 smhm_univ.update(sed_modeling_univ)
 smhm_univ.update(lines_wprof)
+smhm_univ.update(_base_smhm_univ)
 
-smhm_evol = setup.copy()
-smhm_evol.update(smhm_Q)
-smhm_evol.update(dust_dplx)
-smhm_evol.update(_base_smhm_evol)
-smhm_evol.update(sed_modeling_evol)
-smhm_evol.update(lines_wprof)
+#
+#smhm_evol = setup.copy()
+#smhm_evol.update(smhm_Q)
+#smhm_evol.update(dust_dplx)
+#smhm_evol.update(_base_smhm_evol)
+#smhm_evol.update(sed_modeling_evol)
+#smhm_evol.update(lines_wprof)
+#
+##
+# New: naming scheme:
+# 1. smhm_same_evol_0, smhm_same_evol_1, smhm_same_evol_2
+# 3. smhm_diff_evol_0, smhm_diff_evol_1, smhm_diff_evol_2
+# Plan for satellites?
+# 1. smhm_c_same_s_same_evol_0
+# 2. smhm_c_diff_s_diff_evol_0
+# 3. smhm_c_diff_s_same_evol_0 # would we ever do this?
+# 4. smhm_c_same_s_diff_evol_0 # would we ever do this?
+
+# Satellite possibilities: satellites follow same relation, satellites follow same relation as host

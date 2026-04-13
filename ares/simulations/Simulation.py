@@ -158,8 +158,6 @@ class Simulation(object):
                 zf = zlow
             else:
                 zf = self.pops[i].zdead
-
-            print('hey', self.pf['pop_mask{0}'], self.pops[i].pf['pop_mask'])
             
             if self.pops[i].pf['pop_mask'] is not None:
                 print(f"! WARNING: pop_mask != None, non-standard for mean EBL runs!")
@@ -187,7 +185,7 @@ class Simulation(object):
 
                     nu = c / (np.mean(band) * 1e-4)
                     
-                    num = self.get_galaxy_number_counts(band, magbins, popid=i,
+                    num = self.get_galaxy_number_counts(band, magbins, popids=i,
                         **kwargs)
                     
                     # Cumulative flux [convert to nW m^-2 sr^-1 Hz^-1]

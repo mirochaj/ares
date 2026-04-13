@@ -60,7 +60,7 @@ class MagnitudeSystem(object):
 
     def get_mag_app_from_lum(self, z, L):
         mag_abs = self.get_mag_abs_from_lum(L)
-        return get_mags_app(z, mag_abs)
+        return self.get_mags_app(z, mag_abs)
 
     def get_mags_abs(self, z, mags):
         """
