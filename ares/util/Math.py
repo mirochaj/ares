@@ -76,6 +76,7 @@ def integrate_with_subgrid_interp(x, y, bound_lo, bound_hi, method='trapz_trapz'
         bound_lo = lo
     
     if not np.all(np.diff(x) > 0):
+        assert axis == 0, "Need to generalize for axis>0!"
         x = x[-1::-1]
         y = y[-1::-1]
 
