@@ -20,6 +20,70 @@ from ..physics.Constants import c, erg_per_ev, h_p, E_LL, E_LyA
 letters = list('abcdefg')
 numeric_types = [int, float, np.int64, np.int32, np.float64, np.float32]
 
+def get_wave_or_equivalent(x_in, units, units_out):
+    """
+    Convert between photon wavelength, energy, and frequency.
+
+    Parameters
+    ----------
+    x_in : int, float, np.ndarray
+        Array of values that we'd like convert to different units.
+    units : str
+        Units of `x_in`, e.g., 'cm', 'ang', 'mic', 'hz', 'ghz', 'ev', 'keV'.
+    units_out : str
+        Units we'd like to convert `x_in` to.
+
+    Returns
+    -------
+    Input array `x_in` converted to output units `units_out`.
+
+    """
+    if units.lower() == units_out.lower():
+        return x_in
+    
+    if type(x_in) in [tuple, list]:
+        x_in = np.array(x_in)
+    
+    ##
+    # Start by convert input unit to cm
+    if units.lower() == 'cm':
+        x_cm = x_in
+    elif units.lower().startswith('ang'):
+        x_cm = x_in * 1e-8
+    elif units.lower().startswith('mic'):
+        x_cm = x_in * 1e-4
+    elif units.lower() == 'hz':
+        x_cm = c / x_in
+    elif units.lower() == 'mhz':
+        x_cm = c / (x_in * 1e6)
+    elif units.lower() == 'ghz':
+        x_cm = c / (x_in * 1e9)
+    elif units.lower() == 'ev':
+        x_cm = h_p * c / (x_in * erg_per_ev)
+    elif units.lower() == 'kev':
+        x_cm = h_p * c / (x_in * 1e3 * erg_per_ev)
+    else:
+        raise NotImplemented(f'Unrecognized input unit={units}')
+    
+    if units_out.lower() == 'cm':
+        return x_cm
+    elif units_out.lower().startswith('ang'):
+        return x_cm * 1e8
+    elif units_out.lower().startswith('mic'):
+        return x_cm * 1e4
+    elif units_out.lower() == 'hz':
+        return c / x_cm
+    elif units_out.lower() == 'mhz':
+        return c / x_cm / 1e6
+    elif units_out.lower() == 'ghz':
+        return c / x_cm / 1e9
+    elif units_out.lower() == 'ev':
+        return h_p * c / x_cm / erg_per_ev
+    elif units_out.lower() == 'kev':
+        return h_p * c / x_cm / erg_per_ev / 1e3
+    else:
+        raise NotImplemented(f'Unrecognized input unit={units}')
+    
 def get_pop_info(popid):
     """
     Parse `popid`, as we (as of March 2025) allow non-integer IDs.

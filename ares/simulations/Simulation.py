@@ -7,6 +7,7 @@ from ..util import ProgressBar
 from ..util import ParameterFile
 from ..util.Stats import bin_c2e
 from .Global21cm import Global21cm
+from ..util.Misc import get_wave_or_equivalent
 from .PowerSpectrum21cm import PowerSpectrum21cm
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
     erg_per_s_per_nW, h_p, cm_per_m, sqdeg_per_std
@@ -221,8 +222,9 @@ class Simulation(object):
 
         return data
 
-    def get_ebl_ps(self, scales, waves, waves2=None, wave_units='mic',
-        scale_units='ell', flux_units='SI', pops=None,
+    def get_ebl_ps(self, scales, waves, waves2=None, 
+        wave_units='mic', wave_units2=None,
+        flux_units='SI', flux_units2=None, scale_units='ell', pops=None,
         include_inter_pop=True, cache_ipop_mtx=None, **kwargs):
         """
         Compute power spectrum of EBL at some observed wavelength(s).
@@ -294,16 +296,32 @@ class Simulation(object):
         # Eventually might modify for cross-correlations
         # Could keep flux_units2 to correspond to waves2 or something.
         if flux_units.lower() == 'si':
-            to_ps_units = cm_per_m**4 / erg_per_s_per_nW**2
+            to_ps_units = cm_per_m**2 / erg_per_s_per_nW
         elif flux_units.lower() == 'mjy':
             to_ps_units = 1e17
+        elif flux_units.lower() == 'cgs':
+            to_ps_units = 1
         else:
             raise NotImplemented('help')
+        
+        if flux_units2 is None:
+            flux_units2 = flux_units
+        
+        if flux_units2.lower() == 'si':
+            to_ps_units2 = cm_per_m**2 / erg_per_s_per_nW
+        elif flux_units.lower() == 'mjy':
+            to_ps_units2 = 1e17
+        elif flux_units2.lower() == 'cgs':
+            to_ps_units2 = 1
+        else:
+            raise NotImplemented('help')
+        
 
-        if wave_units.lower().startswith('mic'):
-            pass
-        else:
-            raise NotImplemented('help')
+        #if wave_units.lower().startswith('mic'):
+        #    pass
+#
+        #else:
+        #    raise NotImplemented('help')
 
         # Do some error-handling if waves is 2-D: means the user provided
         # bandpasses instead of a set of wavelengths.
@@ -314,6 +332,16 @@ class Simulation(object):
         # In principle 
         if waves2 is None:
             waves2 = waves
+            is_autos = True
+        else:
+            is_autos = False
+
+        if wave_units2 is None:
+            wave_units2 = wave_units
+
+        # Convert input units to microns, native unit for all fluctuation calculations
+        xmic = get_wave_or_equivalent(waves, wave_units, 'mic')
+        xmic2 = get_wave_or_equivalent(waves2, wave_units2, 'mic')
 
         ps = np.zeros((len(self.pops), len(scales), len(waves)))
         px = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves)))
@@ -334,7 +362,12 @@ class Simulation(object):
 
             for j, popx in enumerate(self.pops):
                 # Avoid double counting
-                if j > i:
+                # Convention here only populates lower half of 
+                # inter-population cross-correlation matrix
+                # Note that we only do this for autos because for
+                # crosses, we need to make sure each channel hits
+                # each population.
+                if is_autos and (j > i):
                     break
 
                 # Honor user-supplied list of populations to include
@@ -359,7 +392,7 @@ class Simulation(object):
                     # Will default to 1h + 2h + shot
                     if j == i:
                         px[i,j,:,k] = pop.get_ps_obs(scales,
-                            wave_obs1=wave, wave_obs2=waves2[k],
+                            wave_obs1=xmic[k], wave_obs2=xmic2[k],
                             scale_units=scale_units, **kwargs)
                         ps[i,:,k] = px[i,j,:,k]
                         ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
@@ -371,7 +404,7 @@ class Simulation(object):
                     ##
                     # Cross terms only from here on
                     px[i,j,:,k] = pop.get_ps_obs(scales,
-                        wave_obs1=wave, wave_obs2=waves2[k],
+                        wave_obs1=xmic[k], wave_obs2=xmic2[k],
                         scale_units=scale_units, cross_pop=popx, **kwargs)
                     ps_z[i,j,:,k,:] = pop._ps_obs_integrand.copy()
 
@@ -387,8 +420,8 @@ class Simulation(object):
 
         ##
         # Modify PS units before return
-        px *= to_ps_units
-        ps_z *= to_ps_units
+        px *= to_ps_units * to_ps_units2
+        ps_z *= to_ps_units * to_ps_units2
         
         # Sum over source populations
         ptot = px.sum(axis=0).sum(axis=0)

@@ -690,6 +690,9 @@ def PopulationParameters():
     # Halo model stuff
     "pop_prof_1h": None,
     "pop_1h_nebular_only": False,
+    'pop_include_1h': False,
+    'pop_include_2h': True,
+    'pop_include_shot': True,
     "pop_mask": None, # should be (wavelength or filter, limiting mag)
     "pop_mask_use_adv": True,
     "pop_mask_logic": 'or',

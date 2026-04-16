@@ -25,6 +25,7 @@ from functools import cached_property
 from ..util.Misc import numeric_types, get_band_edges, split_by_sign
 from scipy.integrate import quad, simpson, cumulative_trapezoid, ode
 from .GalaxyAggregate import GalaxyAggregate
+from ..util.Misc import get_wave_or_equivalent
 from .Population import normalize_sed, complex_sfhs
 from ..util.Stats import bin_c2e, bin_e2c, lognormal
 from scipy.interpolate import RectBivariateSpline, LinearNDInterpolator
@@ -2945,15 +2946,27 @@ class GalaxyCohort(GalaxyAggregate):
 
                 # rad_yield is erg/s/(Msun/yr)
                 # get_spectrum is normalized such that an integral from
-                # source_Emin to source_Emax (in eV) -> 1
-                L_sfr = src.pf['source_rad_yield'] \
-                        * src.get_spectrum(x, units=units)
+                # source_EminNorm to source_EmaxNorm (in eV) -> 1
+                if band is None:
+                    L_sfr = src.pf['source_rad_yield'] \
+                        * src.get_spectrum(x, units=units) * ev_per_hz
+                    
+                    dev = 1.
+                else:
+                    xev = get_wave_or_equivalent(band, units, 'ev')
+                    L_sfr = quad(lambda xx: src.get_spectrum(xx, units='eV'), 
+                        min(xev), max(xev))[0] * src.pf['source_rad_yield']
+                    
+                    dev = np.abs(np.diff(xev))
                 
+                ##
+                # get_spectrum is a normalized SED per eV
                 if units_out.lower() == 'erg/s/hz':
-                    L_sfr *= ev_per_hz
+                    pass
+                elif units_out.lower() == 'erg/s/ev' and band is None:
+                    L_sfr /= ev_per_hz
                 else:
                     raise ValueError(f'unknown units={units_out}')
-
 
                 _Lh_ = sfr * L_sfr
                 _Lh_[~ok] = 0
@@ -3137,6 +3150,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         if wave > self._tab_lum_waves.max():
             return np.zeros_like(Ms)
+        elif wave < self._tab_lum_waves.min():
+            return np.zeros_like(Ms)
 
         # Bracket redshift range
         ilo = np.argmin(np.abs(z - ltab_z))
@@ -3220,7 +3235,17 @@ class GalaxyCohort(GalaxyAggregate):
             if (cached_result is not None):
                 print('using cache')
                 return cached_result
-
+            
+        ##
+        # Enforce Emin and Emax
+        x_eV = get_wave_or_equivalent(x if band is None else band, units, 'eV')
+        if np.all(x_eV < self.pf['pop_Emin']) or np.all(x_eV > self.pf['pop_Emax']):
+            ret = np.zeros_like(self.halos.tab_M) if Mh is None else 0
+            if separate_lines:
+                return ret, ret
+            else:
+                return ret
+   
         ##
         # Have options for stars or BHs
         if self.pf['pop_lum_func'] is not None:
@@ -6469,7 +6494,7 @@ class GalaxyCohort(GalaxyAggregate):
         return 1. * k**0
 
     def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=False,
-        nebular_only=False, ztol=1e-3):
+        nebular_only=False, ztol=1e-3, cross_pop=None):
         """
         Return shot noise term of halo power spectrum.
 
@@ -6492,6 +6517,11 @@ class GalaxyCohort(GalaxyAggregate):
         if not self.pf['pop_include_shot']:
             return np.zeros_like(k)
 
+        if cross_pop is not None:
+            pop_x = cross_pop
+        else:
+            pop_x = self
+
         band1 = wave1 if type(wave1) not in numeric_types else None
         band2 = wave2 if type(wave2) not in numeric_types else None
 
@@ -6500,10 +6530,14 @@ class GalaxyCohort(GalaxyAggregate):
         lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom',
             raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
             total_sat=self.is_central_pop)
-        lum2 = self.get_lum(z, x=wave2, band=band2, units='Angstrom',
-            raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
-            total_sat=self.is_central_pop)
 
+        if (cross_pop is None) and np.all(wave2 == wave1):
+            lum2 = lum1
+        else:
+            lum2 = pop_x.get_lum(z, x=wave2, band=band2, units='Angstrom',
+                raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
+                total_sat=self.is_central_pop)
+        
         if self.is_central_pop:
             focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
             fnmask1 = fnmask2 = 1 - self.get_fmask(z=z, Mh=self.halos.tab_M)
@@ -6627,28 +6661,26 @@ class GalaxyCohort(GalaxyAggregate):
 
         # If `wave` is a number, this will have units of erg/s/Hz.
         # If `wave` is a tuple, this will just be in erg/s.
-        if np.all(np.array(wave1) <= 912):
-            lum1 = 0
+        #if np.all(np.array(wave1) <= 912):
+        #    lum1 = 0
+        #else:
+        band = wave1 if type(wave1) not in numeric_types else None
+        lum1 = self.get_lum(z, x=wave1, raw=raw,
+            band=band, units='Angstrom', units_out='erg/s/Hz',
+            nebular_only=nebular_only, total_sat=True)
+
+        #if np.all(np.array(wave2) <= 912):
+        #    lum2 = 0
+        #else:
+        band = wave2 if type(wave2) not in numeric_types else None
+        # In this case, don't waste any time!
+        if (cross_pop is None) and np.all(wave2 == wave1):
+            lum2 = lum1
         else:
-            band = wave1 if type(wave1) not in numeric_types else None
-            lum1 = self.get_lum(z, x=wave1, raw=raw,
+            lum2 = pop_x.get_lum(z, x=wave2, raw=raw,
                 band=band, units='Angstrom', units_out='erg/s/Hz',
                 nebular_only=nebular_only, total_sat=True)
-
-        if np.all(np.array(wave2) <= 912):
-            lum2 = 0
-        else:
-            band = wave2 if type(wave2) not in numeric_types else None
-
-            # In this case, don't waste any time!
-            if (cross_pop is None) and np.all(wave2 == wave1):
-                lum2 = lum1
-            else:
-                lum2 = pop_x.get_lum(z, x=wave2, raw=raw,
-                    band=band, units='Angstrom', units_out='erg/s/Hz',
-                    nebular_only=nebular_only, total_sat=True)
-
-
+                
         focc1 = 1 if (not self.is_central_pop) else \
             self.get_focc(z=z, Mh=self.halos.tab_M)
         fnmask1 =  1 - self.get_fmask(z=z, Mh=self.halos.tab_M)
@@ -6832,10 +6864,28 @@ class GalaxyCohort(GalaxyAggregate):
 
         if wave_obs2 is None:
             wave_obs2 = wave_obs1
+        
+        w1 = np.mean(wave_obs1)
+        w2 = np.mean(wave_obs2)
 
-        name = '{:.2f} micron'.format(np.mean(wave_obs1)) if np.all(wave_obs1 == wave_obs2) \
-            else '({:.2f} x {:.2f}) microns'.format(np.mean(wave_obs1),
-            np.mean(wave_obs2))
+        if 0.01 <= w1 < 100:
+            w1_n = f'{w1:.3f} micron'
+        elif 0.01 <= get_wave_or_equivalent(w1, 'mic', 'keV') < 100:
+            w1_n = f'{get_wave_or_equivalent(w1, 'mic', 'keV'):.3f} keV'
+        else:
+            w1_n = f'{get_wave_or_equivalent(w1, 'mic', 'ghz'):.3f} GHz'
+            assert 0.01 <= w1_n <= 1e2
+
+        if 0.01 <= w2 < 100:
+            w2_n = f'{w2:.3f} micron'
+        elif 0.01 <= get_wave_or_equivalent(w2, 'mic', 'keV') < 100:
+            w2_n = f'{get_wave_or_equivalent(wave_obs2, 'mic', 'keV').mean():.3f} keV'
+        else:
+            w2_n = f'{get_wave_or_equivalent(wave_obs2, 'mic', 'ghz').mean():.3f} GHz'
+            assert 0.01 <= w2_n <= 1e2
+
+        name = w1_n if np.all(wave_obs1 == wave_obs2) \
+            else f'{w1_n} x {w2_n}'
 
         ##
         # Loop over scales of interest if given an array.
@@ -6865,12 +6915,12 @@ class GalaxyCohort(GalaxyAggregate):
                         scale_units=scale_units, raw=raw,
                         nebular_only=nebular_only, prof=prof,
                         cross_pop=cross_pop)
-
+                    
                 self._ps_obs_integrand[h,:] = integrand.copy()
 
                 ps[h] = np.trapezoid(integrand[zok] * zarr[zok],
                     x=np.log(zarr[zok]))
-
+                
                 pb.update(h)
 
             pb.finish()
@@ -6976,7 +7026,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         if include_shot:
             ps_shot = self.get_ps_shot(z, k, wave1=wave1, wave2=wave2,
-                raw=self.pf['pop_1h_nebular_only'],
+                raw=self.pf['pop_1h_nebular_only'], cross_pop=cross_pop,
                 nebular_only=False)
             ps3d += ps_shot
 
@@ -7036,8 +7086,8 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             nu1 = c / (np.array(wave_obs1) * 1e-4)
             nu2 = c / (np.array(wave_obs2) * 1e-4)
-            dnu1 = -np.diff(nu1)
-            dnu2 = -np.diff(nu2)
+            dnu1 = np.abs(np.diff(nu1))
+            dnu2 = np.abs(np.diff(nu2))
 
             integrand = integrand * np.mean(nu1) * np.mean(nu2) / dnu1 / dnu2
 
