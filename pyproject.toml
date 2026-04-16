@@ -58,8 +58,7 @@ Documentation = "https://ares.readthedocs.io/en/latest/"
 Repository = "https://github.com/mirochaj/ares/"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["ares"]
+where = ["ares"]
 
 [tool.setuptools_scm]
 
