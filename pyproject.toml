@@ -38,7 +38,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-hmf = ["hmf", "camb"]
+hmf = ["hmf<3.6", "camb"]
 math = ["mpmath", "mcfit"]
 progressbar = ["progressbar"]
 doc = ["sphinx", "numpydoc", "nbsphinx"]
