@@ -1842,10 +1842,47 @@ class GalaxyCohort(GalaxyAggregate):
             sigma = 0
 
         return self.get_smhm(z=z, Mh=Mh) * Mh * np.exp(0.5 * sigma**2)
+    
+    #def get_galaxy_subsample(self, selections):
+    #    """
+    #    Perform some redshift, magnitude, and/or color cuts on the galaxy 
+    #    population.
+#
+    #    Returns
+    #    -------
+    #    Linear bias and target density (dn/dz) for given galaxy sub-sample.
+#
+    #    """
+#
+    #    zok = np.ones_like(self.halos.tab_z)
+    #    for selection in selections:
+#
+    #        sel_type, sel_oper = selection
+#
+    #        if sel_type == 'mag':
+    #            
+#
+#
+    #    if 'mag' in galaxy_prop:
+    #        cut_cam, cut_filt, cut_mag = galaxy_prop['mag']
+    #        _z_, cts_vs_z, cts_tot = self.get_number_counts(magbins,
+    #            xobs=8500, cam=cut_cam, filters=(cut_filt))
+    #    if 'z' in galaxy_prop:
+    #        _zok = np.logical_and(zarr >= galaxy_prop['z'][0], zarr < galaxy_prop['z'][1])
+    #        zok = zok * _zok 
+#
+    #    b_g = self.get_bias(z, cut_mag, cam=cut_cam, filters=(cut_filt))
+#
+    #    iz = np.argmin(np.abs(z - _z_))
+    #    dNdz = np.trapz(cts_vs_z[iz,magbins <= cut_mag],
+    #        x=magbins[magbins <= cut_mag])
+    #    
+    #    return b_g, dNdz
+                
 
     def get_number_counts(self, bins, zmin=0, zmax=10, x=1600.,
         units='Angstroms', window=1, absolute=False, cam=None, filters=None,
-        dlam=20, zbin=0.1, selection=None):
+        dlam=20, zbin=0.1, selection=None, volume_density=False):
         """
         Compute the *differential* surface density of galaxies.
 
@@ -1861,13 +1898,22 @@ class GalaxyCohort(GalaxyAggregate):
             If no `cam` or `filters` provided, this is the *observed*
             wavelength of interest (in `units`). By default, monochromatic,
             but user can supply a `window` as well.
+        volume_density : bool
+            If True, returned number density is per deg^2, if False, is in 
+            per cMpc^3 units.
+
+        Returns
+        -------
+        Number counts per mag per deg^2 (or cMpc^-3 if volume_density=True)
+        in provided `bins`.
 
         """
 
         assert units.lower().startswith('ang')
 
         dmag = np.diff(bins)
-        assert np.all(np.diff(dmag) == 0), \
+
+        assert np.allclose(np.diff(dmag), 0), \
             "Magnitude bins must be uniformly spaced!"
         dmag = dmag[0]
 
@@ -1893,8 +1939,11 @@ class GalaxyCohort(GalaxyAggregate):
 
             if np.all(np.isinf(phi)):
                 continue
-
-            vol = self.cosm.ProjectedVolume(z, angle=1., dz=zbin)
+            
+            if volume_density:
+                vol = 1.
+            else:    
+                vol = self.cosm.ProjectedVolume(z, angle=1., dz=zbin)
 
             # Optional: apply selection in other band.
             if selection is not None:
@@ -2254,7 +2303,11 @@ class GalaxyCohort(GalaxyAggregate):
                 ok = tab_M >= limit
         else:
             _filt, mags = self.get_mags(z, x=wave, absolute=absolute)
-            ok = np.logical_and(mags <= limit, np.isfinite(mags))
+            if type(limit) in [list, tuple, np.ndarray]:
+                lo, hi = limit
+                ok = np.logical_and(mags >= lo, mags < hi)
+            else:
+                ok = np.logical_and(mags < limit, np.isfinite(mags))
 
         # Can add weighting by luminosity
         if intensity_weight:
@@ -3184,7 +3237,7 @@ class GalaxyCohort(GalaxyAggregate):
         return kludge
 
     def get_lum(self, z, x=1600, use_tabs=True,
-        band=None, window=1, units='Angstrom',
+        band=None, window=1, units='Angstrom', cam=None, filt=None,
         units_out='erg/s/A', load=True, raw=False, nebular_only=False,
         age=None, Mh=None, include_dust_transmission=True,
         include_igm_transmission=True, total_sat=False, separate_lines=False):
@@ -3218,6 +3271,22 @@ class GalaxyCohort(GalaxyAggregate):
         kwtup = z, x, band, window, units, units_out, raw, nebular_only, age, \
             include_dust_transmission, include_igm_transmission, total_sat, use_tabs
 
+        ##
+        # If cam/filters provided, need to recursively call this routine, piece 
+        # together intrinsic luminosity at `dlam` resolution, and then convolve
+        # with filter transmission.
+        if (cam is not None):
+            assert filt is not None
+
+            # get_mags already does this for us
+            _x_, mags = self.get_mags(z, absolute=0, x=None, band=None,
+                cam=cam, filters=(filt))
+            
+            assert mags.shape[1] == 1
+            L = self.magsys.get_lum_from_mag_app(z, mags[:,0])
+
+            return L
+
         # If user-supplied halos from simulation, retrieve 'em
         if self.pf['pop_halos'] is not None:
             _Mh, _x, _y, _z = self.pf['pop_halos'](z=z).T
@@ -3238,13 +3307,14 @@ class GalaxyCohort(GalaxyAggregate):
             
         ##
         # Enforce Emin and Emax
-        x_eV = get_wave_or_equivalent(x if band is None else band, units, 'eV')
-        if np.all(x_eV < self.pf['pop_Emin']) or np.all(x_eV > self.pf['pop_Emax']):
-            ret = np.zeros_like(self.halos.tab_M) if Mh is None else 0
-            if separate_lines:
-                return ret, ret
-            else:
-                return ret
+        if (x is not None) or (band is not None):
+            x_eV = get_wave_or_equivalent(x if band is None else band, units, 'eV')
+            if np.all(x_eV < self.pf['pop_Emin']) or np.all(x_eV > self.pf['pop_Emax']):
+                ret = np.zeros_like(self.halos.tab_M) if Mh is None else 0
+                if separate_lines:
+                    return ret, ret
+                else:
+                    return ret
    
         ##
         # Have options for stars or BHs
@@ -3713,10 +3783,16 @@ class GalaxyCohort(GalaxyAggregate):
     @property
     def tab_fmask(self):
         if not hasattr(self, '_tab_fmask'):
-            self._tab_fmask = self._get_mask_general()
+            # get_galaxy_subsample returns one for galaxies satisfying the input
+            # selection criteria, but the mask is defined in the opposite way 
+            # (a value of 1 indicate we want to mask out a galaxy), hence the 1-
+            # prefactor here.
+            self._tab_fmask = 1. - self.get_galaxy_subsample(self.pf['pop_mask'])
+            
         return self._tab_fmask
 
-    def _get_mask_general(self):
+    def get_galaxy_subsample(self, selection_criteria=None, return_fraction=True, 
+        dlam=20):
         """
         If the relationship between halo mass and galaxy luminosity is not 1:1,
         we have to be more careful in our construction of the source mask.
@@ -3727,115 +3803,230 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         # This is like an occupation fraction, i.e., it's the fraction of
-        # galaxies in a given halo mass bin that are brighter than
-        # our masking threshold.
-        tab_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size))
+        # galaxies in a given halo mass bin that satisfy our cut.
+        tab_fsel = np.ones((self.halos.tab_z.size, self.halos.tab_M.size))
 
-        # Short-hand for log-normal scatter.
-        sigma = self.pf['pop_scatter_sfh']
-
-        ##
-        # If there's no mask, just use Mmax
-        if (self.pf['pop_mask'] is None) and (self.pf['pop_mask_wave'] is None):
-            # Just apply Mmax at each redshift.
-            for i, z in enumerate(self.halos.tab_z):
-                Mmax = self.get_Mmax(z)
-                tab_mask[i,self.halos.tab_M < Mmax] = 0
-
-            return tab_mask
+        if selection_criteria is None:
+            return tab_fsel
 
         ##
         # Otherwise, general case
-        if self.pf['pop_mask_wave'] is not None:
-            tmp_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size, 1))
-        else:
-            tmp_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size,
-                len(self.pf['pop_mask'])))
+        #if self.pf['pop_mask_wave'] is not None:
+        #    tmp_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size, 1))
+        #else:
+        #    tmp_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size,
+        #        len(self.pf['pop_mask'])))
 
-        # Loop over different masks.
-        for h, mask in enumerate(self._get_mask_info()):
-            mwave, mlim = mask
-
-            # Synthesize galaxy mags one redshift at a time.
-            for i, z in enumerate(self.halos.tab_z):
-
-                if (z < self.pf['final_redshift']):
-                    continue
-
-                if (z < self.zdead):
-                    continue
-
-                if (z > self.zform):
-                    continue
-
-                # Convert the masking depth to luminosity at this redshift.
-                llim = self.magsys.get_lum_from_mag_app(z, mlim)
-
-                if type(mwave) in numeric_types:
-                    x = mwave * 1e4 / (1. + z)
-                    band = None
-                else:
-                    band = tuple(np.array(mwave) * 1e4 / (1. + z))
-                    x = None
-
-                # Lh(Mh|z)
-                Lh = self.get_lum(z, x=x, band=band,
-                    units='Ang', units_out='erg/s/Hz', total_sat=False)
-
-                if x is None:
-                    Lh /= ((c * 1e8 / min(band)) - (c * 1e8 / max(band)))
-
-                if (sigma == 0) or (not self.pf['pop_mask_use_adv']):
-                    tmp_mask[i,np.logical_and(Lh>0, Lh<llim),h] = 0
-                    continue
-
-                # Construct array of luminosity vs. halo mass (log it)
-                mu = np.log(Lh)
-
-                for j, M in enumerate(self.halos.tab_M):
-                    if M < self.get_Mmin(z):
-                        tmp_mask[i,j,h] = 0
-                        continue
-
-                    # This just means Lh == 0, which usually just means
-                    # "unmodeled".
-                    if mu[j] < 0:
-                        # Could `continue` but then fmask will be one,
-                        # which is a little confusing when debugging because
-                        # it looks like some chunk of mass space is not masked
-                        # out but really it's that their luminosity is zero.
-                        tmp_mask[i,j,h] = 0
-                        continue
-
-                    # Just do things via brute-force
-                    # Used to be less careful but if PDF is sufficiently narrow
-                    # a rough trapz can cause problems.
-                    tmp_mask[i,j,h] = quad(lambda LL: lognormal(LL, mu[j], sigma),
-                        np.log(llim), mu[j] + 10*sigma)[0]
+        # Just apply Mmax at each redshift.
+        for i, z in enumerate(self.halos.tab_z):
+            Mmax = self.get_Mmax(z)
+            tab_fsel[i,self.halos.tab_M >= Mmax] = 0
 
         ##
-        # Enforce logic of how we combine masks
-        if tmp_mask.shape[-1] == 1:
-            tab_mask = tmp_mask[:,:,0]
-        elif self.pf['pop_mask_logic'] == 'and':
-            # If logic is AND, then
-            tab_mask = np.min(tmp_mask, axis=-1)
-        elif self.pf['pop_mask_logic'] == 'or':
-            tab_mask = np.max(tmp_mask, axis=-1)
-        else:
-            raise NotImplementedError('pop_mask_logic must be `and` or `or`.')
+        # If there's no selection, just use Mmax
+        if (selection_criteria is None):# and (self.pf['pop_mask_wave'] is None):
+            if return_fraction:
+                return tab_fsel
+            else:
+                return self.halos.tab_dndm * tab_fsel
 
-        # Occasionally we get values of 1 + numbers of order machine precision.
-        # This will cause major problems down the line when we, e.g.,
-        # retrieve the unmasked fraction 1 - fmask, and get negative numbers.
-        # Hence this (I think quite reasonable) kludge to enforce values <= 1.
-        tab_mask[tab_mask>1] = 1
+        ##
+        # More complex cases up next.
+        select_on_z = 'z' in selection_criteria
+        select_on_mag = 'mag' in selection_criteria
+        select_on_color = 'color' in selection_criteria \
+                       or 'cmd' in selection_criteria
+        select_on_multi_band_cut = False
+        if 'mag' in selection_criteria:
+            _bands = []
+            for element in selection_criteria['mag']:
+                if element[0] not in _bands:
+                    _bands.append(element[0])
 
-        # Same goes for the other side of things
-        tab_mask[tab_mask<0] = 0
+            select_on_multi_band_cut = len(_bands) > 1
 
-        return tab_mask
+        if select_on_color:
+            raise NotImplemented('Havent implemented color selection yet')
+        if select_on_multi_band_cut:
+            raise NotImplemented('Havent implemented multi-band mag cuts yet.')
+
+        # Short-hand for log-normal scatter.
+        #sigma = self.pf['pop_scatter_sfh']
+
+        
+        ##
+        # Life is simpler if we're just doing redshift and/or magnitude 
+        # cuts in a single band.
+        if (select_on_color or select_on_multi_band_cut):
+            raise NotImplemented('not there yet')
+
+        zlo = max(self.zdead, self.pf['final_redshift'])
+        zhi = self.zform * 1.
+
+        if 'z' in selection_criteria:
+            zlo = max(zlo, selection_criteria['z'][0])
+            zhi = min(zhi, selection_criteria['z'][1])
+
+        # Doesn't really matter -- going to interpolate back to Mh
+        # anyways
+        magbins = np.arange(8, 32, 0.1)
+
+        # Loop over different masks.
+        
+        # Synthesize galaxy mags one redshift at a time.
+        for i, z in enumerate(self.halos.tab_z):    
+            if (z < zlo) or (z >= zhi):
+                continue
+
+            if not select_on_mag:
+                tab_fsel[i,:] = 1
+                continue
+
+            # Should do this better
+            dz = self.halos.tab_z[i+1] - z
+            
+            ok = np.zeros_like(self.halos.tab_M)
+            limit = [-np.inf, np.inf]
+            for h, selection in enumerate(selection_criteria['mag']):
+                cam_filt, operation, cut = selection
+
+                cam, filt = cam_filt.split('_')    
+
+                # Be more careful about redshift bins
+                num = self.get_number_counts(magbins,
+                    cam=cam, filters=(filt), zmin=z-0.5*dz, zmax=z+0.5*dz, 
+                    volume_density=1, dlam=dlam)
+                
+                # [num] = number / cMpc^3 / mag
+
+                ##
+                # Want: fraction of selected galaxies in each (z, Mh) bin
+                # So, need to either compute number counts in magbins and
+                # interpolate back to Mh or vice-vesa to impose cut.
+                # get_number_counts already knows how to deal with scatter
+                # (by way of _get_lf_lum and get_lf) so we should use that
+                # don't really wanna see integrals here.
+                _x_, _mags = self.get_mags(z=z, x=None, absolute=False, 
+                    cam=cam, filters=filt, dlam=dlam)
+                
+                # Must be one filter at a time 
+                mags = _mags[:,0]
+                
+                num_v_Mh = np.exp(np.interp(mags, magbins, np.log(num), left=0, right=0))
+                dmag_dlnMh = np.abs(np.diff(mags)) / np.diff(np.log(self.halos.tab_M))
+
+                if return_fraction:
+                    tab_fsel[i,0:-1] = num_v_Mh[0:-1] * dmag_dlnMh
+                else:
+                    tab_fsel[i,0:-1] = num_v_Mh[0:-1] * dmag_dlnMh \
+                                     / self.tab_focc[i,:] / self.halos.tab_dndlnm[i,:]
+
+                # Impose hard magnitude cuts
+                # Note the OR logic here if multiple cuts are provided.
+                if operation == 'lt':
+                    ok[mags < cut] *= 1
+                    limit[1] = cut
+                if operation == 'le':
+                    ok[mags <= cut] *= 1
+                    limit[1] = cut
+                elif operation == 'gt':
+                    ok[mags > cut] *= 1
+                    limit[0] = cut
+                elif operation == 'ge':
+                    ok[mags >= cut] *= 1
+                    limit[0] = cut
+
+                tab_fsel[i,np.logical_not(ok)] = 0
+
+        ##
+        # Done
+        tab_fsel[np.isnan(tab_fsel)] = 0 # divide by zeros correction
+        return tab_fsel
     
+
+                # Convert the masking depth to luminosity at this redshift.
+                #llim = self.magsys.get_lum_from_mag_app(z, mlim)
+#
+                #if type(mwave) in numeric_types:
+                #    x = mwave * 1e4 / (1. + z)
+                #    band = None
+                #else:
+                #    band = tuple(np.array(mwave) * 1e4 / (1. + z))
+                #    x = None
+#
+                ## Lh(Mh|z)
+                #Lh = self.get_lum(z, x=x, band=band,
+                #    units='Ang', units_out='erg/s/Hz', total_sat=False)
+#
+                #if x is None:
+                #    Lh /= ((c * 1e8 / min(band)) - (c * 1e8 / max(band)))
+#
+                #if (sigma == 0) or (not self.pf['pop_mask_use_adv']):
+                #    tmp_mask[i,np.logical_and(Lh>0, Lh<llim),h] = 0
+                #    continue
+#
+                ## Construct array of luminosity vs. halo mass (log it)
+                #mu = np.log(Lh)
+#
+                #for j, M in enumerate(self.halos.tab_M):
+                #    if M < self.get_Mmin(z):
+                #        tmp_mask[i,j,h] = 0
+                #        continue
+#
+                #    # This just means Lh == 0, which usually just means
+                #    # "unmodeled".
+                #    if mu[j] < 0:
+                #        # Could `continue` but then fmask will be one,
+                #        # which is a little confusing when debugging because
+                #        # it looks like some chunk of mass space is not masked
+                #        # out but really it's that their luminosity is zero.
+                #        tmp_mask[i,j,h] = 0
+                #        continue
+#
+                #    # Just do things via brute-force
+                #    # Used to be less careful but if PDF is sufficiently narrow
+                #    # a rough trapz can cause problems.
+                #    tmp_mask[i,j,h] = quad(lambda LL: lognormal(LL, mu[j], sigma),
+                #        np.log(llim), mu[j] + 10*sigma)[0]
+
+        ###
+        ## Enforce logic of how we combine masks
+        #if tmp_mask.shape[-1] == 1:
+        #    tab_mask = tmp_mask[:,:,0]
+        #elif self.pf['pop_mask_logic'] == 'and':
+        #    # If logic is AND, then
+        #    tab_mask = np.min(tmp_mask, axis=-1)
+        #elif self.pf['pop_mask_logic'] == 'or':
+        #    tab_mask = np.max(tmp_mask, axis=-1)
+        #else:
+        #    raise NotImplementedError('pop_mask_logic must be `and` or `or`.')
+#
+        ## Occasionally we get values of 1 + numbers of order machine precision.
+        ## This will cause major problems down the line when we, e.g.,
+        ## retrieve the unmasked fraction 1 - fmask, and get negative numbers.
+        ## Hence this (I think quite reasonable) kludge to enforce values <= 1.
+        #tab_mask[tab_mask>1] = 1
+#
+        ## Same goes for the other side of things
+        #tab_mask[tab_mask<0] = 0
+#
+        #return tab_mask
+    
+    def get_num_and_bias_from_fsel(self, fsel):
+        """
+        Docstring for get_num_and_bias_from_fsel
+        
+        :param self: Description
+        :param fsel: Description
+        """
+        num = np.zeros_like(self.halos.tab_z)
+        bias = np.zeros_like(self.halos.tab_z)
+        for i, z in enumerate(self.halos.tab_z):
+            num[i] = np.trapezoid(fsel * self.tab_focc[i,:] * self.halos.tab_dndlnm[i,:],
+                x=np.log(self.halos.tab_M))
+            
+        return num
+
     def _get_mask_info(self):
         if self.pf['pop_mask'] is not None:
             return self.pf['pop_mask']
@@ -3852,7 +4043,7 @@ class GalaxyCohort(GalaxyAggregate):
             return self._tab_Mmax * np.ones_like(self.halos.tab_z)
 
         if (self.pf['pop_scatter_sfh'] > 0) and (not self.pf['pop_mask_use_adv']):
-            return self._get_mask_general()
+            return 1 - self.get_galaxy_subsample(self.pf['pop_mask'])
 
         tmp = np.zeros_like(self.halos.tab_z)
         for i, z in enumerate(self.halos.tab_z):
@@ -3943,6 +4134,7 @@ class GalaxyCohort(GalaxyAggregate):
         # Recall: this is always the *median* luminosity vs. Mh
         # If scatter is provided, will handle below.
         Lh = self.get_lum(z, x=x, use_tabs=use_tabs, window=window,
+            cam=cam, filt=filters,
             raw=raw, nebular_only=nebular_only, band=band, units=units,
             units_out='erg/s/Hz', total_sat=self.is_central_pop)
         
@@ -6494,6 +6686,7 @@ class GalaxyCohort(GalaxyAggregate):
         return 1. * k**0
 
     def get_ps_shot(self, z, k, wave1=1600., wave2=1600., raw=False,
+        field1_is_num=0, field2_is_num=0, fsel1=1, fsel2=1,
         nebular_only=False, ztol=1e-3, cross_pop=None):
         """
         Return shot noise term of halo power spectrum.
@@ -6517,13 +6710,21 @@ class GalaxyCohort(GalaxyAggregate):
         if not self.pf['pop_include_shot']:
             return np.zeros_like(k)
 
+        ##
+        # There is no cross-shot contribution for inter-pop
+        # cross-terms
         if cross_pop is not None:
             pop_x = cross_pop
+            if cross_pop != self:
+                return np.zeros_like(k)
         else:
             pop_x = self
 
         band1 = wave1 if type(wave1) not in numeric_types else None
-        band2 = wave2 if type(wave2) not in numeric_types else None
+        if field2_is_num:
+            band2 = None
+        else:
+            band2 = wave2 if type(wave2) not in numeric_types else None    
 
         # For an IHL contribution we won't get this far, because
         # pop_include_shot = False
@@ -6531,7 +6732,9 @@ class GalaxyCohort(GalaxyAggregate):
             raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
             total_sat=self.is_central_pop)
 
-        if (cross_pop is None) and np.all(wave2 == wave1):
+        if field2_is_num:
+            lum2 = 1
+        elif (cross_pop is None) and (np.all(band1 == band2)):
             lum2 = lum1
         else:
             lum2 = pop_x.get_lum(z, x=wave2, band=band2, units='Angstrom',
@@ -6542,12 +6745,14 @@ class GalaxyCohort(GalaxyAggregate):
             focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M)
             fnmask1 = fnmask2 = 1 - self.get_fmask(z=z, Mh=self.halos.tab_M)
 
-            focc1 *= fnmask1
-            focc2 *= fnmask2
+            focc1 *= np.minimum(fsel1, fnmask1)
+            focc2 *= np.minimum(fsel2, fnmask2)
 
+            # Note that if dn/dz is provided, focc2, lum2, etc. are ignored
             ps = self.halos.get_ps_shot(z, k=k,
                 lum1=lum1, lum2=lum2,
-                mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
+                mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, 
+                ztol=ztol)
         else:
             iz, k, _prof1_, _prof2_ = self.halos._prep_for_ps(z, k,
                 None, None, ztol)
@@ -6623,8 +6828,9 @@ class GalaxyCohort(GalaxyAggregate):
 
             return ps
 
-    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., raw=False,
-        nebular_only=False, ztol=1e-3, cross_pop=None):
+    def get_ps_2h(self, z, k, wave1=1600., wave2=1600., 
+        field1_is_num=0, field2_is_num=0, fsel1=1, fsel2=1,
+        raw=False, nebular_only=False, ztol=1e-3, cross_pop=None):
         """
         Return 2-halo term of 3-d power spectrum.
 
@@ -6664,17 +6870,23 @@ class GalaxyCohort(GalaxyAggregate):
         #if np.all(np.array(wave1) <= 912):
         #    lum1 = 0
         #else:
-        band = wave1 if type(wave1) not in numeric_types else None
-        lum1 = self.get_lum(z, x=wave1, raw=raw,
-            band=band, units='Angstrom', units_out='erg/s/Hz',
-            nebular_only=nebular_only, total_sat=True)
+        if field1_is_num:
+            #raise NotImplemented('help')
+            lum1 = 1 # No luminosity weighting
+        else:
+            band = wave1 if type(wave1) not in numeric_types else None
+            lum1 = self.get_lum(z, x=wave1, raw=raw,
+                band=band, units='Angstrom', units_out='erg/s/Hz',
+                nebular_only=nebular_only, total_sat=True)
 
         #if np.all(np.array(wave2) <= 912):
         #    lum2 = 0
         #else:
         band = wave2 if type(wave2) not in numeric_types else None
         # In this case, don't waste any time!
-        if (cross_pop is None) and np.all(wave2 == wave1):
+        if field2_is_num:
+            lum2 = 1
+        elif (cross_pop is None) and np.all(wave2 == wave1):
             lum2 = lum1
         else:
             lum2 = pop_x.get_lum(z, x=wave2, raw=raw,
@@ -6684,7 +6896,8 @@ class GalaxyCohort(GalaxyAggregate):
         focc1 = 1 if (not self.is_central_pop) else \
             self.get_focc(z=z, Mh=self.halos.tab_M)
         fnmask1 =  1 - self.get_fmask(z=z, Mh=self.halos.tab_M)
-        focc1 *= fnmask1
+        
+        focc1 *= np.minimum(fsel1, fnmask1)
 
         if cross_pop is None:
             focc2 = focc1
@@ -6692,10 +6905,10 @@ class GalaxyCohort(GalaxyAggregate):
             focc2 = 1 if (not pop_x.is_central_pop) else \
                 pop_x.get_focc(z=z, Mh=self.halos.tab_M)
             fnmask2 =  1 - pop_x.get_fmask(z=z, Mh=self.halos.tab_M)
-            focc2 *= fnmask2
+            focc2 *= np.minimum(fsel2, fnmask2)
 
         ps = self.halos.get_ps_2h(z, k=k, prof1=prof, prof2=prof,
-            lum1=lum1, lum2=lum2,
+            lum1=lum1, lum2=lum2, 
             mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, ztol=ztol)
 
         #if type(k) is np.ndarray:
@@ -6751,6 +6964,7 @@ class GalaxyCohort(GalaxyAggregate):
         return prof
 
     def get_ps_1h(self, z, k, wave1=1600., wave2=1600., raw=False,
+        field1_is_num=0, field2_is_num=0, fsel1=1, fsel2=1,
         nebular_only=False, prof=None, cross_pop=None):
         """
         Return 1-halo term of 3-d power spectrum.
@@ -6949,13 +7163,11 @@ class GalaxyCohort(GalaxyAggregate):
 
     def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, include_shot=True,
         include_1h=True, include_2h=True, scale_units='arcsec', raw=False,
+        field1_is_num=0, field2_is_num=0, fsel1=1, fsel2=1,
         nebular_only=False, prof=None, cross_pop=None):
         """
         Compute integrand of angular power spectrum integral.
         """
-
-        if wave_obs2 is None:
-            wave_obs2 = wave_obs1
 
         ##
         # Convert to Angstroms in rest frame. Determine emissivity.
@@ -6974,19 +7186,21 @@ class GalaxyCohort(GalaxyAggregate):
             # Get rest wavelengths
             wave1 = tuple(np.array(wave_obs1) * 1e4 / (1. + z))
 
-        if type(wave_obs2) in [int, float, np.float64]:
-            is_band_int = False
-
+        is_galaxy_auto = (field1_is_num and field2_is_num)
+        is_galaxy_cross = field1_is_num + field2_is_num == 1
+        
+        if is_galaxy_auto or is_galaxy_cross:
+            wave2 = None
+        elif type(wave_obs2) in [int, float, np.float64]:
+            assert type(wave_obs2) == type(wave_obs1)
             # Get rest wavelength in Angstroms
             wave2 = wave_obs2 * 1e4 / (1. + z)
-
         else:
-            is_band_int = True
-
+            assert type(wave_obs2) == type(wave_obs1)
             # Get rest wavelengths
             wave2 = tuple(np.array(wave_obs2) * 1e4 / (1. + z))
-
-
+            
+        ##
         # Need angular diameter distance and H(z) for all that follows
         d = self.cosm.get_dist_los_comoving(0., z)            # [cm]
         Hofz = self.cosm.HubbleParameter(z)                   # [s^-1]
@@ -7018,22 +7232,34 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # First: compute 3-D power spectrum
+        # Note that ps3d here will have units of cMpc^-3 for autos and internal
+        # crosses because the matter PS yields a factor of volume, but then 
+        # both bias factors carry inverse volume factors.
         if include_2h:
             ps3d = self.get_ps_2h(z, k, wave1=wave1, wave2=wave2, raw=False,
-                nebular_only=False, cross_pop=cross_pop)
+                nebular_only=False, 
+                field1_is_num=field1_is_num, field2_is_num=field2_is_num, 
+                fsel1=fsel1, fsel2=fsel2,
+                cross_pop=cross_pop)
         else:
             ps3d = np.zeros_like(k)
 
         if include_shot:
             ps_shot = self.get_ps_shot(z, k, wave1=wave1, wave2=wave2,
-                raw=self.pf['pop_1h_nebular_only'], cross_pop=cross_pop,
+                raw=self.pf['pop_1h_nebular_only'], 
+                field1_is_num=field1_is_num, field2_is_num=field2_is_num, 
+                fsel1=fsel1, fsel2=fsel2,
+                cross_pop=cross_pop,
                 nebular_only=False)
+            
             ps3d += ps_shot
 
         if include_1h:
             ps_1h = self.get_ps_1h(z, k, wave1=wave1, wave2=wave2,
                 raw=not self.pf['pop_1h_nebular_only'],
                 nebular_only=self.pf['pop_1h_nebular_only'],
+                field1_is_num=field1_is_num, field2_is_num=field2_is_num, 
+                fsel1=fsel1, fsel2=fsel2,
                 prof=prof, cross_pop=cross_pop)
             ps3d += ps_1h
 
@@ -7042,15 +7268,15 @@ class GalaxyCohort(GalaxyAggregate):
         # we're used to (e.g., matter power spectrum).
 
         # Must convert length units from cMpc (inherited from HMF)
-        # to cgs.
-        # Right now, ps3d \propto n^2 Plin(k)
+        # to cgs (comes in through matter power spectrum.)
+        # Hence the (ps3d / cm_per_mpc**3) factors below to get in cgs units.
         # [ps3d] = (erg/s)^2 (cMpc)^-6 right now
-        # Hence the (ps3d / cm_per_mpc) factors below to get in cgs units.
 
         ##
         # Angular scales in arcsec, arcmin, or deg
         if scale_units.lower() in ['arcsec', 'arcmin', 'deg']:
-
+            if is_galaxy_cross:
+                raise NotImplemented('help')
             # e.g., Kashlinsky et al. 2018 Eq. 1, 3
             # Note: no emissivities here.
             dfdz = c * self.cosm.dtdz(z) / 4. / np.pi / (1. + z)
@@ -7066,32 +7292,115 @@ class GalaxyCohort(GalaxyAggregate):
         elif scale_units.lower() in ['l', 'ell']:
             # Fernandez+ (2010) Eq. A9 or 37
             if is_band_int:
-                # [ps3d] = cm^3
+                # [ps3d] = Mpc^-3 -> cm^-3
                 integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
                     / (1. + z)**4 / (4. * np.pi)**2
             # Fernandez+ (2010) Eq. A10
             else:
                 integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
                     / (1. + z)**2 / (4. * np.pi)**2
+    
         else:
             raise NotImplemented('scale_units={} not implemented.'.format(scale_units))
 
         ##
         # Extra factor of nu^2 to eliminate Hz^{-1} units for
         # monochromatic PS
-        assert type(wave_obs1) == type(wave_obs2)
+        if is_galaxy_auto:
+            pass
+        elif is_galaxy_cross:
+            if type(wave_obs1) in numeric_types:
+                integrand = integrand * (c / (wave_obs1 * 1e-4))
+            else:
+                nu1 = c / (np.array(wave_obs1) * 1e-4)
+                dnu1 = np.abs(np.diff(nu1))
 
-        if type(wave_obs1) in numeric_types:
-            integrand = integrand * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
+                integrand = integrand * np.mean(nu1) / dnu1
+
         else:
-            nu1 = c / (np.array(wave_obs1) * 1e-4)
-            nu2 = c / (np.array(wave_obs2) * 1e-4)
-            dnu1 = np.abs(np.diff(nu1))
-            dnu2 = np.abs(np.diff(nu2))
-
-            integrand = integrand * np.mean(nu1) * np.mean(nu2) / dnu1 / dnu2
-
+            assert type(wave_obs1) == type(wave_obs2)
+    
+            if type(wave_obs1) in numeric_types:
+                integrand = integrand * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
+            else:
+                nu1 = c / (np.array(wave_obs1) * 1e-4)
+                nu2 = c / (np.array(wave_obs2) * 1e-4)
+                dnu1 = np.abs(np.diff(nu1))
+                dnu2 = np.abs(np.diff(nu2))
+    
+                integrand = integrand * np.mean(nu1) * np.mean(nu2) / dnu1 / dnu2
+            
+        ##
+        # Done
         return integrand
+    
+    def get_xs_obs(self, scale, wave_obs, zg, scale_units='ell',
+        field1_is_num=0, field2_is_num=1,
+        cross_pop=None, fsel1=None, fsel2=None, use_pb=True, **kwargs):
+        """
+        Compute the cross-spectrum between EBL and target galaxy population.
+        """
+
+        zarr = self.halos.tab_z
+        zok  = np.logical_and(zarr > self.zdead, zarr <= self.zform)
+
+        name = '{:.2f} micron'.format(np.mean(wave_obs))
+
+        if type(scale) in numeric_types:
+            scales = np.array([scale])
+        else:
+            scales = scale
+
+        ps = np.zeros_like(scale)
+
+        pb = ProgressBar(scale.shape[0],
+            use=use_pb and self.pf['progress_bar'],
+            name=f'p(k,{name})')
+        pb.start()
+
+        for h, _scale_ in enumerate(scales):
+
+            integrand = np.zeros_like(zarr)
+            for i, z in enumerate(zarr):
+
+                if zok[i] == 0:
+                    continue
+
+                if (z < zg[0]) or (z >= zg[1]):
+                    continue
+
+                # Pre-processing: compute bias and surface density of
+                # target population.
+                # Ths construction of the target population is independent
+                # of _scale_ so we should only do this for h == 0.
+                if fsel1 is None:
+                    _fsel1 = 1
+                else:
+                    _fsel1 = fsel1[i,:]
+                
+                if fsel2 is None:
+                    _fsel2 = 1
+                else:
+                    _fsel2 = fsel2[i,:]
+
+                integrand[i] = self._get_ps_obs(z, _scale_,
+                    wave_obs, wave_obs2=None, 
+                    field1_is_num=field1_is_num, field2_is_num=field2_is_num,
+                    fsel1=_fsel1, fsel2=_fsel2, cross_pop=cross_pop,
+                    scale_units=scale_units, **kwargs)#, #raw=raw,
+                    #nebular_only=nebular_only, #prof=prof)
+
+                if np.isnan(integrand[i]):
+                    integrand[i] = 0
+
+            ps[h] = np.trapz(integrand[zok] * zarr[zok],
+                x=np.log(zarr[zok]))
+
+            pb.update(h)
+
+        pb.finish()
+
+        return ps
 
     def _guess_Mmin(self):
         """
