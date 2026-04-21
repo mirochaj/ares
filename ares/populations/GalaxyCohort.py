@@ -3816,8 +3816,9 @@ class GalaxyCohort(GalaxyAggregate):
 
         # This is like an occupation fraction, i.e., it's the fraction of
         # galaxies in a given halo mass bin that satisfy our cut.
+        tab_fsel = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
         if selection_criteria is None:
-            return np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
+            return tab_fsel
 
         ##
         # Otherwise, general case
@@ -3827,14 +3828,14 @@ class GalaxyCohort(GalaxyAggregate):
         #    tmp_mask = np.ones((self.halos.tab_z.size, self.halos.tab_M.size,
         #        len(self.pf['pop_mask'])))
 
-        # Just apply Mmax at each redshift.
-        for i, z in enumerate(self.halos.tab_z):
-            Mmax = self.get_Mmax(z)
-            tab_fsel[i,self.halos.tab_M >= Mmax] = 0
-
         ##
         # If there's no selection, just use Mmax
         if (selection_criteria is None):# and (self.pf['pop_mask_wave'] is None):
+            # Just apply Mmax at each redshift. Not clear that this is actually
+            # necessary but doesn't hurt.
+            for i, z in enumerate(self.halos.tab_z):
+                Mmax = self.get_Mmax(z)
+                tab_fsel[i,self.halos.tab_M >= Mmax] = 0
             if return_fraction:
                 return tab_fsel
             else:
@@ -3999,20 +4000,43 @@ class GalaxyCohort(GalaxyAggregate):
 #
         return tab_fsel
     
-    def get_num_and_bias_from_fsel(self, fsel):
+    def get_num_and_bias_from_fsel(self, fsel, volume_density=True):
         """
         Docstring for get_num_and_bias_from_fsel
         
         :param self: Description
         :param fsel: Description
         """
+
+        tab_M = self.halos.tab_M
+        dz = np.diff(self.halos.tab_z)
+
         num = np.zeros_like(self.halos.tab_z)
         bias = np.zeros_like(self.halos.tab_z)
         for i, z in enumerate(self.halos.tab_z):
-            num[i] = np.trapezoid(fsel * self.tab_focc[i,:] * self.halos.tab_dndlnm[i,:],
-                x=np.log(self.halos.tab_M))
+            if np.all(fsel[i,:] == 0):
+                continue
+
+            if volume_density:
+                dVdOmega = 1.
+            else:
+                dVdOmega = self.cosm.ProjectedVolume(z, angle=1., dz=dz[i])
             
-        return num
+            # 
+            tab_b = self.halos.tab_bias[i,:]
+            tab_n = self.halos.tab_dndlnm[i,:]
+            tab_f = self.tab_focc[i,:]
+
+            num[i] = np.trapezoid(fsel[i,:] * tab_f * tab_n, 
+                x=np.log(tab_M)) * dVdOmega
+            
+            integ_top = fsel[i,:] * tab_n * tab_f * tab_b 
+            integ_bot = fsel[i,:] * tab_n * tab_f
+
+            bias[i] = np.trapezoid(integ_top, x=np.log(tab_M)) \
+                / np.trapezoid(integ_bot, x=np.log(tab_M))
+            
+        return num, bias
 
     def _get_mask_info(self):
         if self.pf['pop_mask'] is not None:
@@ -7318,6 +7342,8 @@ class GalaxyCohort(GalaxyAggregate):
 
                 integrand = integrand * np.mean(nu1) / dnu1
 
+            
+
         else:
             assert type(wave_obs1) == type(wave_obs2)
     
@@ -7342,8 +7368,13 @@ class GalaxyCohort(GalaxyAggregate):
         Compute the cross-spectrum between EBL and target galaxy population.
         """
 
+        zlo = max(zg[0], max(self.zdead, self.pf['final_redshift']))
+        zhi = min(zg[1], min(self.zform, self.pf['first_light_redshift']))
+
         zarr = self.halos.tab_z
-        zok  = np.logical_and(zarr > self.zdead, zarr <= self.zform)
+        zok  = np.logical_and(zarr > zlo, zarr <= zhi)
+
+        #dndz, bofz = self.get_num_and_bias_from_fsel(fsel2)
 
         name = '{:.2f} micron'.format(np.mean(wave_obs))
 
@@ -7356,20 +7387,16 @@ class GalaxyCohort(GalaxyAggregate):
 
         pb = ProgressBar(scale.shape[0],
             use=use_pb and self.pf['progress_bar'],
-            name=f'p(k,{name})')
+            name=f'p(k,{name} x galaxies)')
         pb.start()
 
         for h, _scale_ in enumerate(scales):
 
             integrand = np.zeros_like(zarr)
             for i, z in enumerate(zarr):
-
                 if zok[i] == 0:
                     continue
-
-                if (z < zg[0]) or (z >= zg[1]):
-                    continue
-
+                                
                 # Pre-processing: compute bias and surface density of
                 # target population.
                 # Ths construction of the target population is independent
@@ -7394,7 +7421,7 @@ class GalaxyCohort(GalaxyAggregate):
                 if np.isnan(integrand[i]):
                     integrand[i] = 0
 
-            ps[h] = np.trapz(integrand[zok] * zarr[zok],
+            ps[h] = np.trapezoid(integrand[zok] * zarr[zok],
                 x=np.log(zarr[zok]))
 
             pb.update(h)

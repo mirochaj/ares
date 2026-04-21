@@ -499,7 +499,7 @@ class HaloModel(HaloMassFunction):
         Compute the shot noise term quickly.
         """
 
-        iz, k, _prof1_, _prof2_ = self._prep_for_ps(z, k, None, None, ztol)
+        iz, _k_, _prof1_, _prof2_ = self._prep_for_ps(z, k, None, None, ztol)
 
         # Identify contributing halos
         if mmin1 is None:
