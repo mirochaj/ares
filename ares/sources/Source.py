@@ -441,7 +441,7 @@ class Source(object):
         # If supplied units are already Angstroms, we're done.
         if units.lower().startswith('ang'):
             return x
-
+        
         # This routine always returns in order of ascending photon energy,
         # so it's possible that `x` has been flipped.
         # There's a check below to make sure
@@ -450,15 +450,17 @@ class Source(object):
         type_in = type(x)
 
         if isinstance(x, numbers.Number):
+            x_is_band = False
             out = h_p * c / erg_per_ev / xout / 1e-8
         else:
+            x_is_band = True
             out = h_p * c / erg_per_ev / np.array(xout) / 1e-8
 
         # Check for order change, since get_ev_from_x aways returns in
         # ascending energy. Want to match input order of `x`.
         # In other words, match order of input `x` unless we're converting
         # from wavelength to energy.
-        if units.lower() not in ['ev', 'hz'] and (out[0] > out[1]):
+        if units.lower() not in ['ev', 'hz'] and x_is_band and (out[0] > out[1]):
             # Maybe this is only microns right now?
             out = np.flip(out)
 

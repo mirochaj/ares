@@ -454,7 +454,7 @@ class Simulation(object):
 
         for i, pop in enumerate(self.pops):
             f_sel[i,:,:] = pop.get_galaxy_subsample(selection_criteria, 
-                return_fraction=return_fraction)
+                return_fraction=return_fraction, logic='and')
         
         return f_sel
     
@@ -544,6 +544,11 @@ class Simulation(object):
             ##
             # Need to determine fraction of halos that are selected 
             fsel = self.get_galaxy_subsample(galaxy_prop)
+
+            if np.all(fsel == 0):
+                print(f"No galaxies found satisfying selection!")
+                print(f"z={zbin}", selection_criteria)
+                continue
 
             for i, pop in enumerate(self.pops):
     
