@@ -423,8 +423,8 @@ class Simulation(object):
 
         ##
         # Modify PS units before return
-        px *= to_ps_units * to_ps_units2
-        ps_z *= to_ps_units * to_ps_units2
+        px *= to_ps_units * to_ps_units2 / cm_per_mpc**4
+        ps_z *= to_ps_units * to_ps_units2 / cm_per_mpc**4
         
         # Sum over source populations
         ptot = px.sum(axis=0).sum(axis=0)
@@ -573,14 +573,124 @@ class Simulation(object):
                             scale_units=scale_units, 
                             field1_is_num=0, field2_is_num=1,
                             fsel2=fsel[j,:,:],
-                            cross_pop=popx if i != j else None, **kwargs)
+                            cross_pop=popx, **kwargs)
 
         ##
         # Modify PS units before return
         if flux_units.lower() == 'si':
-            ps *= cm_per_m**2 / erg_per_s_per_nW
+            ps *= cm_per_m**2 / erg_per_s_per_nW / cm_per_mpc**2
         else:
             raise NotImplemented()
+
+        #if pops is None:
+        #    hist = self.history # poke
+        #    self._history['ps_nirb_x_gal'] = scales, scales_inv, waves, ps
+
+        return ps.sum(axis=0).sum(axis=0)
+    
+    def get_galaxy_ps(self, scales, zbins, selection_criteria, 
+        wave_units='mic', scale_units='ell', flux_units='SI', pops=None,
+        include_inter_pop=True, **kwargs):
+        """
+        Compute auto spectrum of galaxies.
+
+        Parameters
+        ----------
+        scales : int, float, np.ndarray
+            Modes (or angular scales) of interest, depending on value of
+            `scale_units`.
+        galaxy_prop : dict
+            A dictionary defining the magnitude and/or color and/or redshift
+            cuts used to select galaxies. At the moment, this is just a
+            magnitude cut provided as galaxy_prop={'mag': (cam, filter, cut)}
+        pops : list, tuple
+            If provided, sets the ID numbers of populations that will be
+            included in the model. In other words, any population *not* included
+            in this list will be skipped. By default, this is None and all
+            source populations defined by the parameters (self.pf) are
+            included.
+        include_inter_pop : bool
+            This flag determines whether "inter-population cross terms" are
+            included in the calculation.
+        wave_units : str
+            Current options: 'eV', 'microns', 'Ang'
+        flux_units : str
+            Current options: 'cgs', 'SI'
+        scale_units : str
+            Current options: 'arcmin', 'arcsec', 'degrees', 'ell'
+
+
+        Returns
+        -------
+        Tuple containing (scales, 2 pi / scales or l*l(+1),
+            waves, power spectra).
+
+        Note that the power spectra are returned as 3-D arrays with shape
+        (number of populations, number of ell modes, number of wavelengths).
+
+        """
+
+        # Make sure things are arrays
+        if type(scales) != np.ndarray:
+            scales = np.array([scales])
+
+        if type(zbins) != np.ndarray:
+            zbins = np.array(zbins)
+        
+        assert zbins.ndim == 2
+
+
+        ps = np.zeros((len(self.pops), len(self.pops), len(scales), len(zbins)))
+        
+        # Save contributing pieces
+
+        # [optonal] Save redshift chunks
+        #ps_z = np.zeros((len(self.pops), len(self.pops),
+        #    len(scales), len(waves), self.pops[0].halos.tab_z.size))
+
+        
+        # Loop over source populations and compute cross spectrum.
+        
+        for h, zbin in enumerate(zbins):
+
+            galaxy_prop = {'z': zbin}
+            galaxy_prop.update(selection_criteria)
+            
+            ##
+            # Need to determine fraction of halos that are selected 
+            fsel = self.get_galaxy_subsample(galaxy_prop)
+
+            if np.all(fsel == 0):
+                print(f"No galaxies found satisfying selection!")
+                print(f"z={zbin}", selection_criteria)
+                continue
+
+            for i, pop in enumerate(self.pops):
+    
+                # Honor user-supplied list of populations to include
+                if pops is not None:
+                    if i not in pops:
+                        continue
+
+                for j, popx in enumerate(self.pops):
+                    # Avoid double counting.
+                    if (j > i):
+                        break
+                    
+                    # Honor user-supplied list of populations to include
+                    if pops is not None:
+                        if j not in pops:
+                            continue
+                    
+                    ps[i,j,:,h] = pop.get_xs_obs(scales,
+                        wave_obs=None, zg=zbin, 
+                        scale_units=scale_units, 
+                        field1_is_num=1, field2_is_num=1,
+                        fsel1=fsel[i,:,:], fsel2=fsel[j,:,:],
+                        cross_pop=popx, **kwargs)
+        ##
+        # Modify PS units before return
+        
 
         #if pops is None:
         #    hist = self.history # poke

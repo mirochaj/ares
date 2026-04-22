@@ -6739,12 +6739,26 @@ class GalaxyCohort(GalaxyAggregate):
 
         # For an IHL contribution we won't get this far, because
         # pop_include_shot = False
-        lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom',
-            raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
-            total_sat=self.is_central_pop)
+        focc1 = self.get_focc(z=z, Mh=self.halos.tab_M)
+        if field1_is_num:
+            iz = np.argmin(np.abs(z - self.halos.tab_z))
+            dndlnm = self.halos.tab_dndlnm[iz,:]
+            integrand = dndlnm * focc1 * fsel1
+            nbar = np.trapezoid(integrand, x=np.log(self.halos.tab_M))
+            lum1 = 1. / nbar
+        else:
+            lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom',
+                raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz',
+                total_sat=self.is_central_pop)
 
+        focc2 = cross_pop.get_focc(z=z, Mh=self.halos.tab_M)
         if field2_is_num:
-            lum2 = 1
+            iz = np.argmin(np.abs(z - self.halos.tab_z))
+            dndlnm = self.halos.tab_dndlnm[iz,:]
+            
+            integrand = dndlnm * focc2 * fsel2
+            nbar = np.trapezoid(integrand, x=np.log(self.halos.tab_M))
+            lum2 = 1. / nbar
         elif (cross_pop is None) and (np.all(band1 == band2)):
             lum2 = lum1
         else:
@@ -6753,7 +6767,7 @@ class GalaxyCohort(GalaxyAggregate):
                 total_sat=self.is_central_pop)
         
         if self.is_central_pop:
-            focc1 = focc2 = self.get_focc(z=z, Mh=self.halos.tab_M) * 1.
+            
             fnmask1 = fnmask2 = 1 - self.get_fmask(z=z, Mh=self.halos.tab_M)
 
             focc1 *= np.minimum(fsel1, fnmask1)
@@ -6884,7 +6898,12 @@ class GalaxyCohort(GalaxyAggregate):
         #else:
         if field1_is_num:
             #raise NotImplemented('help')
-            lum1 = 1 # No luminosity weighting
+            iz = np.argmin(np.abs(z - self.halos.tab_z))
+            dndlnm = self.halos.tab_dndlnm[iz,:]
+            focc2 = cross_pop.get_focc(z=z, Mh=self.halos.tab_M)
+            integrand = dndlnm * focc2 * fsel2
+            nbar = np.trapezoid(integrand, x=np.log(self.halos.tab_M))
+            lum1 = 1. / nbar
         else:
             band = wave1 if type(wave1) not in numeric_types else None
             lum1 = self.get_lum(z, x=wave1, raw=raw,
@@ -6897,7 +6916,12 @@ class GalaxyCohort(GalaxyAggregate):
         band = wave2 if type(wave2) not in numeric_types else None
         # In this case, don't waste any time!
         if field2_is_num:
-            lum2 = 1
+            iz = np.argmin(np.abs(z - self.halos.tab_z))
+            dndlnm = self.halos.tab_dndlnm[iz,:]
+            focc2 = cross_pop.get_focc(z=z, Mh=self.halos.tab_M)
+            integrand = dndlnm * focc2 * fsel2
+            nbar = np.trapezoid(integrand, x=np.log(self.halos.tab_M))
+            lum2 = 1. / nbar
         elif (cross_pop is None) and np.all(wave2 == wave1):
             lum2 = lum1
         else:
@@ -7185,7 +7209,7 @@ class GalaxyCohort(GalaxyAggregate):
         return ps
 
     def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, include_shot=True,
-        include_1h=True, include_2h=True, scale_units='arcsec', raw=False,
+        include_1h=True, include_2h=True, scale_units='ell', raw=False,
         field1_is_num=0, field2_is_num=0, fsel1=1, fsel2=1,
         nebular_only=False, prof=None, cross_pop=None):
         """
@@ -7198,7 +7222,10 @@ class GalaxyCohort(GalaxyAggregate):
         # is a tuple vs. a number. In the former case, it will simply
         # be in erg/s/cMpc^3, while in the latter, it will carry an extra
         # factor of Hz^-1.
-        if type(wave_obs1) in [int, float, np.float64]:
+        if wave_obs1 is None:
+            is_band_int = False
+            wave1 = None
+        elif type(wave_obs1) in [int, float, np.float64]:
             is_band_int = False
 
             # Get rest wavelength in Angstroms
@@ -7225,7 +7252,7 @@ class GalaxyCohort(GalaxyAggregate):
             
         ##
         # Need angular diameter distance and H(z) for all that follows
-        d = self.cosm.get_dist_los_comoving(0., z)            # [cm]
+        d = self.cosm.get_dist_los_comoving(0., z) / cm_per_mpc           # [cm]
         Hofz = self.cosm.HubbleParameter(z)                   # [s^-1]
 
         ##
@@ -7246,9 +7273,9 @@ class GalaxyCohort(GalaxyAggregate):
                 ))
 
             q = 2. * np.pi / rad
-            k = q / (d / cm_per_mpc)
+            k = q / (d / 1.)
         elif scale_units.lower() in ['l', 'ell']:
-            k = scale / (d / cm_per_mpc)
+            k = (scale + 0.5) / (d / 1.)
         else:
             raise NotImplemented('Unrecognized scale_units={}'.format(
                 scale_units))
@@ -7318,11 +7345,11 @@ class GalaxyCohort(GalaxyAggregate):
             # Fernandez+ (2010) Eq. A9 or 37
             if is_band_int:
                 # [ps3d] = Mpc^-3 -> cm^-3
-                integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
+                integrand = (c / cm_per_mpc) * (ps3d / 1.) / Hofz / d**2 \
                     / (1. + z)**4 / (4. * np.pi)**2
             # Fernandez+ (2010) Eq. A10
             else:
-                integrand = c * (ps3d / cm_per_mpc**3) / Hofz / d**2 \
+                integrand = (c / cm_per_mpc) * (ps3d / 1.) / Hofz / d**2 \
                     / (1. + z)**2 / (4. * np.pi)**2
     
         else:
@@ -7334,6 +7361,8 @@ class GalaxyCohort(GalaxyAggregate):
         if is_galaxy_auto:
             pass
         elif is_galaxy_cross:
+            #integrand *= cm_per_mpc**2
+
             if type(wave_obs1) in numeric_types:
                 integrand = integrand * (c / (wave_obs1 * 1e-4))
             else:
@@ -7341,8 +7370,6 @@ class GalaxyCohort(GalaxyAggregate):
                 dnu1 = np.abs(np.diff(nu1))
 
                 integrand = integrand * np.mean(nu1) / dnu1
-
-            
 
         else:
             assert type(wave_obs1) == type(wave_obs2)
@@ -7374,9 +7401,10 @@ class GalaxyCohort(GalaxyAggregate):
         zarr = self.halos.tab_z
         zok  = np.logical_and(zarr > zlo, zarr <= zhi)
 
-        #dndz, bofz = self.get_num_and_bias_from_fsel(fsel2)
-
-        name = '{:.2f} micron'.format(np.mean(wave_obs))
+        if wave_obs is None:
+            name = 'gg'
+        else:
+            name = '{:.2f} micron x galaxies'.format(np.mean(wave_obs))
 
         if type(scale) in numeric_types:
             scales = np.array([scale])
@@ -7387,7 +7415,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         pb = ProgressBar(scale.shape[0],
             use=use_pb and self.pf['progress_bar'],
-            name=f'p(k,{name} x galaxies)')
+            name=f'p(k,{name})')
         pb.start()
 
         for h, _scale_ in enumerate(scales):
