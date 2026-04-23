@@ -222,9 +222,9 @@ class Simulation(object):
 
         return data
 
-    def get_ebl_ps(self, scales, waves, waves2=None, 
+    def get_ebl_ps(self, scales, waves, selection_criteria=None, waves2=None, 
         wave_units='mic', wave_units2=None,
-        flux_units='SI', flux_units2=None, scale_units='ell', pops=None,
+        flux_units='SI', flux_units2=None, pops=None,
         include_inter_pop=True, cache_ipop_mtx=None, **kwargs):
         """
         Compute power spectrum of EBL at some observed wavelength(s).
@@ -232,8 +232,7 @@ class Simulation(object):
         Parameters
         ----------
         scales : int, float, np.ndarray
-            Modes (or angular scales) of interest, depending on value of
-            `scale_units`.
+            Ell modes of interest.
         waves : int, float, np.ndarray
             Wavelengths at which to compute power spectra in `wave_units`.
             Note that if 2-D, must have shape (number of bins, 2), in which
@@ -253,8 +252,6 @@ class Simulation(object):
             Current options: 'eV', 'microns', 'Ang'
         flux_units : str
             Current options: 'cgs', 'SI'
-        scale_units : str
-            Current options: 'arcmin', 'arcsec', 'degrees', 'ell'
 
         Optional keyword arguments
         --------------------------
@@ -350,9 +347,13 @@ class Simulation(object):
         # [optonal] Save redshift chunks
         ps_z = np.zeros((len(self.pops), len(self.pops),
             len(scales), len(waves), self.pops[0].halos.tab_z.size))
+        
+        ##
+        # Need to determine fraction of halos that are selected 
+        fsel = self.get_galaxy_subsample(selection_criteria)
 
+        ##
         # Loop over source populations and compute power spectrum.
-        #
         for i, pop in enumerate(self.pops):
 
             # Honor user-supplied list of populations to include
@@ -393,7 +394,8 @@ class Simulation(object):
                     if j == i:
                         px[i,j,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=xmic[k], wave_obs2=xmic2[k],
-                            scale_units=scale_units, **kwargs)
+                            fsel1=fsel[i],
+                            **kwargs)
                         ps[i,:,k] = px[i,j,:,k]
                         ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
                         continue
@@ -405,9 +407,9 @@ class Simulation(object):
                     # Cross terms only from here on
                     px[i,j,:,k] = pop.get_ps_obs(scales,
                         wave_obs1=xmic[k], wave_obs2=xmic2[k],
-                        scale_units=scale_units, 
-                        cross_pop=popx if i != j else None, **kwargs)
-                    # Setting cross_pop to None if i == j avoids recomputing
+                        fsel1=fsel[i], fsel2=fsel[j],
+                        pop2=popx if i != j else None, **kwargs)
+                    # Setting pop2 to None if i == j avoids recomputing
                     # the luminosity etc. inside other get_ps_* functions
                     ps_z[i,j,:,k,:] = pop._ps_obs_integrand.copy()
 
@@ -459,7 +461,7 @@ class Simulation(object):
         return f_sel
     
     def get_ebl_x_galaxies(self, scales, waves, zbins, selection_criteria, 
-        wave_units='mic', scale_units='ell', flux_units='SI', pops=None,
+        wave_units='mic', flux_units='SI', pops=None,
         include_inter_pop=True, **kwargs):
         """
         Compute cross spectrum between EBL and galaxy population.
@@ -467,8 +469,7 @@ class Simulation(object):
         Parameters
         ----------
         scales : int, float, np.ndarray
-            Modes (or angular scales) of interest, depending on value of
-            `scale_units`.
+            Ell modes of interest.
         waves : int, float, np.ndarray
             Wavelengths at which to compute power spectra in `wave_units`.
             Note that if 2-D, must have shape (number of bins, 2), in which
@@ -490,9 +491,6 @@ class Simulation(object):
             Current options: 'eV', 'microns', 'Ang'
         flux_units : str
             Current options: 'cgs', 'SI'
-        scale_units : str
-            Current options: 'arcmin', 'arcsec', 'degrees', 'ell'
-
 
         Returns
         -------
@@ -570,10 +568,9 @@ class Simulation(object):
                     for k, wave in enumerate(waves):
                         ps[i,j,:,k,h] = pop.get_xs_obs(scales,
                             wave_obs=wave, zg=zbin, 
-                            scale_units=scale_units, 
                             field1_is_num=0, field2_is_num=1,
                             fsel2=fsel[j,:,:],
-                            cross_pop=popx, **kwargs)
+                            pop2=popx, **kwargs)
 
         ##
         # Modify PS units before return
@@ -589,7 +586,7 @@ class Simulation(object):
         return ps.sum(axis=0).sum(axis=0)
     
     def get_galaxy_ps(self, scales, zbins, selection_criteria, 
-        wave_units='mic', scale_units='ell', flux_units='SI', pops=None,
+        wave_units='mic', flux_units='SI', pops=None,
         include_inter_pop=True, **kwargs):
         """
         Compute auto spectrum of galaxies.
@@ -597,8 +594,7 @@ class Simulation(object):
         Parameters
         ----------
         scales : int, float, np.ndarray
-            Modes (or angular scales) of interest, depending on value of
-            `scale_units`.
+            Ell modes of interest.
         galaxy_prop : dict
             A dictionary defining the magnitude and/or color and/or redshift
             cuts used to select galaxies. At the moment, this is just a
@@ -616,9 +612,6 @@ class Simulation(object):
             Current options: 'eV', 'microns', 'Ang'
         flux_units : str
             Current options: 'cgs', 'SI'
-        scale_units : str
-            Current options: 'arcmin', 'arcsec', 'degrees', 'ell'
-
 
         Returns
         -------
@@ -684,10 +677,9 @@ class Simulation(object):
                     
                     ps[i,j,:,h] = pop.get_xs_obs(scales,
                         wave_obs=None, zg=zbin, 
-                        scale_units=scale_units, 
                         field1_is_num=1, field2_is_num=1,
                         fsel1=fsel[i,:,:], fsel2=fsel[j,:,:],
-                        cross_pop=popx, **kwargs)
+                        pop2=popx, **kwargs)
         ##
         # Modify PS units before return
         

@@ -689,6 +689,10 @@ class HaloMassFunction(object):
     @cached_property
     def tab_log10M(self):
         return np.log10(self.tab_M)
+    
+    @cached_property
+    def tab_lnM(self):
+        return np.log(self.tab_M)
 
     @property
     def tab_dndlnm_sub(self):
