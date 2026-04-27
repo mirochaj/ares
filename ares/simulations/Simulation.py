@@ -222,7 +222,8 @@ class Simulation(object):
 
         return data
 
-    def get_ebl_ps(self, scales, waves, selection_criteria=None, waves2=None, 
+    def get_ebl_ps(self, scales, waves, 
+        masking_criteria=None, waves2=None, 
         wave_units='mic', wave_units2=None,
         flux_units='SI', flux_units2=None, pops=None,
         include_inter_pop=True, cache_ipop_mtx=None, **kwargs):
@@ -349,8 +350,14 @@ class Simulation(object):
             len(scales), len(waves), self.pops[0].halos.tab_z.size))
         
         ##
-        # Need to determine fraction of halos that are selected 
-        fsel = self.get_galaxy_subsample(selection_criteria)
+        # Need to determine fraction of halos that are selected
+        if masking_criteria is None:
+            print(f"! WARNING: did you mean not to provide a mask?")
+            fmask = [np.zeros(len(self.pops))] * len(waves)
+        else:
+            fmask = []
+            for mask in masking_criteria:
+                fmask.append(self.get_galaxy_subsample(mask))
 
         ##
         # Loop over source populations and compute power spectrum.
@@ -394,7 +401,7 @@ class Simulation(object):
                     if j == i:
                         px[i,j,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=xmic[k], wave_obs2=xmic2[k],
-                            fsel1=fsel[i],
+                            fsel1=1-fmask[k][i,:,:],
                             **kwargs)
                         ps[i,:,k] = px[i,j,:,k]
                         ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
@@ -407,7 +414,7 @@ class Simulation(object):
                     # Cross terms only from here on
                     px[i,j,:,k] = pop.get_ps_obs(scales,
                         wave_obs1=xmic[k], wave_obs2=xmic2[k],
-                        fsel1=fsel[i], fsel2=fsel[j],
+                        fsel1=1-fmask[k][i], fsel2=1-fmask[k][j],
                         pop2=popx if i != j else None, **kwargs)
                     # Setting pop2 to None if i == j avoids recomputing
                     # the luminosity etc. inside other get_ps_* functions
@@ -441,26 +448,38 @@ class Simulation(object):
 
         return ptot
     
-    def get_galaxy_subsample(self, selection_criteria, return_fraction=True):
+    def get_galaxy_subsample(self, selection_criteria, pops=None,
+        return_fraction=True):
         """
         Subject model galaxies to cuts in redshift, magnitude, and/or color.
+
+        .. note :: This is used both for masking and for sample selection.
 
         Parameters
         ----------
         selection_criteria : dict
 
+        Returns
+        -------
+        A 3-D array with dimensions corresponding to (population, z, Mh).
+        Each element is the fraction of halos that satisfy the selection criteria.
 
         """
 
         f_sel = np.zeros((len(self.pops), self.halos.tab_z.size, self.halos.tab_M.size))
 
         for i, pop in enumerate(self.pops):
+            if pops is not None:
+                if i not in pops:
+                    continue
+
             f_sel[i,:,:] = pop.get_galaxy_subsample(selection_criteria, 
                 return_fraction=return_fraction, logic='and')
         
         return f_sel
     
-    def get_ebl_x_galaxies(self, scales, waves, zbins, selection_criteria, 
+    def get_ebl_x_galaxies(self, scales, waves, zbins, 
+        selection_criteria, masking_criteria,
         wave_units='mic', flux_units='SI', pops=None,
         include_inter_pop=True, **kwargs):
         """
@@ -523,17 +542,42 @@ class Simulation(object):
         else:
             raise NotImplemented('help')
 
-        ps = np.zeros((len(self.pops), len(self.pops), len(scales), len(waves), len(zbins)))
+        ps = np.zeros((len(scales), len(waves), len(zbins)))
         
         # Save contributing pieces
 
         # [optonal] Save redshift chunks
-        #ps_z = np.zeros((len(self.pops), len(self.pops),
-        #    len(scales), len(waves), self.pops[0].halos.tab_z.size))
+        zarr = self.pops[0].halos.tab_z
+        Hofz = np.array([self.cosm.HubbleParameter(z) for z in zarr])
+        ps_z = np.zeros((len(self.pops), len(self.pops),
+            len(scales), len(waves), len(zbins), zarr.size))
 
         
         # Loop over source populations and compute cross spectrum.
         
+        ##
+        # Need to determine fraction of halos that are masked
+        if masking_criteria is None:
+            print(f"! WARNING: did you mean not to provide a mask?")
+            fmask = [np.zeros(len(self.pops))] * len(waves)
+        else:
+            fmask = []
+            for mask in masking_criteria:
+                fmask.append(self.get_galaxy_subsample(mask, pops=pops))
+
+        # Get full z-dependent number density
+        num_pz = np.zeros((len(self.pops), len(zarr)))
+        fsel_allz = self.get_galaxy_subsample(selection_criteria, pops=pops)
+        
+        for i, pop in enumerate(self.pops):
+            if pops is not None:
+                if i not in pops:
+                    continue
+            num_pz[i,:] = self.pops[i].get_num_from_fsel(fsel_allz[i])
+
+        ##
+        # Now get Limber integrand
+        num_p = np.zeros((len(self.pops), len(zbins)))
         for h, zbin in enumerate(zbins):
 
             galaxy_prop = {'z': zbin}
@@ -541,37 +585,52 @@ class Simulation(object):
             
             ##
             # Need to determine fraction of halos that are selected 
-            fsel = self.get_galaxy_subsample(galaxy_prop)
+            fsel = self.get_galaxy_subsample(galaxy_prop, pops=pops)
 
             if np.all(fsel == 0):
-                print(f"No galaxies found satisfying selection!")
-                print(f"z={zbin}", selection_criteria)
+                print(f"! No galaxies found satisfying selection!")
+                print(f"! z={zbin}, selection:", selection_criteria)
                 continue
-
+            
             for i, pop in enumerate(self.pops):
-    
+
+                num_p[i,h] = self.pops[i].get_num_from_fsel(fsel[i], 
+                    zbin=zbin)
+
                 # Honor user-supplied list of populations to include
                 if pops is not None:
                     if i not in pops:
                         continue
 
                 for j, popx in enumerate(self.pops):
-                    # Avoid double counting.
-                    if (j > i):
-                        break
-                    
+
                     # Honor user-supplied list of populations to include
                     if pops is not None:
                         if j not in pops:
                             continue
-                    
-                    for k, wave in enumerate(waves):
-                        ps[i,j,:,k,h] = pop.get_xs_obs(scales,
-                            wave_obs=wave, zg=zbin, 
-                            field1_is_num=0, field2_is_num=1,
-                            fsel2=fsel[j,:,:],
-                            pop2=popx, **kwargs)
 
+                    for k, wave in enumerate(waves):
+                        fsel1 = fsel[i]
+                        fsel2 = 1 - fmask[k][j]
+                    
+                        # (pops, pops, scales, waves, zbin, zall)
+                        ps_z[i,j,:,k,h,:] = pop.get_xs_obs(scales,
+                            wave_obs=wave, zg=zbin, 
+                            isnum1=1, isnum2=0,
+                            idnum1=i, idnum2=j,
+                            fsel1=fsel1, fsel2=fsel2,
+                            pop2=popx, do_limber=False, **kwargs)
+                        
+            ##
+            # We do the Limber integral here for crosses
+            W_g = num_pz.sum(axis=0) / num_p[:,h].sum(axis=0)**2
+            for k, wave in enumerate(waves):
+                limber_integ = W_g[None,:] \
+                    * ps_z.sum(axis=0).sum(axis=0)[:,k,h,:] \
+                    / ((c / cm_per_mpc) / Hofz)
+                ps[:,k,h] = np.trapezoid(limber_integ, x=zarr, axis=-1)
+
+            print(f"! Done: shot power in 0th channel is {ps[-1,0,:]}")
         ##
         # Modify PS units before return
         if flux_units.lower() == 'si':
@@ -579,11 +638,14 @@ class Simulation(object):
         else:
             raise NotImplemented()
 
+        self.num_by_pop = num_p
+        self.num_by_pop_z = num_pz
+
         #if pops is None:
         #    hist = self.history # poke
         #    self._history['ps_nirb_x_gal'] = scales, scales_inv, waves, ps
 
-        return ps.sum(axis=0).sum(axis=0)
+        return ps
     
     def get_galaxy_ps(self, scales, zbins, selection_criteria, 
         wave_units='mic', flux_units='SI', pops=None,
@@ -643,7 +705,7 @@ class Simulation(object):
 
         
         # Loop over source populations and compute cross spectrum.
-        
+        num_p = np.zeros((len(self.pops), len(zbins)))
         for h, zbin in enumerate(zbins):
 
             galaxy_prop = {'z': zbin}
@@ -651,7 +713,7 @@ class Simulation(object):
             
             ##
             # Need to determine fraction of halos that are selected 
-            fsel = self.get_galaxy_subsample(galaxy_prop)
+            fsel = self.get_galaxy_subsample(galaxy_prop, pops=pops)
 
             if np.all(fsel == 0):
                 print(f"No galaxies found satisfying selection!")
@@ -659,6 +721,8 @@ class Simulation(object):
                 continue
 
             for i, pop in enumerate(self.pops):
+
+                num_p[i,h] = self.pops[i].get_num_from_fsel(fsel[i], zbin=zbin)
     
                 # Honor user-supplied list of populations to include
                 if pops is not None:
@@ -680,6 +744,10 @@ class Simulation(object):
                         field1_is_num=1, field2_is_num=1,
                         fsel1=fsel[i,:,:], fsel2=fsel[j,:,:],
                         pop2=popx, **kwargs)
+                    
+            ##
+            # Done with this redshift bin
+            ps[:,:,:,h] /= num_p[:,h].sum(axis=0)**2
         ##
         # Modify PS units before return
         
