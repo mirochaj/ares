@@ -1382,7 +1382,7 @@ class HaloModel(HaloMassFunction):
         """
 
         Rmi, Rma = -3, 1.
-        dlogR = 0.2
+        dlogR = 0.25
         R = 10**np.arange(Rmi, Rma+dlogR, dlogR)
         return R
 
