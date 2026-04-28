@@ -758,8 +758,8 @@ class Simulation(object):
 
         return ps.sum(axis=0).sum(axis=0)
     
-    def get_galaxy_number_counts(self, band, magbins, popids=None,
-        dlam=10, zmin=None, zmax=None, zbin=0.01):
+    def get_galaxy_number_counts(self, band, magbins, pops=None,
+        dlam=10, zmin=None, zmax=None, zbin=0.01, selection_criteria=None):
         """
         Compute the number of galaxies per square degree for each source populations.
 
@@ -777,16 +777,20 @@ class Simulation(object):
         
         assert dx > 3 * dlam
 
-        if popids is not None:
-            if type(popids) not in [list, tuple]:
-                popids = [popids]
+        if pops is not None:
+            if type(pops) not in [list, tuple]:
+                pops = [pops]
         
+        ##
+        # Front-load selection function calculation
+        fsel = self.get_galaxy_subsample(selection_criteria, pops=pops)
+
         # Loop over populations and save results for each one separately
         num_by_pop = {}
         for i, pop in enumerate(self.pops):
 
-            if popids is not None:
-                if i not in popids:
+            if pops is not None:
+                if i not in pops:
                     continue
 
             # Check zmin, zmax values 
@@ -804,7 +808,8 @@ class Simulation(object):
             # Farm out the real work to the `pop` object.
             num_pop = pop.get_number_counts(magbins, 
                 x=x, units='Angstroms', window=dx, dlam=dlam, 
-                zmin=_zmin, zmax=_zmax, zbin=zbin)
+                zmin=_zmin, zmax=_zmax, zbin=zbin,
+                selection_criteria=fsel[i])
             
             num_by_pop[i] = num_pop.copy()
         

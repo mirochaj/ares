@@ -1882,7 +1882,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_number_counts(self, bins, zmin=0, zmax=10, x=1600.,
         units='Angstroms', window=1, absolute=False, cam=None, filters=None,
-        dlam=20, zbin=0.1, selection=None, volume_density=False):
+        dlam=20, zbin=0.1, volume_density=False, selection_criteria=None):
         """
         Compute the *differential* surface density of galaxies.
 
@@ -1935,7 +1935,7 @@ class GalaxyCohort(GalaxyAggregate):
             mags, phi = self.get_lf(z, bins, x=_x_,
                 units=units, window=_w_,
                 use_mags=True, absolute=absolute, cam=cam, filters=filters,
-                dlam=dlam)
+                dlam=dlam, selection_criteria=selection_criteria)
 
             if np.all(np.isinf(phi)):
                 continue
@@ -1945,45 +1945,9 @@ class GalaxyCohort(GalaxyAggregate):
             else:    
                 vol = self.cosm.ProjectedVolume(z, angle=1., dz=zbin)
 
-            # Optional: apply selection in other band.
-            if selection is not None:
-                assert type(selection) == dict
-                assert 'maglim' in selection.keys()
-
-                if 'cam' not in selection.keys():
-                    _xs_ = selection['x'] / (1. + z)
-                    _ws_ = selection['window'] / (1. + z)
-                else:
-                    _xs_ = _ws_ = None
-
-                _xs_, mags_sel = self.get_mags(z=z, x=_xs_, units=units,
-                    absolute=absolute, window=_ws_) #raw=raw,
-                    #nebular_only=nebular_only,
-                    #)
-
-                _xf_, mags_foc = self.get_mags(z=z,
-                    #raw=raw,
-                    #nebular_only=nebular_only,
-                    x=_x_,
-                    units=units, window=window,
-                    absolute=absolute, cam=cam, filters=filters,
-                    dlam=dlam)
-
-                # Need to figure out how limiting magnitude in selection band
-                # maps to magnitude in band of interest.
-                fin = np.isfinite(mags_sel)
-                maglim = np.interp(selection['maglim'], mags_sel[fin==1][-1::-1],
-                    mags_foc[fin==1][-1::-1],
-                    right=mags_foc[fin==1].max())
-
-
-                ok = mags <= maglim
-            else:
-                ok = np.ones_like(phi)
-
             ##
             # Increment counts
-            counts[ok==1] += phi[ok==1] * vol
+            counts += phi * vol
 
         # get_lf already has the mag^-1 units! No need to divide by dmag
         return counts
@@ -1996,7 +1960,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def _get_lf_mags(self, z, bins=None, x=1600., use_tabs=True,
         units='Angstroms', window=1, absolute=True, cam=None, filters=None,
-        dlam=20, mag_cen=None):
+        dlam=20, mag_cen=None, selection_criteria=None):
 
         if self.is_uvlf_parametric:
             assert absolute
@@ -2010,7 +1974,7 @@ class GalaxyCohort(GalaxyAggregate):
         Lh, phi_of_L = self._get_lf_lum(z,
             x=x, units=units, window=window,
             use_tabs=use_tabs, cam=cam, filters=filters, dlam=dlam,
-            mag_cen=mag_cen)
+            mag_cen=mag_cen, selection_criteria=selection_criteria)
                 
         MAB = self.magsys.get_mag_abs_from_lum(Lh)
 
@@ -2127,7 +2091,8 @@ class GalaxyCohort(GalaxyAggregate):
     def get_lf(self, z, bins=None, use_tabs=True,
         use_mags=True, use_logL=True, x=1600., units='Angstrom', window=1.,
         absolute=True, raw=False, nebular_only=False, band=None, cam=None,
-        filters=None, dlam=20, presets=None, mag_cen=None):
+        filters=None, dlam=20, presets=None, mag_cen=None,
+        selection_criteria=None):
         """
         Reconstructed luminosity function.
 
@@ -2187,14 +2152,15 @@ class GalaxyCohort(GalaxyAggregate):
             _x_, phi_of_x = self._get_lf_mags(z, bins=bins, x=x,
                 use_tabs=use_tabs, units=units,
                 window=window, absolute=absolute,
-                cam=cam, filters=filters, dlam=dlam, mag_cen=mag_cen)
+                cam=cam, filters=filters, dlam=dlam, mag_cen=mag_cen,
+                selection_criteria=selection_criteria)
         else:
             # By default, we compute dn/dlnL.
             _lum_, dndlnL = self._get_lf_lum(z, x=x,
                 use_tabs=use_tabs,
                 units=units,
                 window=window, raw=raw, nebular_only=nebular_only, band=band,
-                mag_cen=mag_cen)
+                mag_cen=mag_cen, selection_criteria=selection_criteria)
                         
             # phi is dn/dlnL. Default is to return log10(L), but might need to convert to dn/dL
             # if user provides use_logL=False.
@@ -4190,7 +4156,8 @@ class GalaxyCohort(GalaxyAggregate):
 
     def _get_lf_lum(self, z, larr=None, x=1600., window=1, raw=False,
         nebular_only=False, band=None, units='Angstroms',
-        cam=None, filters=None, dlam=20, use_tabs=True, mag_cen=None):
+        cam=None, filters=None, dlam=20, use_tabs=True, mag_cen=None,
+        selection_criteria=None):
         """
         Compute the luminosity function at redshift z, dn/dlnL.
 
@@ -4268,6 +4235,16 @@ class GalaxyCohort(GalaxyAggregate):
 
             if self.is_central_pop:
                 dndm = dndm * focc
+
+        ##
+        # Apply selection function
+        if selection_criteria is not None:
+            if type(selection_criteria) == np.ndarray:
+                fsel = selection_criteria
+            else:
+                fsel = self.get_galaxy_subsample(selection_criteria)
+
+            dndm *= fsel[iz,:]
 
         # In this case, obscuration means fraction of objects you don't see
         # in the UV.
