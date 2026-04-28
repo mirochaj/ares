@@ -561,9 +561,15 @@ class Simulation(object):
             print(f"! WARNING: did you mean not to provide a mask?")
             fmask = [np.zeros(len(self.pops))] * len(waves)
         else:
-            fmask = []
-            for mask in masking_criteria:
-                fmask.append(self.get_galaxy_subsample(mask, pops=pops))
+            print('generating masks...')
+            if type(masking_criteria) == dict:
+                print('one mask to rule them all...')
+                fmask = self.get_galaxy_subsample(masking_criteria, pops=pops)
+            else:
+                print(f"unique masks for everybody")
+                fmask = []
+                for mask in masking_criteria:
+                    fmask.append(self.get_galaxy_subsample(mask, pops=pops))
 
         # Get full z-dependent number density
         num_pz = np.zeros((len(self.pops), len(zarr)))
@@ -611,7 +617,10 @@ class Simulation(object):
 
                     for k, wave in enumerate(waves):
                         fsel1 = fsel[i]
-                        fsel2 = 1 - fmask[k][j]
+                        if type(masking_criteria) == dict:
+                            fsel2 = 1 - fmask[j]
+                        else:
+                            fsel2 = 1 - fmask[k][j]
                     
                         # (pops, pops, scales, waves, zbin, zall)
                         ps_z[i,j,:,k,h,:] = pop.get_xs_obs(scales,
@@ -630,7 +639,6 @@ class Simulation(object):
                     / ((c / cm_per_mpc) / Hofz)
                 ps[:,k,h] = np.trapezoid(limber_integ, x=zarr, axis=-1)
 
-            print(f"! Done: shot power in 0th channel is {ps[-1,0,:]}")
         ##
         # Modify PS units before return
         if flux_units.lower() == 'si':
