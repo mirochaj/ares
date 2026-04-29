@@ -683,7 +683,8 @@ def PopulationParameters():
     "pop_sfr": None,
     "pop_frd": None,
     "pop_fshock": 1.0,
-
+    
+    "pop_ms_offset": None,
     "pop_sfr_below_ms": None,
     "pop_sfr_below_ms_of_pop": 0,
 

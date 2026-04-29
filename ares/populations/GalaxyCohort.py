@@ -1126,6 +1126,13 @@ class GalaxyCohort(GalaxyAggregate):
 
         return 10**(np.log10(sfr) + offset)
 
+    def get_ms_offset(self, **kwargs):
+        if self.is_star_forming:
+            return 1
+        
+        func = self._get_function('pop_ms_offset')
+        return func(**kwargs)
+
     def get_sfr(self, **kwargs):
         """
         Get star formation rate at redshift `z` in a halo of mass `Mh`,
@@ -1148,7 +1155,15 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         if hasattr(self, '_get_sfr'):
-            return self._get_sfr(**kwargs)
+            if self.is_quiescent and self.pf['pop_ms_offset'] is not None:
+                factor = self.get_ms_offset(**kwargs)
+            elif self.is_quiescent and self.pf['pop_sfr_below_ms'] is not None:
+                # Eventually deprecate this
+                factor = 1. / self.pf['pop_sfr_below_ms']
+            else:
+                factor = 1
+        
+            return self._get_sfr(**kwargs) * factor
 
         z = kwargs['z']
 
@@ -1166,12 +1181,9 @@ class GalaxyCohort(GalaxyAggregate):
 
             return func(z=z, Mh=Mh)
 
-        if self.is_quiescent:
+        if self.is_quiescent and self.pf['pop_sfr_below_ms'] is None:
             return np.zeros_like(Mh) if Mh is not None else \
                 np.zeros_like(self.halos.tab_M)
-
-        # Will use only if interpolating onto user-supplied set of halo masses.
-        flipM = False
 
         # If Mh is None, it triggers use of tab_sfr, which spans all
         # halo masses in self.halos.tab_M
@@ -1228,10 +1240,11 @@ class GalaxyCohort(GalaxyAggregate):
         # Actually evaluate SFR
         sfr = self._spline_sfr(z, np.log10(Mh))
 
-        if flipM:
-            return sfr[-1::-1]
-        else:
-            return sfr
+        if self.is_quiescent and self.pf['pop_sfr_below_ms'] is not None:
+            print(f'Rescaling sfr!')
+            sfr *= self.pf['pop_sfr_below_ms']
+
+        return sfr
 
         #return self.cosm.fbar_over_fcdm * self.get_MAR(z, Mh) * self.eta(z) \
         #    * self.SFE(z=z, Mh=Mh)
