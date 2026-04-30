@@ -6882,19 +6882,19 @@ class GalaxyCohort(GalaxyAggregate):
         w2 = np.mean(wave_obs2)
 
         if 0.01 <= w1 < 100:
-            w1_n = f'{w1:.3f} micron'
+            w1_n = f"{w1:.3f} micron"
         elif 0.01 <= get_wave_or_equivalent(w1, 'mic', 'keV') < 100:
-            w1_n = f'{get_wave_or_equivalent(w1, 'mic', 'keV'):.3f} keV'
+            w1_n = f"{get_wave_or_equivalent(w1, 'mic', 'keV'):.3f} keV"
         else:
-            w1_n = f'{get_wave_or_equivalent(w1, 'mic', 'ghz'):.3f} GHz'
+            w1_n = f"{get_wave_or_equivalent(w1, 'mic', 'ghz'):.3f} GHz"
             assert 0.01 <= w1_n <= 1e2
 
         if 0.01 <= w2 < 100:
-            w2_n = f'{w2:.3f} micron'
+            w2_n = f"{w2:.3f} micron"
         elif 0.01 <= get_wave_or_equivalent(w2, 'mic', 'keV') < 100:
-            w2_n = f'{get_wave_or_equivalent(wave_obs2, 'mic', 'keV').mean():.3f} keV'
+            w2_n = f"{get_wave_or_equivalent(wave_obs2, 'mic', 'keV').mean():.3f} keV"
         else:
-            w2_n = f'{get_wave_or_equivalent(wave_obs2, 'mic', 'ghz').mean():.3f} GHz'
+            w2_n = f"{get_wave_or_equivalent(wave_obs2, 'mic', 'ghz').mean():.3f} GHz"
             assert 0.01 <= w2_n <= 1e2
 
         name = w1_n if np.all(wave_obs1 == wave_obs2) \
