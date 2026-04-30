@@ -232,12 +232,15 @@ _sfr_dpl = \
 centrals_sf.update(_sfr_dpl)
 
 centrals_q = centrals_sf.copy()
+# Next three only used when not doing 'full' SED modeling
 centrals_q['pop_sfh'] = 'ssp'
+centrals_q['pop_age'] = 5e3
 centrals_q['pop_aging'] = True
 centrals_q['pop_ssfr'] = None
-centrals_q['pop_sfr'] = None
+#centrals_q['pop_sfr'] = None
+centrals_q['pop_sfr'] = 'link:sfr:0'
+centrals_q['pop_sfr_below_ms'] = 0.01 # Overridden 
 centrals_q['pop_ssp'] = True
-centrals_q['pop_age'] = 5e3
 centrals_q['pop_Z'] = 0.02
 centrals_q['pop_Mmin'] = 'pop_Mmin{0}'
 centrals_q['pop_fstar'] = 'link:fstar:0'
@@ -363,7 +366,7 @@ satellites_q['pop_include_1h'] = True
 satellites_q['pop_include_2h'] = True
 satellites_q['pop_include_shot'] = True
 satellites_q['pop_fstar'] = 'link:fstar:1'
-satellites_q['pop_ssfr'] = None
+satellites_q['pop_sfr'] = 'link:sfr:1'
 #satellites_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
 #satellites_q['pop_scatter_smhm'] = 'pop_scatter_smhm{1}'
 
@@ -1010,6 +1013,34 @@ scatter_flex = \
  'pop_scatter_smhm{1}': 0.,
 }
 
+ms_offset = {}
+ms_offset['pop_ms_offset{1}'] = 'pq[8]'
+ms_offset['pq_func[8]{1}'] = 'erf_evolB13'
+ms_offset['pq_val_ceil[8]{1}'] = 1
+ms_offset['pq_func_var[8]{1}'] = 'Mh'
+ms_offset['pq_func_var2[8]{1}'] = '1+z'
+ms_offset['pq_func_par0[8]{1}'] = 1e-2
+ms_offset['pq_func_par1[8]{1}'] = 1.
+ms_offset['pq_func_par2[8]{1}'] = 12.
+ms_offset['pq_func_par3[8]{1}'] = -1.
+ms_offset['pq_func_par4[8]{1}'] = 0
+ms_offset['pq_func_par5[8]{1}'] = 0
+ms_offset['pq_func_par6[8]{1}'] = 0
+ms_offset['pq_func_par7[8]{1}'] = 0
+ms_offset['pq_func_par8[8]{1}'] = 0
+ms_offset['pq_func_par9[8]{1}'] = 0
+ms_offset['pq_func_par10[8]{1}'] = 0
+ms_offset['pq_func_par11[8]{1}'] = 0
+ms_offset['pq_func_par12[8]{1}'] = 0
+ms_offset['pq_func_par13[8]{1}'] = 0
+ms_offset['pq_func_par14[8]{1}'] = 0
+ms_offset['pq_func_par15[8]{1}'] = 0
+ms_offset['pq_func_par16[8]{1}'] = 0
+ms_offset['pq_func_par17[8]{1}'] = 0
+ms_offset['pq_func_par18[8]{1}'] = 0
+ms_offset['pq_func_par19[8]{1}'] = 0
+ms_offset['pq_func_par20[8]{1}'] = 0
+
 # 'base' model has:
 # (i) different SMHM for star-forming and quiescent sources
 # (ii) DPL SFR-Mh relation
@@ -1026,6 +1057,12 @@ scatter_flex = \
 
 smhm_same = setup.copy()
 smhm_diff = setup.copy()
+# Dealing with SFR of quiescent galaxies
+smhm_same['pop_sfr_below_ms{1}'] = None
+smhm_same.update(ms_offset)
+smhm_diff['pop_sfr_below_ms{1}'] = None
+smhm_diff.update(ms_offset)
+
 smhm_diff.update(smhm_Q)
 
 # Dust

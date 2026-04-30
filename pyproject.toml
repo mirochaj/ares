@@ -38,7 +38,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-hmf = ["hmf", "camb"]
+hmf = ["hmf<3.6", "camb"]
 math = ["mpmath", "mcfit"]
 progressbar = ["progressbar"]
 doc = ["sphinx", "numpydoc", "nbsphinx"]
@@ -58,8 +58,7 @@ Documentation = "https://ares.readthedocs.io/en/latest/"
 Repository = "https://github.com/mirochaj/ares/"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["ares"]
+where = ["src"]
 
 [tool.setuptools_scm]
 
