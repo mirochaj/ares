@@ -7155,6 +7155,8 @@ class GalaxyCohort(GalaxyAggregate):
             _fsel1 = self._get_fsel(fsel1, z=z)
             _fsel2 = self._get_fsel(fsel2, z=z)
             
+            # It's the second population that carries the luminosity
+            # as per our convention
             band = wave2 if type(wave2) not in numeric_types else None
             lum = pop2.get_lum(z, x=wave2, band=band, units='Angstrom', 
                 units_out='erg/s/Hz', total_sat=True)
@@ -7207,15 +7209,22 @@ class GalaxyCohort(GalaxyAggregate):
             _fsel1 = self._get_fsel(fsel1, z=z)
             _fsel2 = self._get_fsel(fsel2, z=z)
             
-            band1 = wave1 if type(wave1) not in numeric_types else None
-            band2 = wave2 if type(wave2) not in numeric_types else None
-
-            lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
-                units_out='erg/s/Hz', total_sat=True)
+            if isnum1:
+                lum1 = 1.
+            else:
+                band1 = wave1 if type(wave1) not in numeric_types else None
+                lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
+                    units_out='erg/s/Hz', total_sat=True)
+            
             uofk1 = self.get_prof(z, k)
+
+            band2 = wave2 if type(wave2) not in numeric_types else None
             lum2 = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
                 units_out='erg/s/Hz', total_sat=True)
             uofk2 = pop2.get_prof(z, k)
+
+            # Could replace with calls to 2-h kernel except there's
+            # only one copy of dndlnm
 
             f = dndlnm * focc * _fsel1 * _fsel2 * lum1 * uofk1 * lum2 * uofk2
 
