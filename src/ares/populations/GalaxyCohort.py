@@ -16,12 +16,12 @@ import numbers
 import numpy as np
 import numdifftools as nd
 from inspect import ismethod
-from types import FunctionType
 from ..util import ProgressBar
 from ..obs.Survey import Survey
 from ..analysis import ModelSet
 from scipy.optimize import fsolve
 from functools import cached_property
+from types import FunctionType, MethodType
 from ..util.Misc import numeric_types, get_band_edges, split_by_sign
 from scipy.integrate import quad, simpson, cumulative_trapezoid, ode
 from .GalaxyAggregate import GalaxyAggregate
@@ -7022,7 +7022,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return ps
 
-    def get_prof(self, prof=None):
+    def get_prof(self, z, k, prof=None):
         """
         Set up a function for Fourier-transformed profile.
 
@@ -7066,8 +7066,15 @@ class GalaxyCohort(GalaxyAggregate):
             raise NotImplementedError('Unrecognized `prof` option: {}'.format(
                 prof
             ))
-
-        return prof
+        
+        if type(prof) in [FunctionType, MethodType]:
+            uofk = np.abs([prof(z, M, k) for M in self.halos.tab_M])
+        else:
+            iz = self.get_zindex(z)
+            uofk = np.abs([np.interp(k, self.halos.tab_k, prof[iz,iM,:]) \
+                for iM in np.arange(self.halos.tab_M.size)])
+            
+        return uofk
     
     def get_ps_kernel(self, z, k, term, wave=None, isnum=0, fsel=1):
         """
@@ -7084,65 +7091,34 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Usually the kernel just applies to one population
         # but the cross-shot regime is a special case
-        #if (term == 0) and (isnum2 is not None) and (isnum1 != isnum2):
-        #    pop_I = self if isnum2 else pop2
-        #    pop_n = self if isnum2 else pop2
-        #    wave_I = wave1 if isnum2 else wave2
-#
-        #    fsel_n = fsel2 if isnum2 else fsel1
-        #    _fseln = self.get_fsel(fsel_n, z=z)
-        #    nbar_n = pop_n.get_num_from_fsel(fsel_n, z=z)
-#
-        #    assert pop_I.is_central_pop
-#
-        #    band = wave_I if type(wave_I) not in numeric_types else None
-        #    lum = pop_I.get_lum(z, x=wave_I, band=band, units='Angstrom', 
-        #        units_out='erg/s/Hz', total_sat=False)
-        #    
-        #    f = dndlnm * pop_n.tab_focc[iz] * _fseln * lum / nbar_n**2
+        # handled in get_ps_sh and so won't be considered below.
         
         ##
         # Kernels are different for galaxy field...
         if isnum:
-            #assert isnum2 in [None, False]
-
-            # There shouldn't be any inter-pop terms
-            # for term == 0 BTW
-
-            # Need to be careful about isnum2
 
             if term == 0:
-                f = dndlnm * focc * _fsel #/ nbar**2
+                f = dndlnm * focc * _fsel
             elif term == 1:
                 raise NotImplemented('help')
             elif term == 2:
-                f = dndlnm * focc * _fsel #/ nbar
+                f = dndlnm * focc * _fsel
             else:
                 raise ValueError('Must pass `term` = 0, 1, or 2!')
         
 
         # ... and intensity field.
         else:
-            #assert isnum2 in [None, False]
-            #assert  isnum2, "Havent worried about this yet"
-
+            
             band = wave if type(wave) not in numeric_types else None
             lum = self.get_lum(z, x=wave, band=band, units='Angstrom', 
                 units_out='erg/s/Hz', total_sat=True)
 
-            ##
-            # Special case first: cross-shot
-            #if term == 0 and (pop2 is not None):
-            #    raise NotImplemented('this should be handled by first if block?')
-            #    focc2 = pop2.tab_focc[iz,:]
-            #    nbar2 = pop2.get_num_from_fsel(fsel2, z=z)
-            #    _fsel2 = pop2._get_fsel(fsel2, z=z)
-            #    # At this moment its implicit that `pop2` is the galaxy field
-            #    f = dndlnm * focc2 * _fsel2 * lum / nbar2**2
             if term == 0:
                 f = dndlnm * focc * _fsel * lum**2
             elif term == 1:
-                raise NotImplemented('help')
+                uofk = self.get_prof(z, k)
+                f = dndlnm * focc * _fsel * lum**2 * uofk**2
             elif term == 2:
                 f = dndlnm * focc * _fsel * lum
             else:
@@ -7157,6 +7133,9 @@ class GalaxyCohort(GalaxyAggregate):
         """
         Compute the shot power in 3-D.
         """
+
+        if not self.pf['pop_include_shot']:
+            return 0
         
         # No inter-pop cross-shot terms for galaxy-galaxy
         # or intensity-intensity crosses! [exclusion issue]
@@ -7166,7 +7145,8 @@ class GalaxyCohort(GalaxyAggregate):
                 return 0.0
 
         ##
-        # Cross-shot is a special case
+        # Cross-shot is a special case. Don't call get_ps_kernel
+        # just do everything here.
         if isnum1 + isnum2 == 1:
             assert isnum1, "Must set galaxy field to first population."
             
@@ -7179,45 +7159,80 @@ class GalaxyCohort(GalaxyAggregate):
             lum = pop2.get_lum(z, x=wave2, band=band, units='Angstrom', 
                 units_out='erg/s/Hz', total_sat=True)
 
-            #if isnum1:        
             f = dndlnm * self.tab_focc[iz] * _fsel1 \
                 * _fsel2 * lum
 
             return np.trapezoid(f, x=self.halos.tab_lnM)
-        
+        # galaxy autos
         elif isnum1 and isnum2:
             f = self.get_ps_kernel(z, k, term=0, 
                 isnum=isnum1, fsel=fsel1)
             num1 = self.get_num_from_fsel(fsel1, z=z)
             num2 = self.get_num_from_fsel(fsel2, z=z)
             f *= num1 * num2
+        # intensity autos
         else:
             f = self.get_ps_kernel(z, k, term=0, wave=wave1, 
                 isnum=isnum1, fsel=fsel1)
         
-        # We could also handle the cross-shot case here
-        # and retrieve the kernel with luminosity and just 
-        # set a second kernel equal to 1 / nbar**2?
-        
+        #
         return np.trapezoid(f, x=self.halos.tab_lnM)
 
     def get_ps_1h(self, z, k, wave1, wave2, isnum1=0, 
-        fsel1=1, isnum2=0, fsel2=1, pop2=None):
+        fsel1=1, isnum2=None, fsel2=None, pop2=None):
         """
         Compute the 1-halo power spectrum in 3-D.
         """
 
-        f1 = self.get_ps_kernel(z, k, term=2, wave=wave1, 
-            isnum1=isnum1, fsel1=fsel1, isnum2=isnum2, fsel2=fsel2)
+        # 1-h from single population
+        if pop2 is None:
+            if not self.pf['pop_include_1h']:
+                return 0.0
+            
+            f = self.get_ps_kernel(z, k, term=1, wave=wave1, 
+                isnum=isnum1, fsel=fsel1)
+                    ##
+        # 1-h inter-pop term is a special case. Don't call get_ps_kernel
+        # just do everything here.
+        else:
 
+            # It's OK for centrals to be involved here, except if 
+            # both self and pop2 are centrals
+            if self.is_central_pop and pop2.is_central_pop:
+                return 0
+            
+            iz = self.get_zindex(z)
+            dndlnm = self.halos.tab_dndlnm[iz]
+            focc = self.tab_focc[iz,:]
+            _fsel1 = self._get_fsel(fsel1, z=z)
+            _fsel2 = self._get_fsel(fsel2, z=z)
+            
+            band1 = wave1 if type(wave1) not in numeric_types else None
+            band2 = wave2 if type(wave2) not in numeric_types else None
+
+            lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
+                units_out='erg/s/Hz', total_sat=True)
+            uofk1 = self.get_prof(z, k)
+            lum2 = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
+                units_out='erg/s/Hz', total_sat=True)
+            uofk2 = pop2.get_prof(z, k)
+
+            f = dndlnm * focc * _fsel1 * _fsel2 * lum1 * uofk1 * lum2 * uofk2
+
+        return np.trapezoid(f, x=self.halos.tab_lnM)
+        
+        
     def get_ps_2h(self, z, k, wave1, wave2, isnum1=0, isnum2=0, 
         fsel1=1, fsel2=1, pop2=None):
         """
         Compute the 2-halo power spectrum in 3-D.
         """
 
-        f1 = self.get_ps_kernel(z, k, term=2, wave=wave1, 
-            isnum=isnum1, fsel=fsel1)
+        if self.pf['pop_include_2h']:
+            f1 = self.get_ps_kernel(z, k, term=2, wave=wave1, 
+                isnum=isnum1, fsel=fsel1)
+        else:
+            f1 = np.zeros_like(self.halos.tab_M)
         
         iz = self.get_zindex(z)
         b_h = self.halos.tab_bias[iz]
@@ -7232,8 +7247,12 @@ class GalaxyCohort(GalaxyAggregate):
         is_inter_pop = pop2 is not None
 
         if is_inter_pop:
-            f2 = pop2.get_ps_kernel(z, k, term=2, wave=wave2,
-                isnum=isnum2, fsel=fsel2)
+            if pop2.pf['pop_include_2h']:
+                f2 = pop2.get_ps_kernel(z, k, term=2, wave=wave2,
+                    isnum=isnum2, fsel=fsel2)
+            else:
+                f2 = np.zeros_like(self.halos.tab_M)
+
             b_2 = np.trapezoid(b_h * f2, x=self.halos.tab_lnM)
         else:
             b_2 = b_1
@@ -7404,7 +7423,7 @@ class GalaxyCohort(GalaxyAggregate):
                     include_shot=include_shot,
                     include_1h=include_1h, include_2h=include_2h,
                     raw=raw,
-                    nebular_only=nebular_only, prof=prof,
+                    nebular_only=nebular_only, 
                     pop2=pop2)
                                     
             self._ps_obs_integrand[h,:] = integrand.copy()
@@ -7420,7 +7439,7 @@ class GalaxyCohort(GalaxyAggregate):
     def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, 
         include_shot=True, include_1h=True, include_2h=True, raw=False,
         isnum1=0, isnum2=0, idnum1=None, idnum2=None, fsel1=1, fsel2=1,
-        nebular_only=False, prof=None, pop2=None):
+        nebular_only=False, pop2=None):
         """
         Compute integrand of angular power spectrum integral.
         """
@@ -7496,17 +7515,17 @@ class GalaxyCohort(GalaxyAggregate):
 
         if include_1h:
             ps_1h = self.get_ps_1h(z, k, wave1=wave1, wave2=wave2,
-                raw=not self.pf['pop_1h_nebular_only'],
-                nebular_only=self.pf['pop_1h_nebular_only'],
-                field1_is_num=isnum1, field2_is_num=isnum2, 
+                #raw=not self.pf['pop_1h_nebular_only'],
+                #nebular_only=self.pf['pop_1h_nebular_only'],
+                isnum1=isnum1, isnum2=isnum2, 
                 fsel1=fsel1, fsel2=fsel2,
-                prof=prof, pop2=pop2)
+                pop2=pop2)
+            
             ps3d += ps_1h
 
         ##
-        # Now, setup the integrand of the Limber equation.
+        # We integrate over z so introduce the Jacobian factor for dchi/dz
         integrand = ps3d * (c / cm_per_mpc / Hofz) / d**2
-
         
         ##
         # Extra factor of nu^2 to eliminate Hz^{-1} units for

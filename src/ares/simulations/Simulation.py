@@ -349,15 +349,8 @@ class Simulation(object):
         ps_z = np.zeros((len(self.pops), len(self.pops),
             len(scales), len(waves), self.pops[0].halos.tab_z.size))
         
-        ##
-        # Need to determine fraction of halos that are selected
-        if masking_criteria is None:
-            print(f"! WARNING: did you mean not to provide a mask?")
-            fmask = [np.zeros(len(self.pops))] * len(waves)
-        else:
-            fmask = []
-            for mask in masking_criteria:
-                fmask.append(self.get_galaxy_subsample(mask))
+        # Generate masks first
+        fmask = self.get_masks(masking_criteria, pops, waves=waves)
 
         ##
         # Loop over source populations and compute power spectrum.
@@ -397,11 +390,19 @@ class Simulation(object):
                         continue
 
                 for k, wave in enumerate(waves):
+
+                    print('hi', i, j, k)
+
+                    if type(masking_criteria) == dict:
+                        fsel1 = 1-fmask[i,:,:]
+                    else:
+                        fsel1 = 1-fmask[k][i,:,:]
+
                     # Will default to 1h + 2h + shot
                     if j == i:
                         px[i,j,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=xmic[k], wave_obs2=xmic2[k],
-                            fsel1=1-fmask[k][i,:,:],
+                            fsel1=fsel1,
                             **kwargs)
                         ps[i,:,k] = px[i,j,:,k]
                         ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
@@ -410,11 +411,18 @@ class Simulation(object):
                     if not include_inter_pop:
                         continue
 
+                    if type(masking_criteria) == dict:
+                        fsel2 = 1-fmask[j,:,:]
+                    else:
+                        fsel2 = 1-fmask[k][j,:,:]
+
+                    print('doing cross terms', i, j)
+
                     ##
                     # Cross terms only from here on
                     px[i,j,:,k] = pop.get_ps_obs(scales,
                         wave_obs1=xmic[k], wave_obs2=xmic2[k],
-                        fsel1=1-fmask[k][i], fsel2=1-fmask[k][j],
+                        fsel1=fsel1, fsel2=fsel2,
                         pop2=popx if i != j else None, **kwargs)
                     # Setting pop2 to None if i == j avoids recomputing
                     # the luminosity etc. inside other get_ps_* functions
@@ -473,11 +481,31 @@ class Simulation(object):
                 if i not in pops:
                     continue
 
+            if pop.is_diffuse:
+                continue
+
             f_sel[i,:,:] = pop.get_galaxy_subsample(selection_criteria, 
                 return_fraction=return_fraction, logic='and')
         
         return f_sel
     
+    def get_masks(self, masking_criteria, pops=None, waves=None):
+        ##
+        # Need to determine fraction of halos that are masked
+        if masking_criteria is None:
+            print(f"! WARNING: did you mean not to provide a mask?")
+            fmask = [np.zeros(len(self.pops))] * len(waves)
+        else:
+            if type(masking_criteria) == dict:
+                fmask = self.get_galaxy_subsample(masking_criteria, pops=pops)
+            else:
+                fmask = []
+                for mask in masking_criteria:
+                    fmask.append(self.get_galaxy_subsample(mask, pops=pops))
+
+        self._fmask = fmask
+        return fmask
+
     def get_ebl_x_galaxies(self, scales, waves, zbins, 
         selection_criteria, masking_criteria,
         wave_units='mic', flux_units='SI', pops=None,
@@ -554,22 +582,7 @@ class Simulation(object):
 
         
         # Loop over source populations and compute cross spectrum.
-        
-        ##
-        # Need to determine fraction of halos that are masked
-        if masking_criteria is None:
-            print(f"! WARNING: did you mean not to provide a mask?")
-            fmask = [np.zeros(len(self.pops))] * len(waves)
-        else:
-            print('generating masks...')
-            if type(masking_criteria) == dict:
-                print('one mask to rule them all...')
-                fmask = self.get_galaxy_subsample(masking_criteria, pops=pops)
-            else:
-                print(f"unique masks for everybody")
-                fmask = []
-                for mask in masking_criteria:
-                    fmask.append(self.get_galaxy_subsample(mask, pops=pops))
+        fmask = self.get_masks(masking_criteria, pops, waves=waves)
 
         # Get full z-dependent number density
         num_pz = np.zeros((len(self.pops), len(zarr)))
@@ -617,6 +630,7 @@ class Simulation(object):
 
                     for k, wave in enumerate(waves):
                         fsel1 = fsel[i]
+                        
                         if type(masking_criteria) == dict:
                             fsel2 = 1 - fmask[j]
                         else:

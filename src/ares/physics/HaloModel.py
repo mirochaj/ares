@@ -373,7 +373,6 @@ class HaloModel(HaloMassFunction):
         ok1 = np.logical_and(self.tab_M >= mmin1, self.tab_M < mmax1)
         ok2 = np.logical_and(self.tab_M >= mmin2, self.tab_M < mmax2)
 
-
         # If luminosities passed, then we must cancel out a factor of halo
         # mass that generally normalizes the integrand.
         if lum1 is None:

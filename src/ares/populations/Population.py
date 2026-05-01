@@ -174,6 +174,10 @@ class Population(object):
     def id_num(self, value):
         self._id_num = int(value)
 
+    @cached_property
+    def parent_id_num(self):
+        return self.pf['pop_parent_id']
+
     @property
     def dust(self):
         if not hasattr(self, '_dust'):
