@@ -4039,6 +4039,15 @@ class GalaxyCohort(GalaxyAggregate):
             
         """
 
+        if self.is_diffuse:
+            if (zbin is not None) or (z is not None):
+                return 0
+            else:
+                return np.zeros_like(self.halos.tab_z)
+                
+                
+            
+
         ##
         # Limiting case: galaxy density at a single redshift.
         if (z is not None):
@@ -4048,8 +4057,33 @@ class GalaxyCohort(GalaxyAggregate):
             
             _fsel = self._get_fsel(fsel, z=z)
 
-            num = np.trapezoid(self.halos.tab_dndlnm[iz,:] * self.tab_focc[iz,:] * _fsel, 
-                x=self.halos.tab_lnM)
+            if self.is_central_pop:
+                num = np.trapezoid(self.halos.tab_dndlnm[iz,:] * self.tab_focc[iz,:] * _fsel, 
+                    x=self.halos.tab_lnM)
+            else:
+                raise NotImplemented('help')
+                focc = self.tab_focc[iz]
+                fsurv = self.tab_fsurv[iz]
+
+                integrand_2d = self.halos.tab_dndlnm_sub[:,:] \
+                    * focc[None,:] * fsurv[None,:]
+    
+                sat_shot = np.trapezoid(integrand_2d[:,ok==1],
+                    x=np.log(self.halos.tab_M[ok==1]), axis=1)
+    
+                # Last step, integrate over central halo abundance
+                # Key assumption for now, no distinguishing satellites of
+                # star-forming vs. quiescent centrals. Could add via focc here
+                # later.
+                integrand = self.halos.tab_dndlnm[iz,:] * sat_shot
+    
+                # Assume satellites of galaxies bright enough to have been
+                # masked are gone too.
+                if self.pf['pop_mask_sats_of_centrals']:
+                    okc = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
+                        self.halos.tab_M < self.get_Mmax(z))
+                else:
+                    okc = np.ones_like(self.halos.tab_M)
             
             if volume_density:
                 return num 
@@ -4083,8 +4117,14 @@ class GalaxyCohort(GalaxyAggregate):
             tab_n = self.halos.tab_dndlnm[i,:]
             tab_f = self.tab_focc[i,:]
 
-            num[i] = np.trapezoid(fsel[i,:] * tab_f * tab_n, 
-                x=np.log(tab_M)) * dVdOmega
+            if self.is_central_pop:
+
+                num[i] = np.trapezoid(fsel[i,:] * tab_f * tab_n, 
+                    x=np.log(tab_M)) * dVdOmega
+            else:
+                raise NotImplemented('help')
+            
+
             
             #integ_top = fsel[i,:] * tab_n * tab_f * tab_b 
             #integ_bot = fsel[i,:] * tab_n * tab_f
@@ -4093,6 +4133,7 @@ class GalaxyCohort(GalaxyAggregate):
             #    / np.trapezoid(integ_bot, x=np.log(tab_M))
         
         if zbin is not None:
+            # num will already be zero outside the zbin
             return np.trapezoid(num, x=self.halos.tab_z)
         else:    
             return num
@@ -6848,7 +6889,7 @@ class GalaxyCohort(GalaxyAggregate):
                 lum1=lum1, lum2=lum2,
                 mmin1=None, mmin2=None, focc1=focc1, focc2=focc2, 
                 ztol=ztol)
-            
+
         else:
             iz, k, _prof1_, _prof2_ = self.halos._prep_for_ps(z, k,
                 None, None, ztol)
@@ -7045,7 +7086,7 @@ class GalaxyCohort(GalaxyAggregate):
             if self.pf['pop_prof_1h'] is not None:
                 prof = self.pf['pop_prof_1h']
 
-        if prof in [None, 'nfw']:
+        if prof == 'nfw':
             # Try to load lookup table.
             prof = self.halos.tab_u_nfw
             if prof is None:
@@ -7084,11 +7125,23 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         iz = self.get_zindex(z)
-        dndlnm = self.halos.tab_dndlnm[iz]
+        dndlnm_c = self.halos.tab_dndlnm[iz]
         focc = self.tab_focc[iz,:]
         nbar = self.get_num_from_fsel(fsel, z=z)
         _fsel = self._get_fsel(fsel, z=z)
 
+        # For 2-h fluctuations we just take satellite and IHL lum
+        # as total from system so can get away with the usual
+        # approach. Also works for 1-h emission from IHL.
+        if self.is_central_pop or self.is_diffuse or (term == 2):
+            Nbracket = 1
+            dndlnm = dndlnm_c
+        else:
+            raise NotImplemented('help')
+            # Need to update for satellites eventually
+            Nbracket = 1
+            dndlnm = dndlnm_c
+            
         # Usually the kernel just applies to one population
         # but the cross-shot regime is a special case
         # handled in get_ps_sh and so won't be considered below.
@@ -7098,11 +7151,11 @@ class GalaxyCohort(GalaxyAggregate):
         if isnum:
 
             if term == 0:
-                f = dndlnm * focc * _fsel
+                f = dndlnm * focc * _fsel * Nbracket
             elif term == 1:
                 raise NotImplemented('help')
             elif term == 2:
-                f = dndlnm * focc * _fsel
+                f = dndlnm * focc * _fsel * Nbracket
             else:
                 raise ValueError('Must pass `term` = 0, 1, or 2!')
         
@@ -7139,16 +7192,25 @@ class GalaxyCohort(GalaxyAggregate):
         
         # No inter-pop cross-shot terms for galaxy-galaxy
         # or intensity-intensity crosses! [exclusion issue]
-        if isnum1 + isnum2 % 2 == 0:
-            if idnum1 != idnum2:
-                print(f'setting Pshot == 0 for i={idnum1} j={idnum2}')
-                return 0.0
+        #if isnum1 + isnum2 % 2 == 0:
+        # Isn't this true for galaxy-galaxy and intensity-intensity too?
+        if idnum1 != idnum2:
+            print(f'setting Pshot == 0 for i={idnum1} j={idnum2}')
+            print(f"checking ids", self.id_num, pop2.id_num)
+            return 0.0
 
         ##
         # Cross-shot is a special case. Don't call get_ps_kernel
         # just do everything here.
         if isnum1 + isnum2 == 1:
             assert isnum1, "Must set galaxy field to first population."
+
+            # No shot contribution from diffuse emission
+            #if pop2.is_diffuse:
+            #    return 0
+            # Should we just do an idnum check again? Should not 
+            # be any inter-pop contributions
+            #if idnum != idnum2
             
             iz = self.get_zindex(z)
             dndlnm = self.halos.tab_dndlnm[iz]
@@ -7225,7 +7287,6 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Could replace with calls to 2-h kernel except there's
             # only one copy of dndlnm
-
             f = dndlnm * focc * _fsel1 * _fsel2 * lum1 * uofk1 * lum2 * uofk2
 
         return np.trapezoid(f, x=self.halos.tab_lnM)
@@ -7241,7 +7302,7 @@ class GalaxyCohort(GalaxyAggregate):
             f1 = self.get_ps_kernel(z, k, term=2, wave=wave1, 
                 isnum=isnum1, fsel=fsel1)
         else:
-            f1 = np.zeros_like(self.halos.tab_M)
+            return 0
         
         iz = self.get_zindex(z)
         b_h = self.halos.tab_bias[iz]
@@ -7260,7 +7321,7 @@ class GalaxyCohort(GalaxyAggregate):
                 f2 = pop2.get_ps_kernel(z, k, term=2, wave=wave2,
                     isnum=isnum2, fsel=fsel2)
             else:
-                f2 = np.zeros_like(self.halos.tab_M)
+                return 0
 
             b_2 = np.trapezoid(b_h * f2, x=self.halos.tab_lnM)
         else:
@@ -7268,7 +7329,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Retrieve matter power spectrum
         pmm = self.halos.get_ps_mm(z, k=k)
-    
+
         return b_1 * b_2 * pmm
 
     def get_ps_1h_old(self, z, k, wave1=1600., wave2=1600., raw=False,
@@ -7526,6 +7587,7 @@ class GalaxyCohort(GalaxyAggregate):
             ps_1h = self.get_ps_1h(z, k, wave1=wave1, wave2=wave2,
                 #raw=not self.pf['pop_1h_nebular_only'],
                 #nebular_only=self.pf['pop_1h_nebular_only'],
+                #idnum1=idnum1, idnum2=idnum2,
                 isnum1=isnum1, isnum2=isnum2, 
                 fsel1=fsel1, fsel2=fsel2,
                 pop2=pop2)

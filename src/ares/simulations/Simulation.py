@@ -391,8 +391,6 @@ class Simulation(object):
 
                 for k, wave in enumerate(waves):
 
-                    print('hi', i, j, k)
-
                     if type(masking_criteria) == dict:
                         fsel1 = 1-fmask[i,:,:]
                     else:
@@ -415,8 +413,6 @@ class Simulation(object):
                         fsel2 = 1-fmask[j,:,:]
                     else:
                         fsel2 = 1-fmask[k][j,:,:]
-
-                    print('doing cross terms', i, j)
 
                     ##
                     # Cross terms only from here on
@@ -579,7 +575,8 @@ class Simulation(object):
         Hofz = np.array([self.cosm.HubbleParameter(z) for z in zarr])
         ps_z = np.zeros((len(self.pops), len(self.pops),
             len(scales), len(waves), len(zbins), zarr.size))
-
+        ps_by_pop = np.zeros((len(self.pops), len(self.pops),
+            len(scales), len(waves), len(zbins)))
         
         # Loop over source populations and compute cross spectrum.
         fmask = self.get_masks(masking_criteria, pops, waves=waves)
@@ -653,15 +650,30 @@ class Simulation(object):
                     / ((c / cm_per_mpc) / Hofz)
                 ps[:,k,h] = np.trapezoid(limber_integ, x=zarr, axis=-1)
 
+            ##
+            # Store by population as well
+            for i, pop in enumerate(self.pops):
+                for j, popx in enumerate(self.pops):
+                    for k, wave in enumerate(waves):
+                        limber_integ = W_g[None,:] \
+                            * ps_z[i,j,:,k,h,:] \
+                            / ((c / cm_per_mpc) / Hofz)
+                        ps_by_pop[i,j,:,k,h] = \
+                            np.trapezoid(limber_integ, x=zarr, axis=-1)
+
         ##
         # Modify PS units before return
         if flux_units.lower() == 'si':
             ps *= cm_per_m**2 / erg_per_s_per_nW / cm_per_mpc**2
+            ps_by_pop *= cm_per_m**2 / erg_per_s_per_nW / cm_per_mpc**2
         else:
             raise NotImplemented()
 
         self.num_by_pop = num_p
         self.num_by_pop_z = num_pz
+
+        self.xs_by_pop = ps_by_pop
+        self.xs_by_z = ps_z
 
         #if pops is None:
         #    hist = self.history # poke

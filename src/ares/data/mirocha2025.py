@@ -50,7 +50,8 @@ centrals_sf = \
 
  'pop_centrals': True,
  'pop_zdead': 0,
- 'pop_include_1h': False,
+ 'pop_prof_1h': 'delta',   # still involved in cross-pop 1-h terms
+ 'pop_include_1h': False,  # 
  'pop_include_2h': True,
  'pop_include_shot': True,
 
