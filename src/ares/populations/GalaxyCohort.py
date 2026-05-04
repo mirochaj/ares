@@ -3083,7 +3083,7 @@ class GalaxyCohort(GalaxyAggregate):
             if src.is_ssp:
 
                 if self.is_central_pop or \
-                  (self.is_satellite_pop and (not total_sat)):
+                  (self.is_satellite_pop and (not total_sat)) or self.is_diffuse:
 
                     # Not for SSPs, L per SFR is really L per Mstell.
                     _Lh_ = Ms * L_sfr
@@ -3520,7 +3520,7 @@ class GalaxyCohort(GalaxyAggregate):
     def get_ihl(self, z, Mh):
         func = self._get_function('pop_ihl')
         return func(z=z, Mh=Mh)
-
+    
     def get_age(self, z, Mh):
         func = self._get_function('pop_age')
         return func(z=z, Mh=Mh)
@@ -3807,7 +3807,7 @@ class GalaxyCohort(GalaxyAggregate):
         # This is like an occupation fraction, i.e., it's the fraction of
         # galaxies in a given halo mass bin that satisfy our cut.
         tab_fsel = np.ones((self.halos.tab_z.size, self.halos.tab_M.size))
-        if selection_criteria is None:
+        if (selection_criteria is None) or (self.is_diffuse):
             return tab_fsel
 
         ##
@@ -4045,9 +4045,6 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 return np.zeros_like(self.halos.tab_z)
                 
-                
-            
-
         ##
         # Limiting case: galaxy density at a single redshift.
         if (z is not None):
@@ -7127,7 +7124,7 @@ class GalaxyCohort(GalaxyAggregate):
         iz = self.get_zindex(z)
         dndlnm_c = self.halos.tab_dndlnm[iz]
         focc = self.tab_focc[iz,:]
-        nbar = self.get_num_from_fsel(fsel, z=z)
+        #nbar = self.get_num_from_fsel(fsel, z=z)
         _fsel = self._get_fsel(fsel, z=z)
 
         # For 2-h fluctuations we just take satellite and IHL lum
@@ -7149,6 +7146,9 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Kernels are different for galaxy field...
         if isnum:
+
+            if self.is_diffuse:
+                return np.zeros_like(self.halos.tab_M)
 
             if term == 0:
                 f = dndlnm * focc * _fsel * Nbracket
@@ -7195,10 +7195,8 @@ class GalaxyCohort(GalaxyAggregate):
         #if isnum1 + isnum2 % 2 == 0:
         # Isn't this true for galaxy-galaxy and intensity-intensity too?
         if idnum1 != idnum2:
-            print(f'setting Pshot == 0 for i={idnum1} j={idnum2}')
-            print(f"checking ids", self.id_num, pop2.id_num)
             return 0.0
-
+        
         ##
         # Cross-shot is a special case. Don't call get_ps_kernel
         # just do everything here.
@@ -7249,10 +7247,11 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         # 1-h from single population
+        # Note that for galaxy/intensity crosses pop2 is always provided
         if pop2 is None:
             if not self.pf['pop_include_1h']:
                 return 0.0
-            
+                
             f = self.get_ps_kernel(z, k, term=1, wave=wave1, 
                 isnum=isnum1, fsel=fsel1)
                     ##
@@ -7290,7 +7289,6 @@ class GalaxyCohort(GalaxyAggregate):
             f = dndlnm * focc * _fsel1 * _fsel2 * lum1 * uofk1 * lum2 * uofk2
 
         return np.trapezoid(f, x=self.halos.tab_lnM)
-        
         
     def get_ps_2h(self, z, k, wave1, wave2, isnum1=0, isnum2=0, 
         fsel1=1, fsel2=1, pop2=None):
@@ -7423,7 +7421,8 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_ps_obs(self, scale, wave_obs1, wave_obs2=None, fsel1=1, fsel2=1,
         include_shot=True, include_1h=True, include_2h=True, use_pb=True,
-        raw=False, nebular_only=False, prof=None, pop2=None):
+        idnum1=None, idnum2=None,
+        raw=False, nebular_only=False, pop2=None):
         """
         Compute the angular power spectrum of this galaxy population.
 
@@ -7494,6 +7493,7 @@ class GalaxyCohort(GalaxyAggregate):
                     include_1h=include_1h, include_2h=include_2h,
                     raw=raw,
                     nebular_only=nebular_only, 
+                    idnum1=idnum1, idnum2=idnum2,
                     pop2=pop2)
                                     
             self._ps_obs_integrand[h,:] = integrand.copy()

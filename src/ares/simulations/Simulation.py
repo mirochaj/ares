@@ -2,11 +2,11 @@ import os
 import copy
 import pickle
 import numpy as np
-from types import FunctionType
 from ..util import ProgressBar
 from ..util import ParameterFile
 from ..util.Stats import bin_c2e
 from .Global21cm import Global21cm
+from types import FunctionType, NoneType
 from ..util.Misc import get_wave_or_equivalent
 from .PowerSpectrum21cm import PowerSpectrum21cm
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
@@ -391,37 +391,41 @@ class Simulation(object):
 
                 for k, wave in enumerate(waves):
 
-                    if type(masking_criteria) == dict:
-                        fsel1 = 1-fmask[i,:,:]
+                    if type(masking_criteria) in [dict, NoneType]:
+                        fsel1 = 1-fmask[i]
                     else:
-                        fsel1 = 1-fmask[k][i,:,:]
+                        fsel1 = 1-fmask[k][i]
 
                     # Will default to 1h + 2h + shot
                     if j == i:
                         px[i,j,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=xmic[k], wave_obs2=xmic2[k],
                             fsel1=fsel1,
+                            idnum1=i, idnum2=j,
                             **kwargs)
-                        ps[i,:,k] = px[i,j,:,k]
+                        #ps[i,:,k] = px[i,j,:,k]
                         ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
                         continue
 
                     if not include_inter_pop:
                         continue
 
-                    if type(masking_criteria) == dict:
-                        fsel2 = 1-fmask[j,:,:]
+                    if type(masking_criteria) in [dict, NoneType]:
+                        fsel2 = 1-fmask[j]
                     else:
-                        fsel2 = 1-fmask[k][j,:,:]
+                        fsel2 = 1-fmask[k][j]
 
                     ##
                     # Cross terms only from here on
                     px[i,j,:,k] = pop.get_ps_obs(scales,
                         wave_obs1=xmic[k], wave_obs2=xmic2[k],
                         fsel1=fsel1, fsel2=fsel2,
-                        pop2=popx if i != j else None, **kwargs)
+                        idnum1=i, idnum2=j,
+                        pop2=popx, **kwargs)
                     # Setting pop2 to None if i == j avoids recomputing
                     # the luminosity etc. inside other get_ps_* functions
+                    # However, I don't think we'll ever get to this
+                    # line if i == j, but doesn't hurt I guess
                     ps_z[i,j,:,k,:] = pop._ps_obs_integrand.copy()
 
                 ##
@@ -446,18 +450,20 @@ class Simulation(object):
             hist = self.history # poke
             self._history['ps_nirb'] = ptot
 
-        self.ps_auto = ps
+        #self.ps_auto = ps
         self.ps_by_pop = px
         self.ps_by_z = ps_z
 
         return ptot
     
     def get_galaxy_subsample(self, selection_criteria, pops=None,
-        return_fraction=True):
+        return_fraction=True, is_mask=0):
         """
         Subject model galaxies to cuts in redshift, magnitude, and/or color.
 
-        .. note :: This is used both for masking and for sample selection.
+        .. note :: This is used both for masking and for sample selection. Note 
+            that if selection_criteria is None, we return ones (all galaxies are 
+            selected). 
 
         Parameters
         ----------
@@ -469,8 +475,11 @@ class Simulation(object):
         Each element is the fraction of halos that satisfy the selection criteria.
 
         """
-
-        f_sel = np.zeros((len(self.pops), self.halos.tab_z.size, self.halos.tab_M.size))
+        
+        if is_mask:
+            f_sel = np.zeros((len(self.pops), self.halos.tab_z.size, self.halos.tab_M.size))
+        else:    
+            f_sel = np.ones((len(self.pops), self.halos.tab_z.size, self.halos.tab_M.size))
 
         for i, pop in enumerate(self.pops):
             if pops is not None:
@@ -481,7 +490,7 @@ class Simulation(object):
                 continue
 
             f_sel[i,:,:] = pop.get_galaxy_subsample(selection_criteria, 
-                return_fraction=return_fraction, logic='and')
+                return_fraction=return_fraction, logic='or')
         
         return f_sel
     
@@ -490,14 +499,14 @@ class Simulation(object):
         # Need to determine fraction of halos that are masked
         if masking_criteria is None:
             print(f"! WARNING: did you mean not to provide a mask?")
-            fmask = [np.zeros(len(self.pops))] * len(waves)
+            fmask = np.zeros(len(self.pops))
         else:
             if type(masking_criteria) == dict:
-                fmask = self.get_galaxy_subsample(masking_criteria, pops=pops)
+                fmask = self.get_galaxy_subsample(masking_criteria, pops=pops, is_mask=1)
             else:
                 fmask = []
                 for mask in masking_criteria:
-                    fmask.append(self.get_galaxy_subsample(mask, pops=pops))
+                    fmask.append(self.get_galaxy_subsample(mask, pops=pops, is_mask=1))
 
         self._fmask = fmask
         return fmask
@@ -610,13 +619,13 @@ class Simulation(object):
             
             for i, pop in enumerate(self.pops):
 
-                num_p[i,h] = self.pops[i].get_num_from_fsel(fsel[i], 
-                    zbin=zbin)
-
                 # Honor user-supplied list of populations to include
                 if pops is not None:
                     if i not in pops:
                         continue
+
+                num_p[i,h] = self.pops[i].get_num_from_fsel(fsel[i], 
+                    zbin=zbin)
 
                 for j, popx in enumerate(self.pops):
 
@@ -628,7 +637,7 @@ class Simulation(object):
                     for k, wave in enumerate(waves):
                         fsel1 = fsel[i]
                         
-                        if type(masking_criteria) == dict:
+                        if type(masking_criteria) in [dict, NoneType]:
                             fsel2 = 1 - fmask[j]
                         else:
                             fsel2 = 1 - fmask[k][j]
@@ -639,7 +648,8 @@ class Simulation(object):
                             isnum1=1, isnum2=0,
                             idnum1=i, idnum2=j,
                             fsel1=fsel1, fsel2=fsel2,
-                            pop2=popx, do_limber=False, **kwargs)
+                            pop2=popx, 
+                            do_limber=False, **kwargs)
                         
             ##
             # We do the Limber integral here for crosses
@@ -825,7 +835,12 @@ class Simulation(object):
 
             if pops is not None:
                 if i not in pops:
+                    num_by_pop[i] = 0
                     continue
+
+            if pop.is_diffuse:
+                num_by_pop[i] = 0
+                continue
 
             # Check zmin, zmax values 
             if zmin is None:
