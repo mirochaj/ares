@@ -179,7 +179,7 @@ class Population(object):
         if not hasattr(self, '_id_num_actual'):
             if self.pf['pop_sfr_model'].startswith('link'):
                 link, whatever, idnum = self.pf['pop_sfr_model'].split(':')
-                self._id_num_actual = idnum
+                self._id_num_actual = int(idnum)
             else:
                 self._id_num_actual = self.id_num
 

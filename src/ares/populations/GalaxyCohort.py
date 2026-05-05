@@ -2334,7 +2334,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         """
 
-        if self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func', 'sfe-func']:
+        if (self.pf['pop_sfr_model'] in ['smhm-func', 'sfr-func', 'sfe-func']) \
+            or self.pf['pop_sfr_model'].startswith('link'):
 
             if Mh is None:
                 Mh = self.halos.tab_M
@@ -2363,9 +2364,8 @@ class GalaxyCohort(GalaxyAggregate):
                     lum[:,i] /= dfreq[i]
 
             return lum
-
         else:
-            raise NotImplemented('help')
+            raise NotImplementedError('help')
 
     def get_spec_obs(self, z, waves=None, units_out='erg/s/Hz', Mh=None,
         window=1, band=None, include_dust_transmission=True, use_tabs=False,
@@ -2691,8 +2691,6 @@ class GalaxyCohort(GalaxyAggregate):
                 _fsel = selection_criteria
             else:
                 _fsel = self.get_galaxy_subsample(selection_criteria)
-
-            print('applying selection to total satellite luminosity')
         else:
             _fsel = np.ones_like(self.halos.tab_dndm)
 
@@ -7196,7 +7194,7 @@ class GalaxyCohort(GalaxyAggregate):
         return f
 
     def get_ps_sh(self, z, k, wave1, wave2, isnum1=0, isnum2=0, 
-        idnum1=None, idnum2=None, fsel1=1, fsel2=1, pop2=None):
+        fsel1=1, fsel2=1, pop2=None):
         """
         Compute the shot power in 3-D.
         """
@@ -7208,12 +7206,10 @@ class GalaxyCohort(GalaxyAggregate):
         # or intensity-intensity crosses! [exclusion issue]
         #if isnum1 + isnum2 % 2 == 0:
         # Isn't this true for galaxy-galaxy and intensity-intensity too?
-        if idnum1 != idnum2:
-            # This isn't necessarily right! e.g., we treat X-ray emission
-            # from star-forming galaxies as a separate source population.
-            # Still need a solution for this...
-            return 0.0
-        
+        if pop2 is not None:
+            if self.id_num != pop2.id_num_actual:
+                return 0
+                
         ##
         # Cross-shot is a special case. Don't call get_ps_kernel
         # just do everything here.
@@ -7293,7 +7289,7 @@ class GalaxyCohort(GalaxyAggregate):
             # both self and pop2 are centrals
             if self.is_central_pop and pop2.is_central_pop:
                 return 0
-            
+                    
             iz = self.get_zindex(z)
             dndlnm = self.halos.tab_dndlnm[iz]
             focc = self.tab_focc[iz,:]
@@ -7305,13 +7301,15 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 band1 = wave1 if type(wave1) not in numeric_types else None
                 lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
-                    units_out='erg/s/Hz', total_sat=True)
+                    units_out='erg/s/Hz', total_sat=True, 
+                    selection_criteria=_fsel1)
             
             uofk1 = self.get_prof(z, k)
 
             band2 = wave2 if type(wave2) not in numeric_types else None
             lum2 = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
-                units_out='erg/s/Hz', total_sat=True)
+                units_out='erg/s/Hz', total_sat=True,
+                selection_criteria=_fsel2)
             uofk2 = pop2.get_prof(z, k)
 
             # Could replace with calls to 2-h kernel except there's
@@ -7451,7 +7449,6 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_ps_obs(self, scale, wave_obs1, wave_obs2=None, fsel1=1, fsel2=1,
         include_shot=True, include_1h=True, include_2h=True, use_pb=True,
-        idnum1=None, idnum2=None,
         raw=False, nebular_only=False, pop2=None):
         """
         Compute the angular power spectrum of this galaxy population.
@@ -7524,7 +7521,6 @@ class GalaxyCohort(GalaxyAggregate):
                     include_1h=include_1h, include_2h=include_2h,
                     raw=raw,
                     nebular_only=nebular_only, 
-                    idnum1=idnum1, idnum2=idnum2,
                     pop2=pop2)
                                     
             self._ps_obs_integrand[h,:] = integrand.copy()
@@ -7539,7 +7535,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, 
         include_shot=True, include_1h=True, include_2h=True, raw=False,
-        isnum1=0, isnum2=0, idnum1=None, idnum2=None, fsel1=1, fsel2=1,
+        isnum1=0, isnum2=0, fsel1=1, fsel2=1,
         nebular_only=False, pop2=None):
         """
         Compute integrand of angular power spectrum integral.
@@ -7608,7 +7604,6 @@ class GalaxyCohort(GalaxyAggregate):
             ps_shot = self.get_ps_sh(z, k, wave1=wave1, wave2=wave2,
                 #raw=self.pf['pop_1h_nebular_only'], 
                 isnum1=isnum1, isnum2=isnum2, 
-                idnum1=idnum1, idnum2=idnum2,
                 fsel1=fsel1, fsel2=fsel2,
                 pop2=pop2)
                         
@@ -7618,7 +7613,6 @@ class GalaxyCohort(GalaxyAggregate):
             ps_1h = self.get_ps_1h(z, k, wave1=wave1, wave2=wave2,
                 #raw=not self.pf['pop_1h_nebular_only'],
                 #nebular_only=self.pf['pop_1h_nebular_only'],
-                #idnum1=idnum1, idnum2=idnum2,
                 isnum1=isnum1, isnum2=isnum2, 
                 fsel1=fsel1, fsel2=fsel2,
                 pop2=pop2)
@@ -7685,7 +7679,7 @@ class GalaxyCohort(GalaxyAggregate):
         return integrand
     
     def get_xs_obs(self, scale, wave_obs, zg, scale_units='ell',
-        isnum1=0, isnum2=1, idnum1=None, idnum2=None,
+        isnum1=0, isnum2=1, 
         pop2=None, fsel1=None, fsel2=None, use_pb=True, do_limber=0, **kwargs):
         """
         Compute the cross-spectrum between EBL and target galaxy population.
@@ -7739,7 +7733,6 @@ class GalaxyCohort(GalaxyAggregate):
                 integrand[i] = self._get_ps_obs(z, _scale_,
                     wave_obs, wave_obs2=wave_obs, 
                     isnum1=isnum1, isnum2=isnum2,
-                    idnum1=idnum1, idnum2=idnum2,
                     fsel1=fsel1, fsel2=fsel2, pop2=pop2,
                     **kwargs)#, #raw=raw,
                     #nebular_only=nebular_only, #prof=prof)

@@ -401,7 +401,6 @@ class Simulation(object):
                         px[i,j,:,k] = pop.get_ps_obs(scales,
                             wave_obs1=xmic[k], wave_obs2=xmic2[k],
                             fsel1=fsel1,
-                            idnum1=i, idnum2=j,
                             **kwargs)
                         #ps[i,:,k] = px[i,j,:,k]
                         ps_z[i,i,:,k,:] = pop._ps_obs_integrand.copy()
@@ -420,7 +419,6 @@ class Simulation(object):
                     px[i,j,:,k] = pop.get_ps_obs(scales,
                         wave_obs1=xmic[k], wave_obs2=xmic2[k],
                         fsel1=fsel1, fsel2=fsel2,
-                        idnum1=i, idnum2=j,
                         pop2=popx, **kwargs)
                     # Setting pop2 to None if i == j avoids recomputing
                     # the luminosity etc. inside other get_ps_* functions
@@ -646,7 +644,6 @@ class Simulation(object):
                         ps_z[i,j,:,k,h,:] = pop.get_xs_obs(scales,
                             wave_obs=wave, zg=zbin, 
                             isnum1=1, isnum2=0,
-                            idnum1=i, idnum2=j,
                             fsel1=fsel1, fsel2=fsel2,
                             pop2=popx, 
                             do_limber=False, **kwargs)
