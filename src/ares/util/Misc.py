@@ -20,6 +20,89 @@ from ..physics.Constants import c, erg_per_ev, h_p, E_LL, E_LyA
 letters = list('abcdefg')
 numeric_types = [int, float, np.int64, np.int32, np.float64, np.float32]
 
+_hmod_terms = 'shot', '1h', '2h'
+_hmod_labels = r'$I_1 x I_2 (\nu_1 = \nu_2)$', \
+        r'$I_1 x I_2 (\nu_1 \neq \nu_2)$', \
+        r'$g \times I$', '$gg$'
+
+def get_hmod_elements(sim, fluctuation_type=0):
+    """
+    Figure out which terms in "inter-population cross-correlation matrix"
+    should be non-zero.
+
+    There are four types of fluctuations:
+    1. Intensity autos
+    2. Intensity internal crosses
+    3. Galaxy catalog / intensity crosses
+    4. Galaxy autos
+
+    Note that there's not really an analog of internal crosses for 
+    galaxies. In principle their could be (e.g., ELG x LRG), but I 
+    don't think we'll ever do that.
+
+    Parameters
+    ----------
+    sim : object
+        An ares.simulations.Simulation instance.
+    fluctuation_type : int
+        Corresponding to items 1-4 listed above.
+
+    Returns
+    -------
+    A 3-D array containing the interpop cross-corr matrix (final two axes)
+    for shot, 1-h, and 2-h terms (first axis of length 3).
+    
+    """
+
+    results = np.zeros([3] + [len(sim.pops)]*2)
+    
+    for j, term in enumerate(_hmod_terms):
+
+        has_power = np.zeros([len(sim.pops)]*2)
+        for k1, pop1 in enumerate(sim.pops):
+            
+            # No shot noise for diffuse emission sources
+            if (term == 'shot') and pop1.is_diffuse:
+                continue
+            
+            for k2, pop2 in enumerate(sim.pops):
+
+                if (term == 'shot') and pop2.is_diffuse:
+                    continue
+                
+                # For intensity autos, upper and lower halves
+                # of matrix are redundant. Keep upper only.
+                if fluctuation_type == 0:
+                    if k2 > k1:
+                        continue
+                    
+                # For internal cross spectrum, 
+                
+                # For galaxy-intensity cross or galaxy autos, 
+                # diffuse sources don't contribute.
+                if (fluctuation_type == 2) and (pop1.is_diffuse):
+                    continue
+                if (fluctuation_type == 3) and (pop1.is_diffuse or pop2.is_diffuse):
+                    continue
+                                
+                # OK
+                if term == 'shot':
+                    has_power[k1,k2] = \
+                        pop1.id_num_actual == pop2.id_num_actual
+                elif term == '1h':
+                    has_power[k1,k2] = \
+                        (pop1.is_central_pop + pop2.is_central_pop) in [0,1]
+                elif term == '2h':
+                    has_power[k1,k2] = 1
+                else:
+                    raise NotImplementedError(f'Unknown term={term}')
+        
+    
+        # Save
+        results[j,:,:] = has_power
+
+    return results
+
 def get_wave_or_equivalent(x_in, units, units_out):
     """
     Convert between photon wavelength, energy, and frequency.

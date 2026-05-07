@@ -218,7 +218,7 @@ class Population(object):
     def cosm(self):
         if not hasattr(self, '_cosm'):
             if self.grid is not None:
-                self._cosm = grid.cosm
+                self._cosm = self.grid.cosm
             elif self._cosm_ is not None:
                 self._cosm = self._cosm_
             else:

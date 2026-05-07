@@ -7272,6 +7272,9 @@ class GalaxyCohort(GalaxyAggregate):
         Compute the 1-halo power spectrum in 3-D.
         """
 
+        if isnum1 and self.is_diffuse:
+            return 0.0
+
         # 1-h from single population
         # Note that for galaxy/intensity crosses pop2 is always provided
         if pop2 is None:
