@@ -1127,9 +1127,24 @@ class GalaxyCohort(GalaxyAggregate):
         return 10**(np.log10(sfr) + offset)
 
     def get_ms_offset(self, **kwargs):
+        if 'Mh' in kwargs:
+            ones = np.ones_like(kwargs['Mh'])
+        else:
+            ones = 1
+
         if self.is_star_forming:
-            return 1
+            return ones
         
+        if self.pf['pop_ms_offset'] is None:
+            if self.is_quiescent and self.pf['pop_sfr_below_ms'] is not None:
+                # Eventually deprecate this
+                factor = ones \
+                    / self.pf['pop_sfr_below_ms']
+            else:
+                factor = ones
+
+            return factor
+
         func = self._get_function('pop_ms_offset')
         return func(**kwargs)
 
