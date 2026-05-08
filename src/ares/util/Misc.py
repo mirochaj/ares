@@ -25,7 +25,7 @@ _hmod_labels = r'$I_1 x I_2 (\nu_1 = \nu_2)$', \
         r'$I_1 x I_2 (\nu_1 \neq \nu_2)$', \
         r'$g \times I$', '$gg$'
 
-def get_hmod_elements(sim, fluctuation_type=0):
+def get_hmod_elements(sim, fluctuation_type=0, redundancy_convention='lower'):
     """
     Figure out which terms in "inter-population cross-correlation matrix"
     should be non-zero.
@@ -46,6 +46,10 @@ def get_hmod_elements(sim, fluctuation_type=0):
         An ares.simulations.Simulation instance.
     fluctuation_type : int
         Corresponding to items 1-4 listed above.
+    redundancy_convention : str
+        Can be 'lower' or 'upper'. Controls whether we keep only the lower
+        or upper diagonal of the matrix in cases where it is symmetric,
+        which at this stage is really just for 2-halo intensity autos.
 
     Returns
     -------
@@ -73,7 +77,9 @@ def get_hmod_elements(sim, fluctuation_type=0):
                 # For intensity autos, upper and lower halves
                 # of matrix are redundant. Keep upper only.
                 if fluctuation_type == 0:
-                    if k2 > k1:
+                    if redundancy_convention == 'lower' and (k2 > k1):
+                        continue
+                    elif redundancy_convention == 'upper' and (k2 < k1):
                         continue
                     
                 # For internal cross spectrum, 
