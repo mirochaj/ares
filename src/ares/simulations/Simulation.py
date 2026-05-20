@@ -9,6 +9,7 @@ from .Global21cm import Global21cm
 from types import FunctionType, NoneType
 from ..util.Misc import get_wave_or_equivalent
 from .PowerSpectrum21cm import PowerSpectrum21cm
+from ..util.Math import integrate_with_subgrid_interp
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
     erg_per_s_per_nW, h_p, cm_per_m, sqdeg_per_std
 
@@ -475,9 +476,11 @@ class Simulation(object):
         """
         
         if is_mask:
-            f_sel = np.zeros((len(self.pops), self.halos.tab_z.size, self.halos.tab_M.size))
+            f_sel = np.zeros((len(self.pops), self.halos.tab_z.size, 
+                self.halos.tab_M.size, 2))
         else:    
-            f_sel = np.ones((len(self.pops), self.halos.tab_z.size, self.halos.tab_M.size))
+            f_sel = np.ones((len(self.pops), self.halos.tab_z.size, 
+                self.halos.tab_M.size, 2))
 
         for i, pop in enumerate(self.pops):
             if pops is not None:
@@ -487,7 +490,7 @@ class Simulation(object):
             if pop.is_diffuse:
                 continue
 
-            f_sel[i,:,:] = pop.get_galaxy_subsample(selection_criteria, 
+            f_sel[i,:,:,:] = pop.get_galaxy_subsample(selection_criteria, 
                 return_fraction=return_fraction, logic='or')
         
         return f_sel
@@ -603,7 +606,11 @@ class Simulation(object):
         num_p = np.zeros((len(self.pops), len(zbins)))
         for h, zbin in enumerate(zbins):
 
-            galaxy_prop = {'z': zbin}
+            zlo, zhi = zbin
+            zlo = max(zlo, self.pf['final_redshift'])
+            zhi = min(zhi, self.pf['initial_redshift'])
+
+            galaxy_prop = {'z': (zlo, zhi)}
             galaxy_prop.update(selection_criteria)
             
             ##
@@ -614,6 +621,8 @@ class Simulation(object):
                 print(f"! No galaxies found satisfying selection!")
                 print(f"! z={zbin}, selection:", selection_criteria)
                 continue
+            else:
+                print(f"! Generating crosses in z={zlo:.3f}-{zhi:.3f}...")
             
             for i, pop in enumerate(self.pops):
 
@@ -650,12 +659,17 @@ class Simulation(object):
                         
             ##
             # We do the Limber integral here for crosses
+            ok = np.logical_and(zarr >= zlo, zarr < zhi)
             W_g = num_pz.sum(axis=0) / num_p[:,h].sum(axis=0)**2
             for k, wave in enumerate(waves):
                 limber_integ = W_g[None,:] \
                     * ps_z.sum(axis=0).sum(axis=0)[:,k,h,:] \
                     / ((c / cm_per_mpc) / Hofz)
-                ps[:,k,h] = np.trapezoid(limber_integ, x=zarr, axis=-1)
+                #ps[:,k,h] = np.trapezoid(limber_integ[:,ok==1], x=zarr[ok==1], axis=-1)
+                
+                for s, _scale_ in enumerate(scales):
+                    ps[s,k,h] = integrate_with_subgrid_interp(zarr, limber_integ[s,:], 
+                        zlo, zhi)
 
             ##
             # Store by population as well
@@ -666,7 +680,12 @@ class Simulation(object):
                             * ps_z[i,j,:,k,h,:] \
                             / ((c / cm_per_mpc) / Hofz)
                         ps_by_pop[i,j,:,k,h] = \
-                            np.trapezoid(limber_integ, x=zarr, axis=-1)
+                            np.trapezoid(limber_integ[:,ok==1], x=zarr[ok==1], axis=-1)
+                        #ps_by_pop[i,j,:,k,h] = integrate_with_subgrid_interp(
+                        #    zarr, limber_integ, zlo, zhi)
+                        for s, _scale_ in enumerate(scales):
+                            ps_by_pop[i,j,s,k,h] = integrate_with_subgrid_interp(zarr, limber_integ[s,:], 
+                                zlo, zhi)
 
         ##
         # Modify PS units before return
@@ -824,7 +843,7 @@ class Simulation(object):
         
         ##
         # Front-load selection function calculation
-        fsel = self.get_galaxy_subsample(selection_criteria, pops=pops)
+        #fsel = self.get_galaxy_subsample(selection_criteria, pops=pops)
 
         # Loop over populations and save results for each one separately
         num_by_pop = {}
@@ -855,7 +874,7 @@ class Simulation(object):
             num_pop = pop.get_number_counts(magbins, 
                 x=x, units='Angstroms', window=dx, dlam=dlam, 
                 zmin=_zmin, zmax=_zmax, zbin=zbin,
-                selection_criteria=fsel[i])
+                selection_criteria=selection_criteria)
             
             num_by_pop[i] = num_pop.copy()
         
