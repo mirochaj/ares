@@ -825,6 +825,22 @@ class HaloMassFunction(object):
     def tab_z(self, value):
         self._tab_z = value
 
+    @cached_property
+    def tab_dz(self):
+        return np.diff(self.tab_z_e)
+
+    @cached_property
+    def tab_z_e(self):
+        import math
+        _dz = np.diff(self.tab_z)
+
+        ze_mid = (self.tab_z[0:-1] + self.tab_z[1:]) / 2.
+        
+        ze_l = max(self.tab_z[0] - (ze_mid[0] - self.tab_z[0]), 0)
+        ze_r = self.tab_z[-1] + (self.tab_z[-1] - ze_mid[-1])
+
+        return np.concatenate([[ze_l], ze_mid, [ze_r]])
+        
     @tab_t.setter
     def tab_t(self, value):
         self._tab_t = value

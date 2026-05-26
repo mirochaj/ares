@@ -496,7 +496,7 @@ class Source(object):
             xout = x.copy()
         elif units.lower().startswith('ang'):
             xout = h_p * c / erg_per_ev / x / 1e-8
-        elif units.lower().startswith('mic'):
+        elif (units.lower() == 'um') or units.lower().startswith('mic'):
             xout = h_p * c / erg_per_ev / x / 1e-4
         elif units.lower().startswith('hz'):
             xout = h_p * x / erg_per_ev

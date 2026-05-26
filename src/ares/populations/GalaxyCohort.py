@@ -2045,26 +2045,16 @@ class GalaxyCohort(GalaxyAggregate):
             phi_of_x = np.interp(bins_abs, xx, yy, left=0, right=0)
         # Otherwise, we have some pre-processing to do
         else:
-            print(f"Should this still happen? z={z}, x={x}", self.id_num, np.all(np.diff(Lh) > 0), np.all(np.diff(xx) > 0))
-            import matplotlib.pyplot as plt 
-            plt.loglog(Lh, phi_of_L)
-
-            plt.ylim(1e-50, 1e5)
-
-            input('<enter>')
-            #raise NotImplementedError("This shouldnt happen anymore!")
+            # This occasionally still happens in the scatter=0 limit
+            # for halos so massive they don't matter.
+            #print(f"Should this still happen? z={z}, x={x}", self.id_num, np.all(np.diff(Lh) > 0), np.all(np.diff(xx) > 0))
+            
             _x_, _dx_ = split_by_sign(xx, dx)
             _y_, _dx_ = split_by_sign(yy, dx)
             nchunks = len(_x_)
 
             phi_of_x = np.zeros_like(bins_abs)
 
-            #import matplotlib.pyplot as plt 
-#
-            #plt.figure(int(z * 10))
-            #print(f'figure {int(z*10)}: nchunks={nchunks}')
-
-            _colors = 'k', 'b', 'c', 'm'
             for i in range(nchunks):
                 #print(i, np.all(_dx_[i] > 0), _x_[i], np.log10(_y_[i]))
                 if np.all(_dx_[i] > 0):
@@ -3301,15 +3291,6 @@ class GalaxyCohort(GalaxyAggregate):
             # This should be erg/s/Hz
             L = self.magsys.get_lum_from_mag_app(z, mags[:,0])
 
-            #import matplotlib.pyplot as plt
-#
-            #fig, ax = plt.subplots(1, 1, num=300)
-            #ax.semilogy(mags[:,0], L)
-            #ax.set_xlim(10, 30)
-            #ax.set_ylim(1e15, 1e32)
-#
-            #input('<enter>')
-
             return L
 
         # If user-supplied halos from simulation, retrieve 'em
@@ -3850,7 +3831,7 @@ class GalaxyCohort(GalaxyAggregate):
         return lum_lo, lum_hi
 
     def get_galaxy_subsample(self, selection_criteria=None, return_fraction=True, 
-        dlam=20, logic='or', account_for_scatter=1):
+        dlam=20, logic='or'):
         """
         If the relationship between halo mass and galaxy luminosity is not 1:1,
         we have to be more careful in our construction of the source mask.
@@ -3907,10 +3888,6 @@ class GalaxyCohort(GalaxyAggregate):
         if select_on_multi_band_cut and logic == 'and':
             raise NotImplemented('Havent implemented multi-band mag cuts yet.')
 
-        # Short-hand for log-normal scatter.
-        #sigma = self.pf['pop_scatter_sfh']
-
-        
         ##
         # Life is simpler if we're just doing redshift and/or magnitude 
         # cuts in a single band.
@@ -3924,15 +3901,12 @@ class GalaxyCohort(GalaxyAggregate):
             zlo = max(zlo, selection_criteria['z'][0])
             zhi = min(zhi, selection_criteria['z'][1])
 
-        # Doesn't really matter -- going to interpolate back to Mh
-        # anyways
+        # Short-hand for log-normal scatter.
         sigma = self.pf['pop_scatter_sfh']
 
         # Loop over different masks.
         
         # Synthesize galaxy mags one redshift at a time.
-        #tab_fsel_3d = np.ones((len(selection_criteria['mag']), 
-        #    self.halos.tab_z.size, self.halos.tab_M.size))
         tmp_fsel = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size, 
             len(selection_criteria['mag']), 2))
         for i, z in enumerate(self.halos.tab_z):    
@@ -3960,11 +3934,13 @@ class GalaxyCohort(GalaxyAggregate):
                     cam = filt = None
                     x, units = cam_filt
                     if type(x) in [tuple, list, np.ndarray]:
-                        band = x
+                        band = x[0] / (1 + z), x[1] / (1 + z)
                         x = None
                     else:
                         band = None
-
+                        x = x / (1. + z)
+  
+                ##
                 # Convert the masking depth to luminosity at this redshift.
                 lum_hi = self.magsys.get_lum_from_mag_app(z, mag_lo) \
                     if np.isfinite(mag_lo) else np.inf
@@ -3979,20 +3955,25 @@ class GalaxyCohort(GalaxyAggregate):
                     units=units, band=band, cam=cam, filt=filt,
                     units_out='erg/s/Hz', total_sat=False)
                 
-                #if not account_for_scatter:
-                
-                #continue
-                
+                # Should move this into get_lum and let units_out 
+                # of /Hz or no per-freq dictate the returned value
+                if band is not None:
+                    x_A = get_wave_or_equivalent(band, units=units, units_out='mic')
+                    nu = c / (np.array(x_A) * 1e-4)
+                    dnu = np.abs(np.diff(nu))
+                    Lh /= dnu
+
                 if (sigma == 0):
-                    tmp_fsel[i,np.logical_and(Lh>lum_lo, Lh<lum_hi),h,:] = 1
+                    tmp_fsel[i,np.logical_and(Lh>=lum_lo, Lh<lum_hi),h,:] = 1
                     continue
 
                 # Keep the mag cut in layer 1 and put the general
                 # solution in layer 0
                 tmp_fsel[i,:,h,1] = np.logical_and(Lh >= lum_lo,
                                                    Lh <  lum_hi)
-
+            
                 ## Construct array of luminosity vs. halo mass (log it)
+                # Could be done analytically I think.
                 mu = np.log(Lh)
                 for j, M in enumerate(self.halos.tab_M):
                     if M < self.get_Mmin(z):
@@ -4018,9 +3999,9 @@ class GalaxyCohort(GalaxyAggregate):
                     # Used to be less careful but if PDF is sufficiently narrow
                     # a rough trapz can cause problems.
                     tmp_fsel[i,j,h,0] = \
-                        quad(lambda LL: lognormal(LL, mu[j], sigma),
+                        quad(lambda lnL: lognormal(lnL, mu[j], sigma),
                             ln_lum_lo, ln_lum_hi)[0]
-
+                    
 
                 ##
                 # Done with mass loop
@@ -4105,7 +4086,7 @@ class GalaxyCohort(GalaxyAggregate):
             appropriate for the input redshift.
         volume_density : bool
             If True, the result is in units of number of galaxies / cMpc^3.
-            If False, we convert to number of galaxies / deg^2.
+            If False, we convert to number of galaxies / deg^2 / dz.
 
         Returns
         -------
@@ -4149,33 +4130,35 @@ class GalaxyCohort(GalaxyAggregate):
                 return num 
             else:
                 raise NotImplemented('need to deal with dz factor')
-                return num * self.cosm.ProjectedVolume(z, angle=1., dz=dz[i])
+                return num * self.cosm.ProjectedVolume(z, angle=1., dz=1)
         
         ##
         # General case: compute n(z)
         tab_M = self.halos.tab_M
-        dz = np.diff(self.halos.tab_z)
+        dz = self.halos.tab_dz
 
         if fsel is None:
             fsel = np.ones((self.halos.tab_z.size, self.halos.tab_M.size, 2))
         elif type(fsel) in numeric_types:
             fsel = fsel * np.ones((self.halos.tab_z.size, self.halos.tab_M.size, 2))
+        else:
+            assert fsel.shape == (self.halos.tab_z.size, self.halos.tab_M.size, 2)
 
         num = np.zeros_like(self.halos.tab_z)
-        #bias = np.zeros_like(self.halos.tab_z)
         for i, z in enumerate(self.halos.tab_z):
             if np.all(fsel[i,:,0] == 0):
                 continue
 
             if volume_density:
-                dVdOmega = 1.
+                dVdOmega = 1. #/ dz[i]
             else:
-                dVdOmega = self.cosm.ProjectedVolume(z, angle=1., dz=dz[i])
+                dVdOmega = self.cosm.ProjectedVolume(z, angle=1., dz=dz[i]) / dz[i]
             
             focc = self.tab_focc[i,:]
 
             if self.is_central_pop:
-                num[i] = np.trapezoid(fsel[i,:,0] * focc * self.halos.tab_dndlnm[i,:], 
+                dndlnm = self.halos.tab_dndlnm[i,:]
+                num[i] = np.trapezoid(fsel[i,:,0] * focc * dndlnm, 
                     x=np.log(tab_M)) * dVdOmega
             else:
                 focc = self.tab_focc[i]
@@ -4185,21 +4168,17 @@ class GalaxyCohort(GalaxyAggregate):
                            * focc[None,:] * fsurv[None,:] * fsel[i,:,0][None,:]
                 dndlnm = np.trapezoid(dndlnm_pre, dx=self.halos.dlnm, axis=0)
     
-                #print('hi', i, dndlnm_pre.shape, dndlnm.shape)
-
-                num[i] = np.trapezoid(dndlnm, dx=self.halos.dlnm)
-
+                num[i] = np.trapezoid(dndlnm, dx=self.halos.dlnm) * dVdOmega
             
-            #integ_top = fsel[i,:] * tab_n * tab_f * tab_b 
-            #integ_bot = fsel[i,:] * tab_n * tab_f
-#
-            #bias[i] = np.trapezoid(integ_top, x=np.log(tab_M)) \
-            #    / np.trapezoid(integ_bot, x=np.log(tab_M))
-        
         if zbin is not None:
-            # num will already be zero outside the zbin
-            return np.trapezoid(num, x=self.halos.tab_z)
-        else:    
+            # num will already be zero outside the zbin?
+            # Not necessarily -- this is a way of adding a redshift selection
+            # in post, e.g., you could do the mag selection once and then 
+            # scan through redshift bins to determine counts in those bins.
+            return integrate_with_subgrid_interp(self.halos.tab_z, num,
+                zbin[0], zbin[1])
+            #return np.trapezoid(num, x=self.halos.tab_z)
+        else:
             return num
 
     def _get_mask_info(self):
@@ -4579,7 +4558,6 @@ class GalaxyCohort(GalaxyAggregate):
     
                     mask = np.logical_not(ok)
     
-                    
                 else:##
                     # In this case, we use new grid for second axis.
                     if larr is None:
@@ -4635,12 +4613,15 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # If we made it here, there's no scatter. Life is a bit easier.
         # Still could be centrals or satellites but that's encoded in `dndm`.
-
-        assert np.all(dL > 0), \
-            "Need to revisit double-valued-ness problem in sigma=0 limit!" 
+        
+        # Used to assert all dL > 0, but sometimes for very massive (and
+        # mega-rare halos) we get negative values. This will get fixed 
+        # in post.
+        #assert np.all(dL >= 0), \
+        #    "Need to revisit double-valued-ness problem in sigma=0 limit!" 
 
         phi_of_L = dndm * dmdlnL
-
+        
         lum = np.ma.array(Lh, mask=mask)
         phi = np.ma.array(phi_of_L, mask=mask, fill_value=tiny_phi)
 
@@ -7289,11 +7270,11 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             
             band = wave if type(wave) not in numeric_types else None
-            lum = self.get_lum(z, x=wave, band=band, units='Angstrom', 
+            lum_m = self.get_lum(z, x=wave, band=band, units='Angstrom', 
                 units_out='erg/s/Hz', total_sat=self.is_central_pop,
-                selection_criteria=_fsel[:,1])
+                selection_criteria=None)
             # Already an effective lum?
-            #lum = self.get_lum_eff(z, lum_m, _fsel[:,1])
+            lum = self.get_lum_eff(z, lum_m, _fsel[:,1])
             
             if term == 0:
                 f = dndlnm * lum**2
@@ -7341,11 +7322,11 @@ class GalaxyCohort(GalaxyAggregate):
             
             iz = self.get_zindex(z)
             _fsel1 = self._get_fsel(fsel1, z=z)
-            _fsel2 = self._get_fsel(fsel2, z=z)
+            _fsel2 = pop2._get_fsel(fsel2, z=z)
 
             if self.is_central_pop or self.is_diffuse:
                 dndlnm = self.halos.tab_dndlnm[iz] * self.tab_focc[iz] \
-                    * _fsel1[:,0]
+                    * _fsel1[:,0] * _fsel2[:,0]
             else:
                 focc = self.tab_focc[iz]
                 fsurv = self.tab_fsurv[iz]
@@ -7356,7 +7337,7 @@ class GalaxyCohort(GalaxyAggregate):
                 # agnostic about their central -- eventually could
                 # add another focc factor
                 dndlnm = np.trapezoid(dndlnm_pre, dx=self.halos.dlnm, axis=0) \
-                    * _fsel1[:,0]
+                    * _fsel1[:,0] * _fsel2[:,0]
 
             # It's the second population that carries the luminosity
             # as per our convention.
@@ -7368,7 +7349,7 @@ class GalaxyCohort(GalaxyAggregate):
                 units_out='erg/s/Hz', total_sat=pop2.is_central_pop,
                 selection_criteria=None)
             
-            lum = self.get_lum_eff(z, lum_m, _fsel2[:,1])
+            lum = pop2.get_lum_eff(z, lum_m, _fsel1[:,1] * _fsel2[:,1])
 
             f = dndlnm * lum
 
@@ -7377,15 +7358,16 @@ class GalaxyCohort(GalaxyAggregate):
         elif isnum1 and isnum2:
             f = self.get_ps_kernel(z, k, term=0, 
                 isnum=isnum1, fsel=fsel1)
-            num1 = self.get_num_from_fsel(fsel1, z=z)
-            num2 = self.get_num_from_fsel(fsel2, z=z)
-            f *= num1 * num2
+            #num1 = self.get_num_from_fsel(fsel1, z=z)
+            #num2 = pop2.get_num_from_fsel(fsel2, z=z)
+            #f *= num1 * num2
         # intensity autos
         else:
             f = self.get_ps_kernel(z, k, term=0, wave=wave1, 
                 isnum=isnum1, fsel=fsel1)
         
-        #
+        ##
+        # Just need to integrate over mass and we're done.
         return np.trapezoid(f, x=self.halos.tab_lnM)
     
     def get_ps_1h(self, z, k, wave1, wave2, isnum1=0, 
@@ -7419,7 +7401,7 @@ class GalaxyCohort(GalaxyAggregate):
             dndlnm = self.halos.tab_dndlnm[iz]
             focc = self.tab_focc[iz,:]
             _fsel1 = self._get_fsel(fsel1, z=z)
-            _fsel2 = self._get_fsel(fsel2, z=z)
+            _fsel2 = pop2._get_fsel(fsel2, z=z)
             
             if isnum1:
                 lum1 = 1.
@@ -7651,16 +7633,16 @@ class GalaxyCohort(GalaxyAggregate):
                                     
             self._ps_obs_integrand[h,:] = integrand.copy()
 
-            ps[h] = np.trapezoid(integrand[zok] * zarr[zok],
-                    x=np.log(zarr[zok]))
-            
-            #ps[h] = integrate_with_subgrid_interp(
-            #        zarr, integrand, zlo, zhi)
-                    
-            pb.update(h)
+            #ps[h] = np.trapezoid(integrand[zok] * zarr[zok],
+            #        x=np.log(zarr[zok]))
+            #
+            ##ps[h] = integrate_with_subgrid_interp(
+            ##        zarr, integrand, zlo, zhi)
+            #        
+            #pb.update(h)
         pb.finish()
 
-        return ps
+        return self._ps_obs_integrand
 
     def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, 
         include_shot=True, include_1h=True, include_2h=True, raw=False,
@@ -7677,16 +7659,11 @@ class GalaxyCohort(GalaxyAggregate):
         # be in erg/s/cMpc^3, while in the latter, it will carry an extra
         # factor of Hz^-1.
         if wave_obs1 is None:
-            is_band_int = False
             wave1 = None
         elif type(wave_obs1) in [int, float, np.float64]:
-            is_band_int = False
-
             # Get rest wavelength in Angstroms
             wave1 = wave_obs1 * 1e4 / (1. + z)
         else:
-            is_band_int = True
-
             # Get rest wavelengths
             wave1 = tuple(np.array(wave_obs1) * 1e4 / (1. + z))
 
@@ -7706,12 +7683,11 @@ class GalaxyCohort(GalaxyAggregate):
             
         ##
         # Need angular diameter distance and H(z) for all that follows
-        d = self.cosm.get_dist_los_comoving(0., z) / cm_per_mpc           # [cm]
-        Hofz = self.cosm.HubbleParameter(z)                   # [s^-1]
+        d = self.cosm.get_dist_los_comoving(0., z) / cm_per_mpc
 
         ##
         # Must retrieve redshift-dependent k given fixed angular scale.
-        k = (scale + 0.5) / (d / 1.)
+        k = (scale + 0.5) / d
         
         ##
         # First: compute 3-D power spectrum
@@ -7750,61 +7726,12 @@ class GalaxyCohort(GalaxyAggregate):
             
             ps3d += ps_1h
 
-        ##
-        # We will integrate over z so introduce the Jacobian factor 
-        # for dchi/dz. Now our integrand's length^-3 units become
-        # length^-4.
-        integrand = ps3d * (c / cm_per_mpc / Hofz) / d**2
-        
-        ##
-        # Extra factor of nu^2 to eliminate Hz^{-1} units for
-        # monochromatic PS
-        if is_galaxy_auto:
-            num = self.get_num_from_fsel(fsel1, z=z)
-            numz = self.get_num_from_fsel(fsel1)
-            ntot = np.trapezoid(numz, x=self.halos.tab_z)
-            #integrand *= num**2
-            #integrand /= ((c / cm_per_mpc) / Hofz)**2
-    
-        elif is_galaxy_cross:
 
-            if is_band_int:
-                integrand *= 1. / (1. + z)**2 / (4. * np.pi)
-            else:
-                integrand *= 1. / (1. + z)**1 / (4. * np.pi)
-
-            if type(wave_obs1) in numeric_types:
-                integrand = integrand * (c / (wave_obs1 * 1e-4))
-            else:
-                nu1 = c / (np.array(wave_obs1) * 1e-4)
-                dnu1 = np.abs(np.diff(nu1))
-
-                integrand = integrand * np.mean(nu1) / dnu1
-
-        else:
-            assert type(wave_obs1) == type(wave_obs2)
-            if is_band_int:
-                integrand *= 1. / (1. + z)**4 / (4. * np.pi)**2
-            else:
-                integrand *= 1. / (1. + z)**2 / (4. * np.pi)**2
-
-            if type(wave_obs1) in numeric_types:
-                integrand = integrand * (c / (wave_obs1 * 1e-4)) * (c / (wave_obs2 * 1e-4))
-            else:
-                nu1 = c / (np.array(wave_obs1) * 1e-4)
-                nu2 = c / (np.array(wave_obs2) * 1e-4)
-                dnu1 = np.abs(np.diff(nu1))
-                dnu2 = np.abs(np.diff(nu2))
-    
-                integrand = integrand * np.mean(nu1) * np.mean(nu2) / dnu1 / dnu2
-            
-        ##
-        # Done
-        return integrand
+        return ps3d
     
     def get_xs_obs(self, scale, wave_obs, zg, scale_units='ell',
         isnum1=0, isnum2=1, 
-        pop2=None, fsel1=None, fsel2=None, use_pb=True, do_limber=0, **kwargs):
+        pop2=None, fsel1=None, fsel2=None, use_pb=True, **kwargs):
         """
         Compute the cross-spectrum between EBL and target galaxy population.
         """
@@ -7858,21 +7785,12 @@ class GalaxyCohort(GalaxyAggregate):
                 if np.isnan(integrand[i]):
                     integrand[i] = 0
 
-            if do_limber:
-                ps[h] = np.trapezoid(integrand[zok] * zarr[zok],
-                    x=np.log(zarr[zok]))
-                
-                print('shouldnt do this here')
-            else:
-                xs_obs_integrand[h,:] = integrand.copy()
+            xs_obs_integrand[h,:] = integrand.copy()
                             
             pb.update(h)
         pb.finish()
 
-        if do_limber:    
-            return ps
-        else:
-            return xs_obs_integrand
+        return xs_obs_integrand
                 
     def _guess_Mmin(self):
         """

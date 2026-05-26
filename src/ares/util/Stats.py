@@ -533,14 +533,16 @@ def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None,
 
 def lognormal(x, mu, sigma):
     """
-    This is dP/dlnx. Sometimes you'll see an extra factor of x in the denominator, but remember:
+    This is dP/dlnx. Sometimes you'll see an extra factor of x in 
+    the denominator, but remember:
     
     (i) dn/dlog10x = dn/dlnx / ln(10.)
     (ii) dn/dlnx = x * dn/dx
 
-    So if you see an extra factor of x in the denominator elsewhere, you're seeing dn/dx.
+    So if you see an extra factor of x in the denominator elsewhere, 
+    you're seeing dn/dx.
 
-    If you integrate this function from -inf to inf, you should obtain 0.
+    If you integrate this function from -inf to inf, you should obtain 1.
 
     Parameters
     ----------

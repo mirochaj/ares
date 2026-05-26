@@ -139,7 +139,7 @@ def get_wave_or_equivalent(x_in, units, units_out):
         x_cm = x_in
     elif units.lower().startswith('ang'):
         x_cm = x_in * 1e-8
-    elif units.lower().startswith('mic'):
+    elif (units.lower() == 'um') or units.lower().startswith('mic'):
         x_cm = x_in * 1e-4
     elif units.lower() == 'hz':
         x_cm = c / x_in
@@ -158,7 +158,7 @@ def get_wave_or_equivalent(x_in, units, units_out):
         return x_cm
     elif units_out.lower().startswith('ang'):
         return x_cm * 1e8
-    elif units_out.lower().startswith('mic'):
+    elif (units.lower() == 'um') or units_out.lower().startswith('mic'):
         return x_cm * 1e4
     elif units_out.lower() == 'hz':
         return c / x_cm
