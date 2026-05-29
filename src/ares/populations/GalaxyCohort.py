@@ -7433,10 +7433,9 @@ class GalaxyCohort(GalaxyAggregate):
                     selection_criteria=None)
                 lum = pop2.get_lum_eff(z, lum_m, _fsel1[:,1] * _fsel2[:,1])
 
-                # This is the abunance of satellites globally, i.e.,
-                # the integration is over central halo mass.
-                # We multiply by the selection function afterward 
-                # to account for selection of satellites.
+                # Here we're integrating over the m_sat dimension, leaving
+                # behind f = the luminosity-weighted number of satellites
+                # as a function of central halo mass.
                 f = np.trapezoid(dndlnm_pre[:,:] * lum[None,:], 
                     dx=self.halos.dlnm, axis=1) 
 
