@@ -2698,7 +2698,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 _fsel = self.get_galaxy_subsample(selection_criteria)
         else:
-            _fsel = np.ones_like(self.halos.tab_dndm)
+            _fsel = np.ones(list(self.halos.tab_dndm.shape) + [2])
 
         fsel = self._get_fsel(_fsel, z=z)
 
@@ -2722,7 +2722,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         #
         dndlnm_all = self.halos.tab_dndlnm_sub \
-            * focc[None,:] * fsurv[None,:] * fsel[:,1][None,:]
+            * focc[None,:] * fsurv[None,:] * fsel[:,0][None,:]
 
         # Integrate over subhalo mass dimension
         Lh = np.trapezoid(Lsat[None,ok_s==1] * dndlnm_all[:,ok_s==1],
@@ -2909,7 +2909,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 raise ValueError(f'unknown units={units_out}')
 
-            return Lbol
+            #return Lbol
 
         # or lookup table, in which case we need to interpolate
         elif self.pf['pop_lum_tab'] is not None:
@@ -7165,7 +7165,7 @@ class GalaxyCohort(GalaxyAggregate):
             
         return uofk
     
-    def get_lum_eff(self, z, lum, fsel):
+    def get_lum_eff(self, z, lum, fsel=None):
         """
         Compute the *effective* luminosity of halos as a function of
         halo mass. Here, effective means: averaged over the PDF of
@@ -7198,6 +7198,9 @@ class GalaxyCohort(GalaxyAggregate):
         ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
                                     lum > 0)
         
+        if fsel is None:
+            fsel = np.ones_like(self.halos.tab_M)
+
         larr = lum#10**np.arange(lmin, lmax, 0.01
         lum[ok==0] = tiny_lum # avoid NaN
         # log-normal PDF convolved with selection function
@@ -7217,37 +7220,93 @@ class GalaxyCohort(GalaxyAggregate):
             ##
             # In principle this can be done analytically for a 
             # tophat selection function and lognormal PDF.
+            return np.trapezoid(Lxpdf, x=np.log(larr), axis=1)
 
         else:
-            Lxpdf = fsel[:,None] * lum[:,None]
-        
-        # Cut out really low-mass bit
-        return np.trapezoid(Lxpdf, x=np.log(larr), axis=1)
+            return fsel * lum
     
     def get_ps_kernel(self, z, k, term, wave=None, isnum=0, fsel=1):
         """
         Compute the "power spectrum kernel," i.e., the piece of the 
         power spectrum integrand that is often shared between shot,
-        1-h, and 2-h terms.
+        1-h, and 2-h terms, but receive different weightings when 
+        being integrated to obtain the full shot, 1-h, and 2-h terms.
         """
 
+        islum = not isnum
+
         iz = self.get_zindex(z)    
-        focc = self.tab_focc[iz,:]
         _fsel = self._get_fsel(fsel, z=z)
 
+        focc = self.tab_focc[iz,:]
+
+        # Will be updated below when necessary
+        total_sat = False
+        
         if self.is_central_pop or self.is_diffuse:
             dndlnm = self.halos.tab_dndlnm[iz] * focc * _fsel[:,0]
         else:
+
             fsurv = self.tab_fsurv[iz,:]
-            dndlnm_pre = self.halos.tab_dndlnm[iz][:,None] \
-                       * self.halos.tab_dndlnm_sub \
+
+            # Recall that `tab_dndlnm_sub` is 2-D (Mh_cen, Mh_sat)
+            # Hence the use of None in slices below.
+            dndlnm_2d = self.halos.tab_dndlnm[iz][:,None] \
+                       * self.halos.tab_dndlnm_sub[:,:] \
                        * focc[None,:] * fsurv[None,:] 
-            dndlnm = np.trapezoid(dndlnm_pre, dx=self.halos.dlnm, axis=0) \
-                * _fsel[:,0]
-    
+            
+            # Implicit here is that satellite properties are independent
+            # of central properties. In the future, may add an additional focc
+            # factor for centrals to account for this (will need parent central ID)
+            
+            # Depending on whether we're doing shot or 2-h we need different dn/dlnm. 
+            # For shot noise, we're just integrating up the number of satellites 
+            # so really do want the total abundance as a function of satellite mass.
+            # For 2-h, we want the number of satellites vs. *central* mass, 
+            # because get_ps_2h is going to perform a bias-weighted integral,
+            # where the bias is vs. central mass.
+
+            # On 1-h and 2-h scales we're only sensitive to the integrated
+            # luminosity of satellites (for islum=True, isnum handled below)
+            if islum and (term >= 1):
+                total_sat = True
+                dndlnm = self.halos.tab_dndlnm[iz]
+            # In the shot regime (for intensity field), we need the
+            # number of satellites and their individual luminosities.
+            # Same deal for the galaxy overdensity field.
+            elif (term == 0):
+                # Integrating along first axis (central Mh) yields the
+                # number of satellites as a function of Mh,sat globally.
+                dndlnm = np.trapezoid(dndlnm_2d, dx=self.halos.dlnm, axis=0) \
+                    * _fsel[:,0]
+            # In all other cases, we need to know the number of satellites
+            # as a function of *central* halo mass (e.g., 2-h galaxy field
+            # is the integral over (number of sats / cen) * b_cen).
+            else:
+                # This should only happen for galaxy overdensity field
+                # for 1-h and 2-h terms.
+                
+                # Integrating along the second axis (satellite Mh) yields the
+                # number of satellites in each central halo Mh,cen bin globally.
+                dndlnm = np.trapezoid(dndlnm_2d * _fsel[:,0][None,:], 
+                    dx=self.halos.dlnm, axis=1)
+                
+                # Maybe this is right for 1-h, but not 2-h?
+                # 2-h is tricky because we still want the number of satellites
+                # vs. central halo mass (to get bias weighting right) but
+                # for the intensity piece, L_eff will be wrong.
+                # For 2-h intensity, we just want central galaxy abundance
+                # and total_sat=True
+                
+            
+            # Need to impose minimum mass of central halos? dndlnm isn't
+            # being hit with selection function.
+            
         # Usually the kernel just applies to one population
         # but the cross-shot regime is a special case
         # handled in get_ps_sh and so won't be considered below.
+        # Note that 1-h intensity autos will still be handled by this 
+        # routine.
         
         ##
         # Kernels are different for galaxy field...
@@ -7265,16 +7324,17 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 raise ValueError('Must pass `term` = 0, 1, or 2!')
         
-
         # ... and intensity field.
         else:
             
             band = wave if type(wave) not in numeric_types else None
-            lum_m = self.get_lum(z, x=wave, band=band, units='Angstrom', 
-                units_out='erg/s/Hz', total_sat=self.is_central_pop,
-                selection_criteria=None)
-            # Already an effective lum?
-            lum = self.get_lum_eff(z, lum_m, _fsel[:,1])
+            
+            lum = self.get_lum(z, x=wave, band=band, units='Angstrom', 
+                units_out='erg/s/Hz', total_sat=total_sat,
+                selection_criteria=_fsel if total_sat else None)
+
+            if not total_sat: 
+                lum = self.get_lum_eff(z, lum, _fsel[:,0])
             
             if term == 0:
                 f = dndlnm * lum**2
@@ -7304,67 +7364,79 @@ class GalaxyCohort(GalaxyAggregate):
         #if isnum1 + isnum2 % 2 == 0:
         # Isn't this true for galaxy-galaxy and intensity-intensity too?
         if pop2 is not None:
+            if not pop2.pf['pop_include_shot']:
+                return 0
             if self.id_num != pop2.id_num_actual:
                 return 0
-                
+
+        # galaxy autos
+        if isnum1 and isnum2:
+            f = self.get_ps_kernel(z, k, term=0, 
+                isnum=isnum1, fsel=fsel1)
+        # intensity autos
+        elif isnum1 + isnum2 == 0:
+            if not np.all(wave1 == wave2):
+                raise NotImplementedError('need to revisit cross-shot for wave1 != wave2')
+            f = self.get_ps_kernel(z, k, term=0, wave=wave1, 
+                isnum=isnum1, fsel=fsel1)
         ##
         # Cross-shot is a special case. Don't call get_ps_kernel
         # just do everything here.
-        if isnum1 + isnum2 == 1:
+        elif isnum1 + isnum2 == 1:
             assert isnum1, "Must set galaxy field to first population."
 
+            if self.is_diffuse:
+                return 0
             # No shot contribution from diffuse emission
-            #if pop2.is_diffuse:
-            #    return 0
-            # Should we just do an idnum check again? Should not 
-            # be any inter-pop contributions
-            #if idnum != idnum2
+            if pop2.is_diffuse:
+                return 0
             
             iz = self.get_zindex(z)
             _fsel1 = self._get_fsel(fsel1, z=z)
             _fsel2 = pop2._get_fsel(fsel2, z=z)
+            band2 = wave2 if type(wave2) not in numeric_types else None
 
             if self.is_central_pop or self.is_diffuse:
                 dndlnm = self.halos.tab_dndlnm[iz] * self.tab_focc[iz] \
                     * _fsel1[:,0] * _fsel2[:,0]
+                
+                lum_m = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
+                    units_out='erg/s/Hz', total_sat=False,
+                    selection_criteria=None)
+            
+                # We could also have passed fsel into the `get_lum` call
+                # if we wanted to. Both would yield an effective luminosity
+                # properly weighted over the PDF of L(M) and abundance.
+                lum = pop2.get_lum_eff(z, lum_m, _fsel1[:,1] * _fsel2[:,1])
+
+                f = dndlnm * lum
             else:
+                # We have to do satellites separately since we cannot separate
+                # the integral to obtain <N> and L_eff.
                 focc = self.tab_focc[iz]
                 fsurv = self.tab_fsurv[iz]
                 dndlnm_pre = self.halos.tab_dndlnm[iz][:,None]  \
                            * self.halos.tab_dndlnm_sub \
-                           * focc[None,:] * fsurv[None,:]
+                           * focc[None,:] * fsurv[None,:] \
+                           * _fsel1[:,0][None,:] * _fsel2[:,0][None,:]
                 # Latent assumption here is that satellites are
                 # agnostic about their central -- eventually could
                 # add another focc factor
-                dndlnm = np.trapezoid(dndlnm_pre, dx=self.halos.dlnm, axis=0) \
-                    * _fsel1[:,0] * _fsel2[:,0]
 
-            # It's the second population that carries the luminosity
-            # as per our convention.
-            # Note that the selection function gets passed here 
-            # to filter out satellites that would not have been
-            # selected
-            band = wave2 if type(wave2) not in numeric_types else None
-            lum_m = pop2.get_lum(z, x=wave2, band=band, units='Angstrom', 
-                units_out='erg/s/Hz', total_sat=pop2.is_central_pop,
-                selection_criteria=None)
-            
-            lum = pop2.get_lum_eff(z, lum_m, _fsel1[:,1] * _fsel2[:,1])
+                lum_m = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
+                    units_out='erg/s/Hz', total_sat=False,
+                    selection_criteria=None)
+                lum = pop2.get_lum_eff(z, lum_m, _fsel1[:,1] * _fsel2[:,1])
 
-            f = dndlnm * lum
+                # This is the abunance of satellites globally, i.e.,
+                # the integration is over central halo mass.
+                # We multiply by the selection function afterward 
+                # to account for selection of satellites.
+                f = np.trapezoid(dndlnm_pre[:,:] * lum[None,:], 
+                    dx=self.halos.dlnm, axis=1) 
 
-            return np.trapezoid(f, x=self.halos.tab_lnM)
-        # galaxy autos
-        elif isnum1 and isnum2:
-            f = self.get_ps_kernel(z, k, term=0, 
-                isnum=isnum1, fsel=fsel1)
-            #num1 = self.get_num_from_fsel(fsel1, z=z)
-            #num2 = pop2.get_num_from_fsel(fsel2, z=z)
-            #f *= num1 * num2
-        # intensity autos
         else:
-            f = self.get_ps_kernel(z, k, term=0, wave=wave1, 
-                isnum=isnum1, fsel=fsel1)
+            raise NotImplementedError(f'unknown case isnum1={isnum1} isnum2={isnum2}')
         
         ##
         # Just need to integrate over mass and we're done.
@@ -7376,54 +7448,127 @@ class GalaxyCohort(GalaxyAggregate):
         Compute the 1-halo power spectrum in 3-D.
         """
 
+        # Diffuse sources are not cataloged and so do not contribute
+        # to the "g" part of galaxy x intensity cross correlations.
         if isnum1 and self.is_diffuse:
             return 0.0
-
-        # 1-h from single population
+        
+        # 1-h from single population.
         # Note that for galaxy/intensity crosses pop2 is always provided
+        # so this block will never be executed.
         if pop2 is None:
             if not self.pf['pop_include_1h']:
                 return 0.0
                 
             f = self.get_ps_kernel(z, k, term=1, wave=wave1, 
                 isnum=isnum1, fsel=fsel1)
-                    ##
+
         # 1-h inter-pop term is a special case. Don't call get_ps_kernel
         # just do everything here.
         else:
 
             # It's OK for centrals to be involved here, except if 
             # both self and pop2 are centrals
+            # (note that IHL will have is_central_pop=False)
             if self.is_central_pop and pop2.is_central_pop:
                 return 0
-                    
+
             iz = self.get_zindex(z)
-            dndlnm = self.halos.tab_dndlnm[iz]
-            focc = self.tab_focc[iz,:]
             _fsel1 = self._get_fsel(fsel1, z=z)
             _fsel2 = pop2._get_fsel(fsel2, z=z)
-            
-            if isnum1:
-                lum1 = 1.
+
+            ##
+            # Always start with the DM halo abundance
+            dndlnm = self.halos.tab_dndlnm[iz]
+
+            # For centrals, modulate by occupation fraction and selection
+            if (self.is_central_pop or self.is_diffuse):
+                # FYI, if self.is_diffuse==True, _fsel1 will be unity
+                dndlnm *= self.tab_focc[iz] * _fsel1[:,0]
+                # Don't hit diffuse emission with mask for now.
+                if not self.is_diffuse:
+                    dndlnm *= _fsel2[:,0]
+
+            ##
+            # Now, need to assign lum1 (or if isnum, <N>)
+            # For centrals, 
+            if self.is_central_pop:
+                if isnum1:
+                    lum1 = 1.
+                else:
+                    print('will this happen? Taken care of by get_ps_kernel?')
+                    band1 = wave1 if type(wave1) not in numeric_types else None
+                    lum1_m = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
+                        units_out='erg/s/Hz')
+                    lum1 = self.get_lum_eff(z, lum1_m, _fsel1[:,1] * _fsel2[:,1])
             else:
-                band1 = wave1 if type(wave1) not in numeric_types else None
-                lum1 = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
-                    units_out='erg/s/Hz', total_sat=True, 
-                    selection_criteria=_fsel1)
-            
+                focc = self.tab_focc[iz]
+                fsurv = self.tab_fsurv[iz]
+                dndlnm_2d = self.halos.tab_dndlnm[iz][:,None]  \
+                           * self.halos.tab_dndlnm_sub \
+                           * focc[None,:] * fsurv[None,:] \
+                           * _fsel1[:,0][None,:] * _fsel2[:,0][None,:]
+
+                if isnum1:
+                    # Latent assumption here is that satellites are
+                    # agnostic about their central -- eventually could
+                    # add another focc factor.
+                    # We integrate along Mh,sat
+                    lum1 = np.trapezoid(dndlnm_2d, dx=self.halos.dlnm, axis=1)
+                else:
+                    band1 = wave1 if type(wave1) not in numeric_types else None
+                    lum1_m = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
+                        units_out='erg/s/Hz', total_sat=False)
+                    
+                    lum1_eff = self.get_lum_eff(z, lum1_m, _fsel1[:,1] * _fsel2[:,1])
+
+                    lum1 = np.trapezoid(dndlnm_2d[:,:] * lum1_eff[None,:], 
+                        dx=self.halos.dlnm, axis=1)
+
+            # This will be a delta function for centrals and NFW for sats
             uofk1 = self.get_prof(z, k)
 
-            band2 = wave2 if type(wave2) not in numeric_types else None
-            lum2 = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
-                units_out='erg/s/Hz', total_sat=True,
-                selection_criteria=_fsel2)
+            if pop2.is_central_pop:
+                # If isnum2, we're doing galaxy/galaxy autos
+                if isnum2:
+                    lum2 = 1.
+                else:
+                    band2 = wave2 if type(wave2) not in numeric_types else None
+                    lum2_m = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
+                        units_out='erg/s/Hz')
+                    lum2 = pop2.get_lum_eff(z, lum2_m, _fsel1[:,1] * _fsel2[:,1])
+            else:
+                focc = pop2.tab_focc[iz]
+                fsurv = pop2.tab_fsurv[iz]
+                dndlnm_2d = self.halos.tab_dndlnm[iz][:,None]  \
+                           * self.halos.tab_dndlnm_sub \
+                           * focc[None,:] * fsurv[None,:] \
+                           * _fsel1[:,0][None,:] * _fsel2[:,0][None,:]
+                
+                # If isnum2, we're doing galaxy/galaxy autos
+                if isnum2:
+                    
+                    # Latent assumption here is that satellites are
+                    # agnostic about their central -- eventually could
+                    # add another focc factor.
+                    # We integrate along Mh,sat
+                    lum2 = np.trapezoid(dndlnm_2d, dx=self.halos.dlnm, axis=1)
+                else:
+                    band2 = wave2 if type(wave2) not in numeric_types else None
+                    lum2_m = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
+                        units_out='erg/s/Hz', total_sat=False)
+                    
+                    lum2_eff = pop2.get_lum_eff(z, lum2_m, _fsel1[:,1] * _fsel2[:,1])
+
+                    lum2 = np.trapezoid(dndlnm_2d[:,:] * lum2_eff[None,:], 
+                        dx=self.halos.dlnm, axis=1)
+
             uofk2 = pop2.get_prof(z, k)
 
-            # Could replace with calls to 2-h kernel except there's
-            # only one copy of dndlnm
-            f = dndlnm * focc * _fsel1[:,0] * _fsel2[:,0] \
-                * lum1 * uofk1 * lum2 * uofk2
+            # Final product
+            f = dndlnm * lum1 * uofk1 * lum2 * uofk2
 
+        # Integrate over mass
         return np.trapezoid(f, x=self.halos.tab_lnM)
         
     def get_ps_2h(self, z, k, wave1, wave2, isnum1=0, isnum2=0, 
