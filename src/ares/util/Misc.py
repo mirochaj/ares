@@ -97,7 +97,7 @@ def get_hmod_elements(sim, fluctuation_type=0, redundancy_convention='lower'):
                         pop1.id_num_actual == pop2.id_num_actual
                 elif term == '1h':
                     has_power[k1,k2] = \
-                        (pop1.is_central_pop + pop2.is_central_pop) in [0,3]
+                        (pop1.is_central_pop + pop2.is_central_pop) in [0,1]
                 elif term == '2h':
                     has_power[k1,k2] = 1
                 else:
