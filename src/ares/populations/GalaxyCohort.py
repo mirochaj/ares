@@ -5632,6 +5632,11 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 self._tab_focc_ = focc
 
+            if self.pf['pop_Mmax'] is not None:
+                self._tab_focc_[yy > self.pf['pop_Mmax']] = 0
+            if self.pf['pop_Mmin'] is not None:
+                self._tab_focc_[yy < self.pf['pop_Mmin']] = 0
+
             self._tab_focc_ = np.minimum(self._tab_focc_, 1)
             self._tab_focc_ = np.maximum(self._tab_focc_, 0)
 

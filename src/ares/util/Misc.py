@@ -32,9 +32,9 @@ def get_hmod_elements(sim, fluctuation_type=0, redundancy_convention='lower'):
 
     There are four types of fluctuations:
     1. Intensity autos
-    2. Intensity internal crosses
-    3. Galaxy catalog / intensity crosses
-    4. Galaxy autos
+    2. Galaxy catalog / intensity crosses
+    3. Galaxy autos
+    4. Intensity internal crosses
 
     Note that there's not really an analog of internal crosses for 
     galaxies. In principle their could be (e.g., ELG x LRG), but I 
@@ -86,9 +86,9 @@ def get_hmod_elements(sim, fluctuation_type=0, redundancy_convention='lower'):
                 
                 # For galaxy-intensity cross or galaxy autos, 
                 # diffuse sources don't contribute.
-                if (fluctuation_type == 2) and (pop1.is_diffuse):
+                if (fluctuation_type == 1) and (pop1.is_diffuse):
                     continue
-                if (fluctuation_type == 3) and (pop1.is_diffuse or pop2.is_diffuse):
+                if (fluctuation_type == 2) and (pop1.is_diffuse or pop2.is_diffuse):
                     continue
                                 
                 # OK
@@ -97,7 +97,7 @@ def get_hmod_elements(sim, fluctuation_type=0, redundancy_convention='lower'):
                         pop1.id_num_actual == pop2.id_num_actual
                 elif term == '1h':
                     has_power[k1,k2] = \
-                        (pop1.is_central_pop + pop2.is_central_pop) in [0,1]
+                        (pop1.is_central_pop + pop2.is_central_pop) in [0,3]
                 elif term == '2h':
                     has_power[k1,k2] = 1
                 else:

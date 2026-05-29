@@ -74,7 +74,7 @@ centrals_sf = \
 
  'pop_Tmin': None,
  'pop_Mmin': 1e8,
- 'pop_Mmax': None,
+ 'pop_Mmax': 3e15,
 
  # Something with dust and metallicity here
 
