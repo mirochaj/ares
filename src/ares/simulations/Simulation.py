@@ -858,6 +858,7 @@ class Simulation(object):
         #
         ps, ps_by_pop = self.get_limber_integral(ps_z, zbins=zbins, num=num_pz)
         
+        self.gg_by_pop = ps_by_pop
 
         #if pops is None:
         #    hist = self.history # poke
@@ -909,7 +910,7 @@ class Simulation(object):
         # EBL autos or internal cross: (pops, pops, scales, waves, zarr)
         # Galaxy/EBL crosses: (pops, pops, scales, waves, zbins, zarr)
         # Galaxy autos: (pops, pops, scales, zbins, zarr)
-        
+
         #npops, npops, nell, nwaves, nzbins, nz = ps3d.shape
         assert ps3d.shape[-1] == zarr.size
 

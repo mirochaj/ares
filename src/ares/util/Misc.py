@@ -76,7 +76,7 @@ def get_hmod_elements(sim, fluctuation_type=0, redundancy_convention='lower'):
                 
                 # For intensity autos, upper and lower halves
                 # of matrix are redundant. Keep upper only.
-                if fluctuation_type == 0:
+                if fluctuation_type in [0, 2]:
                     if redundancy_convention == 'lower' and (k2 > k1):
                         continue
                     elif redundancy_convention == 'upper' and (k2 < k1):
