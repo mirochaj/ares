@@ -192,6 +192,7 @@ _ssfr_dpl = \
  'pq_func_par20[1]': 0.0,
 }
 
+# Note that dplg_evolB13 uses same ordering of parameters
 _sfr_dpl = \
 {
 # sSFR(z, Mstell)
@@ -227,6 +228,41 @@ _sfr_dpl = \
  'pq_func_par24[1]': 0.0,   # evolution in turn-over mass
  'pq_func_par25[1]': 0.0,
  'pq_func_par26[1]': 0.0,
+}
+
+_sfr_dplg = \
+{
+# sSFR(z, Mstell)
+ 'pop_sfr': 'pq[1]',
+ 'pq_func[1]': 'dplx_evolB13',
+ 'pq_func_var[1]': 'Mh',
+ 'pq_func_var2[1]': '1+z',
+ 'pq_func_par0[1]': 0.01,
+ 'pq_func_par1[1]': 3e12,
+ 'pq_func_par2[1]': 1.6,
+ 'pq_func_par3[1]': 0.2,
+ 'pq_func_par4[1]': 1e10,   # Mh anchor
+ 'pq_func_par5[1]': 0.6,    # scales (1-a) term
+ 'pq_func_par6[1]': 0.,     # scales (1-a) term
+ 'pq_func_par7[1]': 0,      # scales (1-a) term
+ 'pq_func_par8[1]': 0,      # scales (1-a) term
+ 'pq_func_par9[1]': 0.,     # scales log(1+z) term
+ 'pq_func_par10[1]': 0.0,   # scales log(1+z) term
+ 'pq_func_par11[1]': 0.0,   # scales log(1+z) term
+ 'pq_func_par12[1]': 0.0,   # scales log(1+z) term
+ 'pq_func_par13[1]': 0.0,
+ 'pq_func_par14[1]': 0.0,
+ 'pq_func_par15[1]': 0.0,
+ 'pq_func_par16[1]': 0.0,
+ 'pq_func_par17[1]': 0.0,
+ 'pq_func_par18[1]': 0.0,
+ 'pq_func_par19[1]': 0.0,
+ 'pq_func_par20[1]': 0.0,
+ # Extension!
+ 'pq_func_par21[1]': -np.inf, # normalization
+ 'pq_func_par22[1]': 0.0,     # (1 - z)
+ 'pq_func_par23[1]': 0.0,     # z
+ 'pq_func_par24[1]': 0.0,     # log10(M) sigma for gaussian
 }
 
 centrals_sf.update(_sfr_dpl)

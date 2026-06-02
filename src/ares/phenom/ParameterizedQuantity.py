@@ -1127,6 +1127,65 @@ class DoublePowerLawExtendedEvolvingAsB13(BasePQ):
             y *= (1. + (x / 10**logTurn)**self.args[22])**self.args[23]
             
         return y
+    
+class DoublePowerLawPlusGaussianEvolvingAsB13(BasePQ):
+    def __call__(self, **kwargs):
+        x = kwargs[self.x]
+
+        z = self.get_var2(kwargs['z'])
+
+        # Need scale factor
+        a = 1. / (1. + z)
+
+        # Basic idea here is to have parameters that dictate
+        # low-z, medium-z, and high-z behaviour, e.g.,
+        # log10(f_star,10) = p[0] + p[5] * (1 - a) \
+        #                  + p[9] * np.log(1 + z) + p[13] * z
+
+        logp0 = np.log10(self.args[0]) + self.args[5] * (1 - a) \
+              + self.args[9] * np.log(1 + z) \
+              + self.args[13] * z \
+              + self.args[17] * a
+
+        p0 = 10**logp0
+
+        logp1 = np.log10(self.args[1]) + self.args[6] * (1 - a) \
+              + self.args[10] * np.log(1 + z) \
+              + self.args[14] * z \
+              + self.args[18] * a
+
+        p1 = 10**logp1
+
+        normcorr = (((self.args[4] / p1)**-self.args[2] \
+                 +   (self.args[4] / p1)**-self.args[3]))
+
+        s1 = self.args[2] + self.args[7] * (1 - a) \
+              + self.args[11] * np.log(1 + z) \
+              + self.args[15] * z \
+              + self.args[19] * a
+
+        s2 = self.args[3] + self.args[8] * (1 - a) \
+              + self.args[12] * np.log(1 + z) \
+              + self.args[16] * z \
+              + self.args[20] * a
+
+        # Normalized mass
+        xx = x / p1
+
+        # Gaussian piece
+        log10gamma = self.args[21] + self.args[22] * (1 - a) \
+            + self.args[23] * z
+        gamma = 10**log10gamma
+        delta = self.args[24]
+        
+        # The full thing
+        y = normcorr * p0 * (
+            (1. / (xx**-s1 + xx**-s2)) \
+          + gamma * np.exp(-(np.log10(x)**2 / 2. / delta**2))
+        )
+        
+        return y
+
 
 class Okamoto(BasePQ):
     def __call__(self, **kwargs):
@@ -1321,6 +1380,8 @@ class ParameterizedQuantity(object):
             self.func = DoublePowerLawEvolvingAsB13(**kwargs)
         elif kwargs["pq_func"] == "dplx_evolB13":
             self.func = DoublePowerLawExtendedEvolvingAsB13(**kwargs)
+        elif kwargs["pq_func"] == "dplg_evolB13":
+            self.func = DoublePowerLawPlusGaussianEvolvingAsB13(**kwargs)    
         elif kwargs["pq_func"] == "exp":
             self.func = Exponential(**kwargs)
         elif kwargs["pq_func"] in ["normal", "gaussian"]:
