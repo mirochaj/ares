@@ -683,41 +683,6 @@ class Simulation(object):
         ps, ps_by_pop = self.get_limber_integral(ps_z,
             waves=waves, zbins=zbins, num=num_pz)
 
-        if False:
-            ##
-            # We do the Limber integral here for crosses
-            ok = np.logical_and(zarr >= zlo, zarr < zhi)
-            for k, wave in enumerate(waves):
-                # Still need nu / dnu factor?
-                nofz = num_pz[:,k,:].sum(axis=0)
-                nbar = num_p[:,k,h].sum(axis=0)
-                W_I = ((c / cm_per_mpc) / Hofz) / d**2 / (1 + zarr)**2 / (4. * np.pi)
-                W_g = nofz / nbar / ((c / cm_per_mpc) / Hofz)
-                limber_integ = W_g[None,:] * W_I[None,:] \
-                    * ps_z.sum(axis=0).sum(axis=0)[:,k,h,:] / nbar
-                #ps[:,k,h] = np.trapezoid(limber_integ[:,ok==1], x=zarr[ok==1], axis=-1)
-                
-                for s, _scale_ in enumerate(scales):
-                    ps[s,k,h] = integrate_with_subgrid_interp(zarr, 
-                        limber_integ[s,:],
-                        zlo, zhi)
-
-            ##
-            # Store by population as well
-            for i, pop in enumerate(self.pops):
-                for j, popx in enumerate(self.pops):
-                    for k, wave in enumerate(waves):
-                        limber_integ = W_g[None,:] \
-                            * ps_z[i,j,:,k,h,:] \
-                            / ((c / cm_per_mpc) / Hofz)
-                        ps_by_pop[i,j,:,k,h] = \
-                            np.trapezoid(limber_integ[:,ok==1], x=zarr[ok==1], axis=-1)
-                        #ps_by_pop[i,j,:,k,h] = integrate_with_subgrid_interp(
-                        #    zarr, limber_integ, zlo, zhi)
-                        for s, _scale_ in enumerate(scales):
-                            ps_by_pop[i,j,s,k,h] = integrate_with_subgrid_interp(zarr, limber_integ[s,:], 
-                                zlo, zhi)
-
         ##
         # Modify PS units before return
         if flux_units.lower() == 'si':

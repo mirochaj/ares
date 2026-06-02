@@ -7230,7 +7230,7 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             return fsel * lum
     
-    def get_ps_kernel(self, z, k, term, wave=None, isnum=0, fsel=1):
+    def get_ps_kernel(self, z, k, term, wave=None, wave2=None, isnum=0, fsel=1):
         """
         Compute the "power spectrum kernel," i.e., the piece of the 
         power spectrum integrand that is often shared between shot,
@@ -7334,20 +7334,31 @@ class GalaxyCohort(GalaxyAggregate):
             
             band = wave if type(wave) not in numeric_types else None
             
-            lum = self.get_lum(z, x=wave, band=band, units='Angstrom', 
+            lum1 = self.get_lum(z, x=wave, band=band, units='Angstrom', 
                 units_out='erg/s/Hz', total_sat=total_sat,
                 selection_criteria=_fsel if total_sat else None)
 
-            if not total_sat: 
-                lum = self.get_lum_eff(z, lum, _fsel[:,0])
+            if (not total_sat) and (not self.is_diffuse): 
+                lum1 = self.get_lum_eff(z, lum1, _fsel[:,0])
+
+            if wave2 is None:
+                lum2 = lum1
+            else:
+                band2 = wave2 if type(wave2) not in numeric_types else None
+            
+                lum2 = self.get_lum(z, x=wave2, band=band2, units='Angstrom', 
+                    units_out='erg/s/Hz', total_sat=total_sat,
+                    selection_criteria=_fsel if total_sat else None)
             
             if term == 0:
-                f = dndlnm * lum**2
+                f = dndlnm * lum1 * lum2
             elif term == 1:
                 uofk = self.get_prof(z, k)
-                f = dndlnm * lum**2 * uofk**2
+                f = dndlnm * lum1 * lum2 * uofk**2
             elif term == 2:
-                f = dndlnm * lum
+                # Note that for 2-h term, get_ps_kernel will get called
+                # separately twice, one for each wave
+                f = dndlnm * lum1
             else:
                 raise ValueError('Must pass `term` = 0, 1, or 2!')
         
@@ -7380,9 +7391,12 @@ class GalaxyCohort(GalaxyAggregate):
                 isnum=isnum1, fsel=fsel1)
         # intensity autos
         elif isnum1 + isnum2 == 0:
-            if not np.all(wave1 == wave2):
-                raise NotImplementedError('need to revisit cross-shot for wave1 != wave2')
-            f = self.get_ps_kernel(z, k, term=0, wave=wave1, 
+            if np.all(wave1 == wave2):
+                w2 = None
+            else:
+                w2 = wave1
+
+            f = self.get_ps_kernel(z, k, term=0, wave=wave1, wave2=w2,
                 isnum=isnum1, fsel=fsel1)
         ##
         # Cross-shot is a special case. Don't call get_ps_kernel
@@ -7500,7 +7514,12 @@ class GalaxyCohort(GalaxyAggregate):
                 if isnum1:
                     lum1 = 1.
                 else:
-                    print('will this happen? Taken care of by get_ps_kernel?')
+                    # At some point, wasn't clear if this would ever
+                    # be called, but it is definitely called 
+                    # for intensity autos where
+                    # wave2 != wave1 (and so pop2 is not None).
+                    # When wave1=wave2, pop2 is None and we call
+                    # get_ps_kernel in the near the top of this method
                     band1 = wave1 if type(wave1) not in numeric_types else None
                     lum1_m = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
                         units_out='erg/s/Hz')
@@ -7532,15 +7551,22 @@ class GalaxyCohort(GalaxyAggregate):
             # This will be a delta function for centrals and NFW for sats
             uofk1 = self.get_prof(z, k)
 
-            if pop2.is_central_pop:
+            if pop2.is_central_pop or pop2.is_diffuse:
                 # If isnum2, we're doing galaxy/galaxy autos
                 if isnum2:
+                    assert not pop2.is_diffuse, "This shouldnt happen but checking anyways"
                     lum2 = 1.
                 else:
                     band2 = wave2 if type(wave2) not in numeric_types else None
+
                     lum2_m = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
                         units_out='erg/s/Hz')
-                    lum2 = pop2.get_lum_eff(z, lum2_m, _fsel1[:,1] * _fsel2[:,1])
+                    
+                    # No selection or masking (yet) for IHL
+                    if pop2.is_diffuse:
+                        lum2 = lum2_m
+                    else:
+                        lum2 = pop2.get_lum_eff(z, lum2_m, _fsel1[:,1] * _fsel2[:,1])
             else:
                 focc = pop2.tab_focc[iz]
                 fsurv = pop2.tab_fsurv[iz]

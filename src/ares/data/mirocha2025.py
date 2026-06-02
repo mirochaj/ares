@@ -267,6 +267,7 @@ ihl_scaled['pop_focc'] = 1
 ihl_scaled['pop_age'] = 5e3
 ihl_scaled['pop_ihl'] = 'pq[50]'
 ihl_scaled['pop_focc_inv'] = False
+ihl_scaled['pop_sys_method'] = 0       # no systematics for IHL
 ihl_scaled['pq_func[50]'] = 'pl_evolN'
 ihl_scaled['pq_func_var[50]'] = 'Mh'
 ihl_scaled['pq_func_var2[50]'] = '1+z'
