@@ -1179,11 +1179,11 @@ class DoublePowerLawPlusGaussianEvolvingAsB13(BasePQ):
         delta = self.args[24]
         
         # The full thing
-        y = normcorr * p0 * (
+        y =  p0 * normcorr * (
             (1. / (xx**-s1 + xx**-s2)) \
-          + gamma * np.exp(-(np.log10(x)**2 / 2. / delta**2))
+          + gamma * np.exp(-np.log10(xx)**2 / 2. / delta**2)
         )
-        
+
         return y
 
 
