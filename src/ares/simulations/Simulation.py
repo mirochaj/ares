@@ -517,7 +517,7 @@ class Simulation(object):
     def get_ebl_x_galaxies(self, scales, waves, zbins, 
         selection_criteria, masking_criteria,
         wave_units='mic', flux_units='SI', pops=None,
-        include_inter_pop=True, **kwargs):
+        cache_ipop_mtx=None, **kwargs):
         """
         Compute cross spectrum between EBL and galaxy population.
 
@@ -529,10 +529,18 @@ class Simulation(object):
             Wavelengths at which to compute power spectra in `wave_units`.
             Note that if 2-D, must have shape (number of bins, 2), in which
             case the power spectra will be computed in series of bandpasses.
-        galaxy_prop : dict
+        selection_criteria : dict
             A dictionary defining the magnitude and/or color and/or redshift
             cuts used to select galaxies. At the moment, this is just a
-            magnitude cut provided as galaxy_prop={'mag': (cam, filter, cut)}
+            magnitude cut provided as, e.g.,
+            > selection_criteria={'mag': [('sdss_z', 22)], 'z': (0, 1)}
+            Note that you can also pass in an np.ndarray which is the output
+            of a previous call of the form 
+            > self.get_galaxy_subsample(selection_criteria)
+        masking_criteria : dict
+            Like `selection_criteria`, but defines the properties of galaxies
+            to be masked out. Can also pass an array if you have already
+            mapped the criteria into an array via `get_masks`.
         pops : list, tuple
             If provided, sets the ID numbers of populations that will be
             included in the model. In other words, any population *not* included
@@ -564,8 +572,10 @@ class Simulation(object):
             waves = np.array([waves])
         if type(zbins) != np.ndarray:
             zbins = np.array(zbins)
+        if pops is None:
+            pops = [i for i in range(len(self.pops))]
         
-        assert zbins.ndim == 2
+        assert zbins.ndim == 2, "Must provide 2-D array of redshift bin edges!"
 
         # Do some error-handling if waves is 2-D: means the user provided
         # bandpasses instead of a set of wavelengths.
@@ -584,25 +594,26 @@ class Simulation(object):
 
         # [optonal] Save redshift chunks
         zarr = self.halos.tab_z
-        dzarr = self.halos.tab_dz
         ps_z = np.zeros((len(self.pops), len(self.pops),
             len(scales), len(waves), len(zbins), zarr.size))
         #ps_by_pop = np.zeros((len(self.pops), len(self.pops),
         #    len(scales), len(waves), len(zbins)))
         
-        #d = np.array([self.cosm.get_dist_los_comoving(0., z) \
-        #    for z in zarr]) / cm_per_mpc                        # [cm]
-        #Hofz = np.array([self.cosm.HubbleParameter(z) \
-        #    for z in zarr])                                     # [s^-1]
+        # Read-in or generate selection function and mask from scratch.
+        if type(masking_criteria) == np.ndarray:
+            fmask = masking_criteria
+        else:
+            fmask = self.get_masks(masking_criteria, pops, waves=waves)
 
-
-        # Loop over source populations and compute cross spectrum.
-        fmask = self.get_masks(masking_criteria, pops, waves=waves)
-
+        if type(selection_criteria) == np.ndarray:
+            fsel_allz = selection_criteria
+        else:
+            fsel_allz = self.get_galaxy_subsample(selection_criteria, pops=pops)
+        
         # Get full z-dependent number density
         num_pz = np.zeros((len(self.pops), len(waves), len(zarr)))
-        fsel_allz = self.get_galaxy_subsample(selection_criteria, pops=pops)
-        
+
+        # Loop over source populations and compute cross spectrum.
         for i, pop in enumerate(self.pops):
             if pops is not None:
                 if i not in pops:
@@ -614,7 +625,6 @@ class Simulation(object):
                 for k in range(len(waves)):
                     num_pz[i,k,:] = self.pops[i].get_num_from_fsel(fsel_allz[i] * (1 - fmask[k,i]))
 
-
         ##
         # Now get Limber integrand
         num_p = np.zeros((len(self.pops), len(waves), len(zbins)))
@@ -624,12 +634,30 @@ class Simulation(object):
             zlo = max(zlo, self.pf['final_redshift'])
             zhi = min(zhi, self.pf['initial_redshift'])
 
-            galaxy_prop = {'z': (zlo, zhi)}
-            galaxy_prop.update(selection_criteria)
+            #galaxy_prop = {'z': (zlo, zhi)}
+            #galaxy_prop.update(selection_criteria)
             
             ##
             # Need to determine fraction of halos that are selected 
-            fsel = self.get_galaxy_subsample(galaxy_prop, pops=pops)
+            # Can we just modify fsel_allz?
+            # Apply this redshift bin onto existing selection function
+            # (which will be z-dep through mag cut and any overarching z cut
+            # but won't know about this particular z bin).
+            fsel = []
+            for popid, pop in enumerate(pops):
+                tmp = np.zeros_like(fsel_allz[popid])
+                for iz, z in enumerate(zarr):
+                    if z < zbin[0]:
+                        continue
+                    if z > zbin[1]:
+                        continue
+                    
+                    tmp[iz] = fsel_allz[popid,iz,:,:]
+                
+                fsel.append(tmp)
+            fsel = np.array(fsel)
+
+            #fsel = self.get_galaxy_subsample(galaxy_prop, pops=pops)
 
             if np.all(fsel == 0):
                 print(f"! No galaxies found satisfying selection!")
@@ -661,6 +689,21 @@ class Simulation(object):
                         else:
                             fsel1b =1 - fmask[k][i] 
                             fsel2 = 1 - fmask[k][j]
+
+
+                        # Try to load from cache [optional]
+                        if (cache_ipop_mtx is not None) and include_inter_pop:
+                            _px, _pz = cache_ipop_mtx
+                            _npops = _px.shape[0]
+                            # If we're covered by the cache, use it
+                            if i < _npops:
+                                # Assumes cache_ipop_mtx is in 
+                                # same units as requested here!
+                                # Could add check later.
+                                #px[i,j,:,:] = _px[i,j,:,:] / to_ps_units
+                                ps_z[i,j,:,:,:] = _pz[i,j,:,:,:] / to_ps_units
+                                continue
+
                     
 
                         if j == 0:
