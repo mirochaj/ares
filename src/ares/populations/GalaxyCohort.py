@@ -7215,7 +7215,7 @@ class GalaxyCohort(GalaxyAggregate):
             Array of mean luminosities (computed via get_lum).
         fsel : np.ndarray
             Selection function. Should not include the effects of 
-            scatter yet.
+            scatter yet!
 
         Returns
         -------
@@ -7229,46 +7229,71 @@ class GalaxyCohort(GalaxyAggregate):
         ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
                                     lum > 0)
         
+        
         if fsel is None:
             fsel = np.ones_like(self.halos.tab_M)
 
-        is_simple_cut = False#np.unique(fsel).size <= 2
+        # If just zeros and ones, selection function is a tophat
+        # or heaviside function, which opens up possibility of
+        # analytic integrals.
+        if np.all(fsel == 0):
+            return np.zeros_like(self.halos.tab_M)
+        elif np.all(fsel) == 1:
+            return lum
 
-        larr = lum#10**np.arange(lmin, lmax, 0.01
-        lum[ok==0] = tiny_lum # avoid NaN
-        # log-normal PDF convolved with selection function
-        # should have shape (lum_m, larr)
-        if self.pf['pop_scatter_sfh'] > 0:
+        is_tophat_cut = np.unique(fsel).size <= 2
+        
+        # If selection function doesn't hit any galaxies at this
+        # redshift, the effective luminosity is just the luminosity
+        # and we're done.
+        # (remember, no weighting over HMF here: just accounting 
+        # for scattering out of selection window).
+        if is_tophat_cut:
+            dfsel = np.diff(fsel)
+            loc = np.argwhere(dfsel != 0)
+
+            ilo = np.min(loc)
+            ihi = np.max(loc)  
+            lum_lo = lum[ilo]
+            lum_hi = lum[ihi]
+
+            # Catch step function scenario
+            if ilo == ihi:
+                # Figure out whether step is up or down and 
+                # adjust lum_hi or lum_lo accordingly.
+                is_step_up = fsel[ilo+1] > fsel[ilo-1]
+                if is_step_up:
+                    lum_hi = np.inf
+                else:
+                    lum_lo = tiny_lum
+
+        # avoid NaN
+        lum[ok==0] = tiny_lum
+        
+        mu = np.log(lum)
+        sigma = self.pf['pop_scatter_sfh']
+        
+        if sigma > 0:
 
             # Note that for a simple mag cut (tophat, heaviside) we
             # can do this analytically.
-            if is_simple_cut:
-                mu = np.log(lum)
-                sigma = self.pf['pop_scatter_sfh']
-                
-
-
-                print('lum_eff is simple')
+            if is_tophat_cut:    
                 lum_eff = np.exp(mu + 0.5 * sigma**2) * (
-                    erfc((mu + sigma**2 - np.log()))
-
+                    erfc((mu + sigma**2 - np.log(lum_hi)) / sigma / root2) \
+                  - erfc((mu + sigma**2 - np.log(lum_lo)) / sigma / root2)
                 )
             else:   
-
-                ##
-                # Here, fsel should NOT include the scatter effects
-                # 
-                Lxpdf = fsel[:,None] * lum[:,None] \
-                    * lognormal(
-                        np.log(larr[None,:]), 
-                        np.log(lum[:,None]), 
-                        self.pf['pop_scatter_sfh']
-                    )
-                
-            ##
-            # In principle this can be done analytically for a 
-            # tophat selection function and lognormal PDF.
-            lum_eff = np.trapezoid(Lxpdf, x=np.log(larr), axis=1)
+                # I used to do some numpy voodoo like fsel[None,:] * lum[None,:]
+                # time lognormal and then integrate along the second axis 
+                # but it wasn't working so I'm just putting in a loop for now.    
+                lum_eff = np.zeros_like(self.halos.tab_M)
+                for i, MM in enumerate(self.halos.tab_M):
+                    Lxpdf = fsel * lum * lognormal(
+                            np.log(lum),
+                            np.log(lum[i]), 
+                            sigma, return_dndx=0
+                        )
+                    lum_eff[i] = np.trapezoid(Lxpdf, x=np.log(lum))
 
         else:
             lum_eff = fsel * lum
@@ -7277,7 +7302,8 @@ class GalaxyCohort(GalaxyAggregate):
         # Done
         return lum_eff
     
-    def get_ps_kernel(self, z, k, term, wave=None, wave2=None, isnum=0, fsel=1):
+    def get_ps_kernel(self, z, k, term, wave=None, wave2=None, isnum=0, 
+        fsel=1, selection_criteria=None):
         """
         Compute the "power spectrum kernel," i.e., the piece of the 
         power spectrum integrand that is often shared between shot,
@@ -7386,7 +7412,7 @@ class GalaxyCohort(GalaxyAggregate):
                 selection_criteria=_fsel if total_sat else None)
 
             if (not total_sat) and (not self.is_diffuse): 
-                lum1 = self.get_lum_eff(z, lum1, _fsel[:,0])
+                lum1 = self.get_lum_eff(z, lum1, _fsel[:,1])
 
             if wave2 is None:
                 lum2 = lum1
@@ -7473,7 +7499,8 @@ class GalaxyCohort(GalaxyAggregate):
                 # We could also have passed fsel into the `get_lum` call
                 # if we wanted to. Both would yield an effective luminosity
                 # properly weighted over the PDF of L(M) and abundance.
-                lum = pop2.get_lum_eff(z, lum_m, _fsel1[:,1] * _fsel2[:,1])
+                lum = pop2.get_lum_eff(z, lum_m, 
+                    _fsel1[:,1] * _fsel2[:,1])
 
                 f = dndlnm * lum
             else:
@@ -7492,7 +7519,8 @@ class GalaxyCohort(GalaxyAggregate):
                 lum_m = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
                     units_out='erg/s/Hz', total_sat=False,
                     selection_criteria=None)
-                lum = pop2.get_lum_eff(z, lum_m, _fsel1[:,1] * _fsel2[:,1])
+                lum = pop2.get_lum_eff(z, lum_m, 
+                    _fsel1[:,1] * _fsel2[:,1])
 
                 # Here we're integrating over the m_sat dimension, leaving
                 # behind f = the luminosity-weighted number of satellites
@@ -7570,7 +7598,8 @@ class GalaxyCohort(GalaxyAggregate):
                     band1 = wave1 if type(wave1) not in numeric_types else None
                     lum1_m = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
                         units_out='erg/s/Hz')
-                    lum1 = self.get_lum_eff(z, lum1_m, _fsel1[:,1] * _fsel2[:,1])
+                    lum1 = self.get_lum_eff(z, lum1_m, 
+                        _fsel1[:,1] * _fsel2[:,1])
             else:
                 focc = self.tab_focc[iz]
                 fsurv = self.tab_fsurv[iz]
@@ -7590,7 +7619,8 @@ class GalaxyCohort(GalaxyAggregate):
                     lum1_m = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
                         units_out='erg/s/Hz', total_sat=False)
                     
-                    lum1_eff = self.get_lum_eff(z, lum1_m, _fsel1[:,1] * _fsel2[:,1])
+                    lum1_eff = self.get_lum_eff(z, lum1_m, 
+                        _fsel1[:,1] * _fsel2[:,1])
 
                     lum1 = np.trapezoid(dndlnm_2d[:,:] * lum1_eff[None,:], 
                         dx=self.halos.dlnm, axis=1)
@@ -7613,7 +7643,8 @@ class GalaxyCohort(GalaxyAggregate):
                     if pop2.is_diffuse:
                         lum2 = lum2_m
                     else:
-                        lum2 = pop2.get_lum_eff(z, lum2_m, _fsel1[:,1] * _fsel2[:,1])
+                        lum2 = pop2.get_lum_eff(z, lum2_m, 
+                            _fsel1[:,1] * _fsel2[:,1])
             else:
                 focc = pop2.tab_focc[iz]
                 fsurv = pop2.tab_fsurv[iz]
@@ -7635,7 +7666,8 @@ class GalaxyCohort(GalaxyAggregate):
                     lum2_m = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
                         units_out='erg/s/Hz', total_sat=False)
                     
-                    lum2_eff = pop2.get_lum_eff(z, lum2_m, _fsel1[:,1] * _fsel2[:,1])
+                    lum2_eff = pop2.get_lum_eff(z, lum2_m, 
+                        _fsel1[:,1] * _fsel2[:,1])
 
                     lum2 = np.trapezoid(dndlnm_2d[:,:] * lum2_eff[None,:], 
                         dx=self.halos.dlnm, axis=1)
@@ -7869,7 +7901,7 @@ class GalaxyCohort(GalaxyAggregate):
     def _get_ps_obs(self, z, scale, wave_obs1, wave_obs2, 
         include_shot=True, include_1h=True, include_2h=True, raw=False,
         isnum1=0, isnum2=0, fsel1=1, fsel2=1,
-        nebular_only=False, pop2=None):
+        nebular_only=False, pop2=None, selection_criteria=None):
         """
         Compute integrand of angular power spectrum integral.
         """
@@ -7953,7 +7985,8 @@ class GalaxyCohort(GalaxyAggregate):
     
     def get_xs_obs(self, scale, wave_obs, zg, scale_units='ell',
         isnum1=0, isnum2=1, 
-        pop2=None, fsel1=None, fsel2=None, use_pb=True, **kwargs):
+        pop2=None, fsel1=None, fsel2=None, use_pb=True, 
+        selection_criteria=None, **kwargs):
         """
         Compute the cross-spectrum between EBL and target galaxy population.
         """
@@ -8001,6 +8034,7 @@ class GalaxyCohort(GalaxyAggregate):
                     wave_obs, wave_obs2=wave_obs, 
                     isnum1=isnum1, isnum2=isnum2,
                     fsel1=fsel1, fsel2=fsel2, pop2=pop2,
+                    selection_criteria=selection_criteria,
                     **kwargs)#, #raw=raw,
                     #nebular_only=nebular_only, #prof=prof)
 
