@@ -17,6 +17,7 @@ import numpy as np
 import numdifftools as nd
 from inspect import ismethod
 from ..util import ProgressBar
+from scipy.special import erfc
 from ..obs.Survey import Survey
 from ..analysis import ModelSet
 from scipy.optimize import fsolve
@@ -34,6 +35,8 @@ from ..util.Math import central_difference, interp1d_wrapper, \
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
     cm_per_pc, m_H, s_per_myr, Lsun
+
+root2 = np.sqrt(2.)
 
 try:
     from mpi4py import MPI
@@ -3915,7 +3918,8 @@ class GalaxyCohort(GalaxyAggregate):
 
             if not select_on_mag:
                 continue
-      
+            
+            single_cut = len(selection_criteria['mag']) == 1
             for h, selection in enumerate(selection_criteria['mag']):
                 cam_filt, cut = selection
 
@@ -3966,15 +3970,27 @@ class GalaxyCohort(GalaxyAggregate):
                 if (sigma == 0):
                     tmp_fsel[i,np.logical_and(Lh>=lum_lo, Lh<lum_hi),h,:] = 1
                     continue
-
+                
                 # Keep the mag cut in layer 1 and put the general
                 # solution in layer 0
                 tmp_fsel[i,:,h,1] = np.logical_and(Lh >= lum_lo,
                                                    Lh <  lum_hi)
-            
+                
+                mu = np.log(Lh)
+
+                ##
+                # If using simple mag cut, we can do this 
+                # analytically at each z.
+                if single_cut:
+                    tmp_fsel[i,:,h,0] = \
+                        0.5 * erfc((mu - ln_lum_hi) / sigma / root2) \
+                      - 0.5 * erfc((mu - ln_lum_lo) / sigma / root2)
+                    
+                    continue
+
                 ## Construct array of luminosity vs. halo mass (log it)
                 # Could be done analytically I think.
-                mu = np.log(Lh)
+                
                 for j, M in enumerate(self.halos.tab_M):
                     if M < self.get_Mmin(z):
                         tmp_fsel[i,j,h,0] = 0
@@ -3998,10 +4014,20 @@ class GalaxyCohort(GalaxyAggregate):
                     # Just do things via brute-force
                     # Used to be less careful but if PDF is sufficiently narrow
                     # a rough trapz can cause problems.
+                    # Note return_dndx=0 since we're integrating over ln(L)
                     tmp_fsel[i,j,h,0] = \
-                        quad(lambda lnL: lognormal(lnL, mu[j], sigma),
+                        quad(lambda lnL: lognormal(lnL, mu[j], sigma, return_dndx=0),
                             ln_lum_lo, ln_lum_hi)[0]
                     
+
+                    #anl = 0.5 \
+                    #    * erfc((mu[j] - ln_lum_hi) / sigma / root2) \
+                    # - 0.5 * erfc((mu[j] - ln_lum_lo) / sigma / root2)
+                    #
+#
+                    #print('analytic fsel', tmp_fsel[i,j,h,0], anl)
+
+
 
                 ##
                 # Done with mass loop
@@ -7206,29 +7232,50 @@ class GalaxyCohort(GalaxyAggregate):
         if fsel is None:
             fsel = np.ones_like(self.halos.tab_M)
 
+        is_simple_cut = False#np.unique(fsel).size <= 2
+
         larr = lum#10**np.arange(lmin, lmax, 0.01
         lum[ok==0] = tiny_lum # avoid NaN
         # log-normal PDF convolved with selection function
         # should have shape (lum_m, larr)
         if self.pf['pop_scatter_sfh'] > 0:
 
-            ##
-            # Here, fsel should NOT include the scatter effects
-            # 
-            Lxpdf = fsel[:,None] * lum[:,None] \
-                * lognormal(
-                    np.log(larr[None,:]), 
-                    np.log(lum[:,None]), 
-                    self.pf['pop_scatter_sfh']
+            # Note that for a simple mag cut (tophat, heaviside) we
+            # can do this analytically.
+            if is_simple_cut:
+                mu = np.log(lum)
+                sigma = self.pf['pop_scatter_sfh']
+                
+
+
+                print('lum_eff is simple')
+                lum_eff = np.exp(mu + 0.5 * sigma**2) * (
+                    erfc((mu + sigma**2 - np.log()))
+
                 )
-            
+            else:   
+
+                ##
+                # Here, fsel should NOT include the scatter effects
+                # 
+                Lxpdf = fsel[:,None] * lum[:,None] \
+                    * lognormal(
+                        np.log(larr[None,:]), 
+                        np.log(lum[:,None]), 
+                        self.pf['pop_scatter_sfh']
+                    )
+                
             ##
             # In principle this can be done analytically for a 
             # tophat selection function and lognormal PDF.
-            return np.trapezoid(Lxpdf, x=np.log(larr), axis=1)
+            lum_eff = np.trapezoid(Lxpdf, x=np.log(larr), axis=1)
 
         else:
-            return fsel * lum
+            lum_eff = fsel * lum
+
+        ##
+        # Done
+        return lum_eff
     
     def get_ps_kernel(self, z, k, term, wave=None, wave2=None, isnum=0, fsel=1):
         """
