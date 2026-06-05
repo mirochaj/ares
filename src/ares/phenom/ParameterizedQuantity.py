@@ -538,7 +538,7 @@ class LogTanhAbsEvolvingMidpoint(BasePQ):
 
         if self.t == "1+z":
             mid = self.args[2] \
-                + self.args[4] * ((1. + kwargs["z"]) / self.args[5])
+                + self.args[5] * ((1. + kwargs["z"]) / self.args[4])
         else:
             raise NotImplemented("help")
 
@@ -556,8 +556,8 @@ class LogTanhAbsEvolvingMidpointFloorCeiling(BasePQ):
 
         logx = np.log10(x)
 
-        hi = self.args[0] + self.args[6] * ((1. + kwargs['z']) / self.args[5])
-        lo = self.args[1] + self.args[7] * ((1. + kwargs['z']) / self.args[5])
+        hi = self.args[0] + self.args[5] * ((1. + kwargs['z']) / self.args[4])
+        lo = self.args[1] + self.args[6] * ((1. + kwargs['z']) / self.args[4])
 
         hi = np.minimum(hi, 1.)
         lo = np.maximum(lo, 0.)
@@ -566,7 +566,7 @@ class LogTanhAbsEvolvingMidpointFloorCeiling(BasePQ):
 
         if self.t == '1+z':
             mid = self.args[2] \
-                + self.args[4] * ((1. + kwargs['z']) / self.args[5])
+                + self.args[7] * ((1. + kwargs['z']) / self.args[4])
         else:
             raise NotImplemented('help')
 
@@ -616,6 +616,28 @@ class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
             t = 1 + kwargs['z']
         else:
             raise NotImplemented("help")
+        
+        hi = self.args[0] * (t / self.args[4])**self.args[5]
+        lo = self.args[1] * (t / self.args[4])**self.args[6]
+
+        mid= self.args[2] * (t / self.args[4])**self.args[7]
+        w  = self.args[3] * (t / self.args[4])**self.args[8]
+
+        step = (hi - lo) * 0.5
+
+        if self.t == "1+z":
+            mid = self.args[2] \
+                + self.args[4] * ((1. + kwargs["z"]) / self.args[5])
+        else:
+            raise NotImplemented("help")
+
+        y = lo \
+          + step * (np.tanh((mid - logx) / w) + 1.)
+
+
+        return y
+        ##
+        # OLd below here
 
         lo = self.args[0] * (t / self.args[4])**self.args[5]
         hi = self.args[1] * (t / self.args[4])**self.args[6]

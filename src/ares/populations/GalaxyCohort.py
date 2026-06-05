@@ -7986,7 +7986,7 @@ class GalaxyCohort(GalaxyAggregate):
     def get_xs_obs(self, scale, wave_obs, zg, scale_units='ell',
         isnum1=0, isnum2=1, 
         pop2=None, fsel1=None, fsel2=None, use_pb=True, 
-        selection_criteria=None, **kwargs):
+        **kwargs):
         """
         Compute the cross-spectrum between EBL and target galaxy population.
         """
@@ -8034,7 +8034,6 @@ class GalaxyCohort(GalaxyAggregate):
                     wave_obs, wave_obs2=wave_obs, 
                     isnum1=isnum1, isnum2=isnum2,
                     fsel1=fsel1, fsel2=fsel2, pop2=pop2,
-                    selection_criteria=selection_criteria,
                     **kwargs)#, #raw=raw,
                     #nebular_only=nebular_only, #prof=prof)
 
