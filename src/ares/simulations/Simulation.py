@@ -1029,11 +1029,6 @@ class Simulation(object):
                     W_g = n_vs_zall / n_in_zbin / ((c / cm_per_mpc) / Hofz)
                     W_I = (freqs[j] / dnu[j]) / (4. * np.pi) / (1 + zarr)**2 
 
-                    #print('doing limber integral', j, zlo, zhi, n_in_zbin, 
-                    #    n_vs_zall[np.logical_and(self.halos.tab_z >= zlo, self.halos.tab_z <= zhi)])
-                    #
-                    #print('checking W_I', j, W_I)
-
                     # The None slicing here is to match the first axis of
                     # `ps3d` which is ell.
                     limber_integ = dchi_dz_dsq[None,:] * W_g[None,:] * W_I[None,:] \
@@ -1053,14 +1048,6 @@ class Simulation(object):
                             fill_value=0)
                         ps_2d[k,j,i] = integrate_with_subgrid_interp(zarr, 
                             limb, zlo, zhi)
-                        #ps_2d[k,j,i] = integrate_with_subgrid_interp(zarr, 
-                        #    limber_integ[k,:], zlo, zhi)
-                        
-                        #print('limber result:', [zlo, zhi], waves[j], k, ps_2d[k,j,i])
-#
-                        #print('limber integrand:', 
-                        #    limber_integ[k][np.logical_and(self.halos.tab_z >= zlo, self.halos.tab_z <= zhi)])
-                        #input('<enter>')
                         
                         ##
                         # Save by population too
