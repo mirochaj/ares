@@ -381,7 +381,7 @@ class Simulation(object):
                     _px, _pz = cache_ipop_mtx
                     _npops = _px.shape[0]
                     # If we're covered by the cache, use it
-                    if i < _npops:
+                    if (i < _npops) and (j < _npops):
                         # Assumes cache_ipop_mtx is in 
                         # same units as requested here!
                         # Could add check later.
@@ -515,7 +515,7 @@ class Simulation(object):
         return self._fmask
 
     def get_ebl_x_galaxies(self, scales, waves, zbins, 
-        selection_criteria, masking_criteria,
+        selection_criteria, masking_criteria, masking_symmetric=True,
         wave_units='mic', flux_units='SI', pops=None,
         cache_ipop_mtx=None, **kwargs):
         """
@@ -541,6 +541,11 @@ class Simulation(object):
             Like `selection_criteria`, but defines the properties of galaxies
             to be masked out. Can also pass an array if you have already
             mapped the criteria into an array via `get_masks`.
+        masking_symmetric : bool
+            If True, galaxies that satisfy the masking criteria will also
+            be removed from the target galaxy catalog. If False, ONLY 
+            galaxies that abide by the selection criteria will be included
+            in the cross-correlation with no regard for the mask.
         pops : list, tuple
             If provided, sets the ID numbers of populations that will be
             included in the model. In other words, any population *not* included
@@ -589,11 +594,11 @@ class Simulation(object):
             raise NotImplemented('help')
         
         if flux_units.lower() == 'si':
-            to_ps_units = cm_per_m**2 / erg_per_s_per_nW
+            to_ps_units = cm_per_m**2 / erg_per_s_per_nW / cm_per_mpc**2
         elif flux_units.lower() == 'mjy':
-            to_ps_units = 1e17
+            to_ps_units = 1e17 / cm_per_mpc**2
         elif flux_units.lower() == 'cgs':
-            to_ps_units = 1
+            to_ps_units = 1. / cm_per_mpc**2
         else:
             raise NotImplemented('help')
 
@@ -695,34 +700,36 @@ class Simulation(object):
                             fsel1b =1 - fmask[k][i] 
                             fsel2 = 1 - fmask[k][j]
 
+                        if j == 0:
+                            num_p[i,k,h] = self.pops[i].get_num_from_fsel(
+                                fsel1 * fsel1b, 
+                                zbin=zbin)
 
                         # Try to load from cache [optional]
                         if (cache_ipop_mtx is not None):
                             _px, _pz = cache_ipop_mtx
                             _npops = _px.shape[0]
                             # If we're covered by the cache, use it
-                            if i < _npops:
+                            if (i < _npops) and (j < _npops):
                                 # Assumes cache_ipop_mtx is in 
                                 # same units as requested here!
                                 # Could add check later.
                                 #px[i,j,:,:] = _px[i,j,:,:] / to_ps_units
-                                ps_z[i,j,:,:,:] = _pz[i,j,:,:,:] / to_ps_units
+                                # ps_z is (pops, pops, scales, waves, zbins, zarr)
+                                ps_z[i,j,:,k,h,:] = _pz[i,j,:,k,h,:] / to_ps_units
+                                
                                 continue
+                                # Should continue
 
-                    
-
-                        if j == 0:
-                            num_p[i,k,h] = self.pops[i].get_num_from_fsel(
-                                fsel1 * fsel1b, 
-                                zbin=zbin)
-                        
-                        # (pops, pops, scales, waves, zbin, zall)
+                        # (scales, waves, zbin, zall)
                         ps_z[i,j,:,k,h,:] = pop.get_xs_obs(scales,
                             wave_obs=wave, zg=zbin, 
                             isnum1=1, isnum2=0,
                             fsel1=fsel1, fsel2=fsel2,
                             pop2=popx, 
                             **kwargs)
+                        
+                        
                         
 
 
@@ -732,9 +739,9 @@ class Simulation(object):
             waves=waves, zbins=zbins, num=num_pz)
 
         # Modify units
-        ps_z *= to_ps_units / cm_per_mpc**2
-        ps *= to_ps_units / cm_per_mpc**2
-        ps_by_pop *= to_ps_units / cm_per_mpc**2
+        ps_z *= to_ps_units
+        ps *= to_ps_units
+        ps_by_pop *= to_ps_units
         
         self.num_by_pop = num_p
         self.num_by_pop_z = num_pz
