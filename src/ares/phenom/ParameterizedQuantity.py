@@ -625,35 +625,8 @@ class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
 
         step = (hi - lo) * 0.5
 
-        if self.t == "1+z":
-            mid = self.args[2] \
-                + self.args[4] * ((1. + kwargs["z"]) / self.args[5])
-        else:
-            raise NotImplemented("help")
-
-        y = lo \
-          + step * (np.tanh((mid - logx) / w) + 1.)
-
-
-        return y
-        ##
-        # OLd below here
-
-        lo = self.args[0] * (t / self.args[4])**self.args[5]
-        hi = self.args[1] * (t / self.args[4])**self.args[6]
-
-        mid= self.args[2] * (t / self.args[4])**self.args[7]
-        w  = self.args[3] * (t / self.args[4])**self.args[8]
-
-        hi = hi#np.minimum(hi, 1.)
-        lo = np.maximum(lo, 0.)
+        y = lo + step * (np.tanh((mid - logx) / w) + 1.)
         
-        step = (hi - lo)
-
-        # tanh(x) goes from -1 to 1 as x goes from -inf to inf.
-        # So, for logx < mid
-        y = lo + step * 0.5 * (np.tanh((logx - mid) / w) + 1.)
-
         return y
 
 class LogTanhAbsEvolvingMidpointFloorCeilingWidthFlex(BasePQ):

@@ -257,7 +257,7 @@ class Simulation(object):
 
         Optional keyword arguments
         --------------------------
-        The `get_ps_obs` methods within ares.populations objects take a
+        The `get_ps_3d` methods within ares.populations objects take a
         number of optional arguments that control the output. These include:
 
         include_1h : bool
@@ -398,7 +398,7 @@ class Simulation(object):
 
                     # Will default to 1h + 2h + shot
                     if j == i:
-                        ps_z[i,j,:,k,:] = pop.get_ps_obs(scales,
+                        ps_z[i,j,:,k,:] = pop.get_ps_3d(scales,
                             wave_obs1=xmic[k], wave_obs2=xmic2[k],
                             fsel1=fsel1,
                             **kwargs)
@@ -416,7 +416,7 @@ class Simulation(object):
 
                     ##
                     # Cross terms only from here on
-                    ps_z[i,j,:,k,:] = pop.get_ps_obs(scales,
+                    ps_z[i,j,:,k,:] = pop.get_ps_3d(scales,
                         wave_obs1=xmic[k], wave_obs2=xmic2[k],
                         fsel1=fsel1, fsel2=fsel2,
                         pop2=popx, **kwargs)
@@ -500,7 +500,8 @@ class Simulation(object):
         # Need to determine fraction of halos that are masked
         if masking_criteria is None:
             print(f"! WARNING: did you mean not to provide a mask?")
-            fmask = np.zeros(len(self.pops))
+            fmask = np.zeros((len(self.pops), 
+                len(self.halos.tab_z), len(self.halos.tab_M), 2))
         else:
             if type(masking_criteria) == dict:
                 fmask = self.get_galaxy_subsample(masking_criteria, pops=pops, 
@@ -631,14 +632,20 @@ class Simulation(object):
             if pops is not None:
                 if i not in pops:
                     continue
-
+                
             if type(masking_criteria) in [dict, NoneType]:
-                num_i = self.pops[i].get_num_from_fsel(fsel_allz[i] * (1 - fmask[i]))
+                num_i = self.pops[i].get_num_from_fsel(
+                    fsel_allz[i] * (1 - fmask[i]) if masking_symmetric \
+                    else fsel_allz[i] 
+                )
                 for k in range(len(waves)):
                     num_pz[i,k,:] = num_i.copy()
             else:
                 for k in range(len(waves)):
-                    num_pz[i,k,:] = self.pops[i].get_num_from_fsel(fsel_allz[i] * (1 - fmask[k,i]))
+                    num_pz[i,k,:] = self.pops[i].get_num_from_fsel(
+                        fsel_allz[i] * (1 - fmask[k,i] if masking_symmetric \
+                        else fsel_allz[i])
+                    )
 
         ##
         # Now get Limber integrand for each zbin/channel pair.
@@ -661,7 +668,7 @@ class Simulation(object):
                 for iz, z in enumerate(zarr):
                     if z < zbin[0]:
                         continue
-                    if z > zbin[1]:
+                    if z >= zbin[1]:
                         continue
                     
                     tmp[iz] = fsel_allz[popid,iz,:,:]
@@ -694,15 +701,15 @@ class Simulation(object):
 
                     for k, wave in enumerate(waves):
                         if type(masking_criteria) in [dict, NoneType]:
-                            fsel1b =1 - fmask[i] 
-                            fsel2 = 1 - fmask[j]
+                            fsel1b = 1 - fmask[i] 
+                            fsel2  = 1 - fmask[j]
                         else:
-                            fsel1b =1 - fmask[k][i] 
-                            fsel2 = 1 - fmask[k][j]
+                            fsel1b = 1 - fmask[k][i] 
+                            fsel2  = 1 - fmask[k][j]
 
                         if j == 0:
                             num_p[i,k,h] = self.pops[i].get_num_from_fsel(
-                                fsel1 * fsel1b, 
+                                fsel1 * fsel1b if masking_symmetric else fsel1, 
                                 zbin=zbin)
 
                         # Try to load from cache [optional]
@@ -722,17 +729,14 @@ class Simulation(object):
                                 # Should continue
 
                         # (scales, waves, zbin, zall)
-                        ps_z[i,j,:,k,h,:] = pop.get_xs_obs(scales,
+                        ps_z[i,j,:,k,h,:] = pop.get_xs_3d(scales,
                             wave_obs=wave, zg=zbin, 
                             isnum1=1, isnum2=0,
                             fsel1=fsel1, fsel2=fsel2,
                             pop2=popx, 
+                            masking_symmetric=masking_symmetric,
                             **kwargs)
                         
-                        
-                        
-
-
         ##
         # Final step: integrate along redshift axis.
         ps, ps_by_pop = self.get_limber_integral(ps_z,
@@ -867,7 +871,7 @@ class Simulation(object):
                         if j not in pops:
                             continue
                     
-                    ps_z[i,j,:,h,:] = pop.get_xs_obs(scales,
+                    ps_z[i,j,:,h,:] = pop.get_xs_3d(scales,
                         wave_obs=None, zg=zbin, 
                         isnum1=1, isnum2=1,
                         fsel1=fsel[i,:,:], fsel2=fsel[j,:,:],
@@ -1049,7 +1053,7 @@ class Simulation(object):
                         # (provided by user) don't line up exactly 
                         # with the redshift points in our grid, which
                         # is essentially always since the z gridding 
-                        # is not even (usually in fixed time or logx)
+                        # is not even (usually in fixed time or log[1+z])
 
                         limb = np.ma.array(limber_integ[k], mask=n_vs_zall==0,
                             fill_value=0)
