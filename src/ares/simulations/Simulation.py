@@ -643,8 +643,8 @@ class Simulation(object):
             else:
                 for k in range(len(waves)):
                     num_pz[i,k,:] = self.pops[i].get_num_from_fsel(
-                        fsel_allz[i] * (1 - fmask[k,i] if masking_symmetric \
-                        else fsel_allz[i])
+                        fsel_allz[i] * (1 - fmask[k,i]) if masking_symmetric \
+                        else fsel_allz[i]
                     )
 
         ##

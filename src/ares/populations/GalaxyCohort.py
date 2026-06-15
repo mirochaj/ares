@@ -7487,7 +7487,7 @@ class GalaxyCohort(GalaxyAggregate):
             _fsel_union = _fsel1 * _fsel2
 
             # Don't think we need is_diffuse here anymore
-            if self.is_central_pop or self.is_diffuse:
+            if self.is_central_pop:
                 dndlnm = self.halos.tab_dndlnm[iz] * self.tab_focc[iz]
 
                 if masking_symmetric:
@@ -7529,6 +7529,8 @@ class GalaxyCohort(GalaxyAggregate):
                     selection_criteria=None)
                 lum = pop2.get_lum_eff(z, lum_m, 
                     _fsel_union[:,1] if masking_symmetric else _fsel2[:,1])
+
+                #lum = pop2.get_lum_eff(z, lum_m, _fsel2[:,1])
 
                 # Here we're integrating over the m_sat dimension, leaving
                 # behind f = the luminosity-weighted number of satellites
@@ -7583,16 +7585,27 @@ class GalaxyCohort(GalaxyAggregate):
             _fsel1 = self._get_fsel(fsel1, z=z)
             _fsel2 = pop2._get_fsel(fsel2, z=z)
 
+            _fsel_union = _fsel1 * _fsel2
+
             ##
             # Always start with the DM halo abundance
             dndlnm = self.halos.tab_dndlnm[iz].copy()
 
             # For centrals, modulate by occupation fraction and selection
-            if (self.is_central_pop or self.is_diffuse):
-                # FYI, if self.is_diffuse==True, _fsel1 will be unity
+            #if (self.is_central_pop or self.is_diffuse):
+            #    # FYI, if self.is_diffuse==True, _fsel1 will be unity
+            #    dndlnm *= self.tab_focc[iz] * _fsel1[:,0]
+            #    # Don't hit diffuse emission with mask for now.
+            #    if masking_symmetric and (not self.is_diffuse):
+            #        dndlnm *= _fsel2[:,0]
+
+            if self.is_central_pop:
+                # Recall that IHL is not is_central_pop
                 dndlnm *= self.tab_focc[iz] * _fsel1[:,0]
                 # Don't hit diffuse emission with mask for now.
-                if masking_symmetric and (not self.is_diffuse):
+                # For symmetric mask, masked galaxies removed from 
+                # the galaxy catalog.
+                if masking_symmetric:
                     dndlnm *= _fsel2[:,0]
 
             ##
@@ -7600,6 +7613,7 @@ class GalaxyCohort(GalaxyAggregate):
             # For centrals, 
             if self.is_central_pop:
                 if isnum1:
+                    # `lum1` really galaxy occupation number
                     lum1 = 1.
                 else:
                     # At some point, wasn't clear if this would ever
@@ -7619,7 +7633,10 @@ class GalaxyCohort(GalaxyAggregate):
                 dndlnm_2d = self.halos.tab_dndlnm[iz][:,None]  \
                            * self.halos.tab_dndlnm_sub \
                            * focc[None,:] * fsurv[None,:] \
-                           * _fsel1[:,0][None,:] * _fsel2[:,0][None,:]
+                           * _fsel1[:,0][None,:] 
+                
+                if masking_symmetric:
+                    dndlnm_2d *= _fsel2[:,0][None,:]
 
                 if isnum1:
                     # Latent assumption here is that satellites are
@@ -7668,11 +7685,11 @@ class GalaxyCohort(GalaxyAggregate):
                 fsurv = pop2.tab_fsurv[iz]
                 dndlnm_2d = self.halos.tab_dndlnm[iz][:,None]  \
                            * self.halos.tab_dndlnm_sub \
-                           * focc[None,:] * fsurv[None,:] \
-                           * _fsel1[:,0][None,:] * _fsel2[:,0][None,:]
+                           * focc[None,:] * fsurv[None,:]
                 
                 # If isnum2, we're doing galaxy/galaxy autos
                 if isnum2:
+                    dndlnm_2d *= _fsel2[:,0][None,:]
                     
                     # Latent assumption here is that satellites are
                     # agnostic about their central -- eventually could
