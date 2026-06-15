@@ -109,17 +109,20 @@ class Survey(object):
         if not hasattr(self, '_throughput_cache'):
             self._throughput_cache = {}
 
+        if filters is None:
+            filters = []
+
         _data = {}
         got_filt = 0
         for filter in filters:
-            if filter not in self._throughput_cache:
+            if filter not in self._throughput_cache.keys():
                 continue
 
             _data[filter] = self._throughput_cache[filter]
             got_filt += 1
 
         # If all throughputs were in the cache, we're done.
-        if got_filt == len(filters):
+        if (got_filt == len(filters)) and (got_filt > 0):
             return _data
         # Otherwise, proceed with I/O
         elif self.camera in ['nircam', 'jwst']:
