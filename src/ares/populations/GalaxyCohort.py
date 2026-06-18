@@ -2956,7 +2956,9 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 raise NotImplementedError(f'Problem with units_out={units_out}')
 
-            ok = self.halos.tab_M >= self.get_Mmin(z)
+            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z), 
+                                self.halos.tab_M < self.get_Mmax(z))
+            
             #if (self.pf['pop_scatter_sfh'] == 0) or (not self.pf['pop_mask_use_adv']):
             #    ok *= self.halos.tab_M < self.get_Mmax(z)
 
@@ -3846,10 +3848,14 @@ class GalaxyCohort(GalaxyAggregate):
 
         # This is like an occupation fraction, i.e., it's the fraction of
         # galaxies in a given halo mass bin that satisfy our cut.
+        #if is_mask:
+        #    tab_fsel = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size, 2))
+        #else:
+        
         tab_fsel = np.ones((self.halos.tab_z.size, self.halos.tab_M.size, 2))
         if (selection_criteria is None) or (self.is_diffuse):
             return tab_fsel
-
+        
         ##
         # Otherwise, general case
         #if self.pf['pop_mask_wave'] is not None:
@@ -3992,7 +3998,7 @@ class GalaxyCohort(GalaxyAggregate):
                 # Could be done analytically I think.
                 
                 for j, M in enumerate(self.halos.tab_M):
-                    if M < self.get_Mmin(z):
+                    if (M < self.get_Mmin(z)) or (M > self.get_Mmax(z)):
                         tmp_fsel[i,j,h,0] = 0
                         continue
 
@@ -7242,9 +7248,11 @@ class GalaxyCohort(GalaxyAggregate):
         if is_tophat_cut:
             dfsel = np.diff(fsel)
             loc = np.argwhere(dfsel != 0)
-
-            ilo = np.min(loc)
-            ihi = np.max(loc)  
+            
+            # On the low side min(loc) will give us the last
+            # element where fsel==0, so add one
+            ilo = np.min(loc)+1
+            ihi = np.max(loc)
             lum_lo = lum[ilo]
             lum_hi = lum[ihi]
 
@@ -7258,6 +7266,7 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
                     lum_lo = tiny_lum
 
+        ##
         # avoid NaN
         lum[ok==0] = tiny_lum
         
@@ -7268,12 +7277,12 @@ class GalaxyCohort(GalaxyAggregate):
 
             # Note that for a simple mag cut (tophat, heaviside) we
             # can do this analytically.
-            if is_tophat_cut:    
+            if is_tophat_cut:
                 lum_eff = np.exp(mu + 0.5 * sigma**2) * (
                     erfc((mu + sigma**2 - np.log(lum_hi)) / sigma / root2) \
                   - erfc((mu + sigma**2 - np.log(lum_lo)) / sigma / root2)
                 )
-            else:   
+            else:
                 # I used to do some numpy voodoo like fsel[None,:] * lum[None,:]
                 # time lognormal and then integrate along the second axis 
                 # but it wasn't working so I'm just putting in a loop for now.    
@@ -7431,7 +7440,8 @@ class GalaxyCohort(GalaxyAggregate):
         return f
 
     def get_ps_sh(self, z, k, wave1, wave2, isnum1=0, isnum2=0, 
-        fsel1=1, fsel2=1, pop2=None, masking_symmetric=True):
+        fsel1=1, fsel2=1, pop2=None, 
+        selection_symmetric=False, masking_symmetric=True):
         """
         Compute the shot power in 3-D.
         """
@@ -7486,6 +7496,18 @@ class GalaxyCohort(GalaxyAggregate):
             # snuff out galaxies that _fsel_union would take care of.
             _fsel_union = _fsel1 * _fsel2
 
+            # Non-standard option: only include luminosity of untargeted sources
+            if selection_symmetric == -1:
+                _fmask_union = (1 - _fsel1) * _fsel2
+            # Default: selection function has no impact on mask
+            elif selection_symmetric == 0:
+                _fmask_union = _fsel2
+            # Non-standard option: only include luminosity of targeted sources
+            elif selection_symmetric == 1:
+                _fmask_union = _fsel1 * _fsel2
+            else:
+                raise NotImplementedError('help')
+
             # Don't think we need is_diffuse here anymore
             if self.is_central_pop:
                 dndlnm = self.halos.tab_dndlnm[iz] * self.tab_focc[iz]
@@ -7502,8 +7524,7 @@ class GalaxyCohort(GalaxyAggregate):
                 # We could also have passed fsel into the `get_lum` call
                 # if we wanted to. Both would yield an effective luminosity
                 # properly weighted over the PDF of L(M) and abundance.
-                lum = pop2.get_lum_eff(z, lum_m, 
-                    _fsel_union[:,1] if masking_symmetric else _fsel2[:,1])
+                lum = pop2.get_lum_eff(z, lum_m, _fmask_union[:,1])
 
                 f = dndlnm * lum
             else:
@@ -7523,14 +7544,10 @@ class GalaxyCohort(GalaxyAggregate):
                 # Latent assumption here is that satellites are
                 # agnostic about their central -- eventually could
                 # add another focc factor
-
                 lum_m = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
                     units_out='erg/s/Hz', total_sat=False,
                     selection_criteria=None)
-                lum = pop2.get_lum_eff(z, lum_m, 
-                    _fsel_union[:,1] if masking_symmetric else _fsel2[:,1])
-
-                #lum = pop2.get_lum_eff(z, lum_m, _fsel2[:,1])
+                lum = pop2.get_lum_eff(z, lum_m, _fmask_union[:,1])
 
                 # Here we're integrating over the m_sat dimension, leaving
                 # behind f = the luminosity-weighted number of satellites
@@ -7551,7 +7568,8 @@ class GalaxyCohort(GalaxyAggregate):
         return np.trapezoid(f, x=self.halos.tab_lnM)
     
     def get_ps_1h(self, z, k, wave1, wave2, isnum1=0, 
-        fsel1=1, isnum2=None, fsel2=None, pop2=None, masking_symmetric=True):
+        fsel1=1, isnum2=None, fsel2=None, pop2=None, 
+        selection_symmetric=False, masking_symmetric=True):
         """
         Compute the 1-halo power spectrum in 3-D.
         """
@@ -7586,6 +7604,18 @@ class GalaxyCohort(GalaxyAggregate):
             _fsel2 = pop2._get_fsel(fsel2, z=z)
 
             _fsel_union = _fsel1 * _fsel2
+            
+            # Non-standard option: only include luminosity of untargeted sources
+            if selection_symmetric == -1:
+                _fmask_union = (1 - _fsel1) * _fsel2
+            # Default: selection function has no impact on mask
+            elif selection_symmetric == 0:
+                _fmask_union = _fsel2
+            # Non-standard option: only include luminosity of targeted sources
+            elif selection_symmetric == 1:
+                _fmask_union = _fsel1 * _fsel2
+            else:
+                raise NotImplementedError('help')
 
             ##
             # Always start with the DM halo abundance
@@ -7599,19 +7629,17 @@ class GalaxyCohort(GalaxyAggregate):
             #    if masking_symmetric and (not self.is_diffuse):
             #        dndlnm *= _fsel2[:,0]
 
+            # Note: no IHL case for `self` -- no contribution
+            # to galaxy field.
             if self.is_central_pop:
                 # Recall that IHL is not is_central_pop
                 dndlnm *= self.tab_focc[iz] * _fsel1[:,0]
-                # Don't hit diffuse emission with mask for now.
-                # For symmetric mask, masked galaxies removed from 
-                # the galaxy catalog.
                 if masking_symmetric:
                     dndlnm *= _fsel2[:,0]
-
-            ##
-            # Now, need to assign lum1 (or if isnum, <N>)
-            # For centrals, 
-            if self.is_central_pop:
+            
+                ##
+                # Now, need to assign lum1 (or if isnum, <N>)
+                # For centrals, 
                 if isnum1:
                     # `lum1` really galaxy occupation number
                     lum1 = 1.
@@ -7625,8 +7653,7 @@ class GalaxyCohort(GalaxyAggregate):
                     band1 = wave1 if type(wave1) not in numeric_types else None
                     lum1_m = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
                         units_out='erg/s/Hz')
-                    lum1 = self.get_lum_eff(z, lum1_m, 
-                        _fsel1[:,1] * _fsel2[:,1])
+                    lum1 = self.get_lum_eff(z, lum1_m, _fmask_union[:,1])
             else:
                 focc = self.tab_focc[iz]
                 fsurv = self.tab_fsurv[iz]
@@ -7634,6 +7661,8 @@ class GalaxyCohort(GalaxyAggregate):
                            * self.halos.tab_dndlnm_sub \
                            * focc[None,:] * fsurv[None,:] \
                            * _fsel1[:,0][None,:] 
+                # Doesn't matter if central is selected!
+                # Hence a single _fsel1 factor (not _fsel1^2)
                 
                 if masking_symmetric:
                     dndlnm_2d *= _fsel2[:,0][None,:]
@@ -7649,8 +7678,7 @@ class GalaxyCohort(GalaxyAggregate):
                     lum1_m = self.get_lum(z, x=wave1, band=band1, units='Angstrom', 
                         units_out='erg/s/Hz', total_sat=False)
                     
-                    lum1_eff = self.get_lum_eff(z, lum1_m, 
-                        _fsel1[:,1] * _fsel2[:,1])
+                    lum1_eff = self.get_lum_eff(z, lum1_m, _fmask_union[:,1])
 
                     lum1 = np.trapezoid(dndlnm_2d[:,:] * lum1_eff[None,:], 
                         dx=self.halos.dlnm, axis=1)
@@ -7658,6 +7686,9 @@ class GalaxyCohort(GalaxyAggregate):
             # This will be a delta function for centrals and NFW for sats
             uofk1 = self.get_prof(z, k)
 
+            ##
+            # On to the intensity piece of the cross.
+            # Now we do have a diffuse treatment.
             if pop2.is_central_pop or pop2.is_diffuse:
                 # If isnum2, we're doing galaxy/galaxy autos
                 if isnum2:
@@ -7669,41 +7700,45 @@ class GalaxyCohort(GalaxyAggregate):
                     lum2_m = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
                         units_out='erg/s/Hz')
                     
-                    # No selection or masking (yet) for IHL
+                    # We only get 1-h contributions from halos whose corresponding
+                    # `fsel1` values are > 0.
                     if pop2.is_diffuse:
-                        lum2 = lum2_m
+                        # 
+                        #lum2 = lum2_m
+                        lum2 = pop2.get_lum_eff(z, lum2_m, _fmask_union[:,1])
                     else:
-                        # Intensity field should NOT get hit with the
-                        # selection function for galaxies.
-                        # In practice, it may *effectively* get hit 
-                        # with _fsel1, e.g., if the mask is defined 
-                        # from the target catalog, but in general
-                        # this need not be the case.
-                        lum2 = pop2.get_lum_eff(z, lum2_m, _fsel2[:,1])
+                        # 
+                        lum2 = pop2.get_lum_eff(z, lum2_m, _fmask_union[:,1])
             else:
                 focc = pop2.tab_focc[iz]
                 fsurv = pop2.tab_fsurv[iz]
                 dndlnm_2d = self.halos.tab_dndlnm[iz][:,None]  \
                            * self.halos.tab_dndlnm_sub \
                            * focc[None,:] * fsurv[None,:]
-                
+
                 # If isnum2, we're doing galaxy/galaxy autos
-                if isnum2:
-                    dndlnm_2d *= _fsel2[:,0][None,:]
-                    
+                if isnum2:                    
+                    dndlnm_2d *= _fsel1[:,0][None,:]
+                    if masking_symmetric:
+                        dndlnm_2d *= _fsel2[:,0][None,:]
                     # Latent assumption here is that satellites are
                     # agnostic about their central -- eventually could
                     # add another focc factor.
                     # We integrate along Mh,sat
                     lum2 = np.trapezoid(dndlnm_2d, dx=self.halos.dlnm, axis=1)
+                # Otherwise, galaxy/EBL cross
                 else:
+                    # In this case satellites know about masking but not the
+                    # selection function.
+                    dndlnm_2d *= _fsel2[:,0][None,:]
+
                     band2 = wave2 if type(wave2) not in numeric_types else None
                     lum2_m = pop2.get_lum(z, x=wave2, band=band2, units='Angstrom', 
                         units_out='erg/s/Hz', total_sat=False)
                     
                     # See not in central/diffuse block above about 
                     # _fsel1 NOT hitting the intensity field.
-                    lum2_eff = pop2.get_lum_eff(z, lum2_m, _fsel2[:,1])
+                    lum2_eff = pop2.get_lum_eff(z, lum2_m, _fmask_union[:,1])
 
                     lum2 = np.trapezoid(dndlnm_2d[:,:] * lum2_eff[None,:], 
                         dx=self.halos.dlnm, axis=1)
@@ -7717,7 +7752,7 @@ class GalaxyCohort(GalaxyAggregate):
         return np.trapezoid(f, x=self.halos.tab_lnM)
         
     def get_ps_2h(self, z, k, wave1, wave2, isnum1=0, isnum2=0, 
-        fsel1=1, fsel2=1, pop2=None, masking_symmetric=True):
+        fsel1=1, fsel2=1, pop2=None, selection_symmetric=False, masking_symmetric=True):
         """
         Compute the 2-halo power spectrum in 3-D.
         """
@@ -7725,8 +7760,20 @@ class GalaxyCohort(GalaxyAggregate):
         # For crosses, may need combined mask
         if isnum1 + isnum2 == 1:
             fsel_union = fsel1 * fsel2
+            # Non-standard option: only include luminosity of untargeted sources
+            if selection_symmetric == -1:
+                _fmask_union = (1 - fsel1) * fsel2
+            # Default: selection function has no impact on mask
+            elif selection_symmetric == 0:
+                _fmask_union = fsel2
+            # Non-standard option: only include luminosity of targeted sources
+            elif selection_symmetric == 1:
+                _fmask_union = fsel1 * fsel2
+            else:
+                raise NotImplementedError('help')
         else:
             fsel_union = fsel1
+            _fmask_union = 1
 
         if self.pf['pop_include_2h']:
             f1 = self.get_ps_kernel(z, k, term=2, wave=wave1, 
@@ -7749,7 +7796,7 @@ class GalaxyCohort(GalaxyAggregate):
         if is_inter_pop:
             if pop2.pf['pop_include_2h']:
                 f2 = pop2.get_ps_kernel(z, k, term=2, wave=wave2,
-                    isnum=isnum2, fsel=fsel2)
+                    isnum=isnum2, fsel=_fmask_union if selection_symmetric else fsel2)
             else:
                 return 0
 
@@ -7943,7 +7990,7 @@ class GalaxyCohort(GalaxyAggregate):
     def _get_ps_3d(self, z, scale, wave_obs1, wave_obs2, 
         include_shot=True, include_1h=True, include_2h=True, raw=False,
         isnum1=0, isnum2=0, fsel1=1, fsel2=1,
-        masking_symmetric=True,
+        selection_symmetric=False, masking_symmetric=True,
         nebular_only=False, pop2=None, selection_criteria=None):
         """
         Compute integrand of angular power spectrum integral.
@@ -8000,6 +8047,7 @@ class GalaxyCohort(GalaxyAggregate):
                 #nebular_only=False, 
                 isnum1=isnum1, isnum2=isnum2, 
                 fsel1=fsel1, fsel2=fsel2,
+                selection_symmetric=selection_symmetric,
                 masking_symmetric=masking_symmetric,
                 pop2=pop2)
             ps3d += ps_2h
@@ -8009,6 +8057,7 @@ class GalaxyCohort(GalaxyAggregate):
                 #raw=self.pf['pop_1h_nebular_only'], 
                 isnum1=isnum1, isnum2=isnum2, 
                 fsel1=fsel1, fsel2=fsel2,
+                selection_symmetric=selection_symmetric,
                 masking_symmetric=masking_symmetric,
                 pop2=pop2)
             
@@ -8020,11 +8069,11 @@ class GalaxyCohort(GalaxyAggregate):
                 #nebular_only=self.pf['pop_1h_nebular_only'],
                 isnum1=isnum1, isnum2=isnum2, 
                 fsel1=fsel1, fsel2=fsel2,
+                selection_symmetric=selection_symmetric,
                 masking_symmetric=masking_symmetric,
                 pop2=pop2)
             
             ps3d += ps_1h
-
 
         ## 
         # Done
@@ -8032,7 +8081,8 @@ class GalaxyCohort(GalaxyAggregate):
     
     def get_xs_3d(self, scale, wave_obs, zg, scale_units='ell',
         isnum1=0, isnum2=1, 
-        pop2=None, fsel1=None, fsel2=None, masking_symmetric=True, 
+        pop2=None, fsel1=None, fsel2=None, 
+        selection_symmetric=False, masking_symmetric=True, 
         use_pb=True, **kwargs):
         """
         Compute the cross-spectrum between EBL and target galaxy population.
@@ -8081,6 +8131,7 @@ class GalaxyCohort(GalaxyAggregate):
                     wave_obs, wave_obs2=wave_obs, 
                     isnum1=isnum1, isnum2=isnum2,
                     fsel1=fsel1, fsel2=fsel2, pop2=pop2,
+                    selection_symmetric=selection_symmetric,
                     masking_symmetric=masking_symmetric,
                     **kwargs)#, #raw=raw,
                     #nebular_only=nebular_only, #prof=prof)

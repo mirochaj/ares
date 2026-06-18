@@ -475,9 +475,12 @@ class Simulation(object):
 
         """
         
+        # For a mask, our default is to NOT mask, so we initialize the f_sel
+        # array to zeros
         if is_mask:
             f_sel = np.zeros((len(self.pops), self.halos.tab_z.size, 
                 self.halos.tab_M.size, 2))
+        # For selection, we initialize to 1 (default to selecting all galaxies).
         else:    
             f_sel = np.ones((len(self.pops), self.halos.tab_z.size, 
                 self.halos.tab_M.size, 2))
@@ -492,6 +495,19 @@ class Simulation(object):
 
             f_sel[i,:,:,:] = pop.get_galaxy_subsample(selection_criteria, 
                 return_fraction=return_fraction, logic=logic)
+            
+            ##
+            # Need to make sure we mask out / de-select galaxies in 
+            # halos outside our modeled range. 
+            for j, z in enumerate(self.halos.tab_z):
+                bad = np.logical_or(self.halos.tab_M > pop.get_Mmax(z),
+                                     self.halos.tab_M < pop.get_Mmin(z))
+                if is_mask:
+                    f_sel[i,j,bad==1,0] = 1
+                    f_sel[i,j,bad==1,1] = 1
+                else:
+                    f_sel[i,j,bad==1,0] = 0
+                    f_sel[i,j,bad==1,1] = 0
         
         return f_sel
     
@@ -516,7 +532,8 @@ class Simulation(object):
         return self._fmask
 
     def get_ebl_x_galaxies(self, scales, waves, zbins, 
-        selection_criteria, masking_criteria, masking_symmetric=True,
+        selection_criteria, masking_criteria, 
+        selection_symmetric=False, masking_symmetric=True,
         wave_units='mic', flux_units='SI', pops=None,
         cache_ipop_mtx=None, **kwargs):
         """
@@ -542,6 +559,11 @@ class Simulation(object):
             Like `selection_criteria`, but defines the properties of galaxies
             to be masked out. Can also pass an array if you have already
             mapped the criteria into an array via `get_masks`.
+        selection_symmetric : bool
+            If True, galaxies that satisfy the selection criteria are
+            also nulled in the map. By default, this is False because this
+            is not really possible in real life without modeling or a-priori
+            knowledge of source properties. 
         masking_symmetric : bool
             If True, galaxies that satisfy the masking criteria will also
             be removed from the target galaxy catalog. If False, ONLY 
@@ -663,8 +685,12 @@ class Simulation(object):
             # (which will be z-dep through mag cut and any overarching z cut
             # but won't know about this particular z bin).
             fsel = []
-            for popid, pop in enumerate(pops):
+            for popid, pop in enumerate(self.pops):
                 tmp = np.zeros_like(fsel_allz[popid])
+                if popid not in pops:
+                    fsel.append(tmp)
+                    continue
+
                 for iz, z in enumerate(zarr):
                     if z < zbin[0]:
                         continue
@@ -674,6 +700,7 @@ class Simulation(object):
                     tmp[iz] = fsel_allz[popid,iz,:,:]
                 
                 fsel.append(tmp)
+
             fsel = np.array(fsel)
 
             if np.all(fsel == 0):
@@ -734,6 +761,7 @@ class Simulation(object):
                             isnum1=1, isnum2=0,
                             fsel1=fsel1, fsel2=fsel2,
                             pop2=popx, 
+                            selection_symmetric=selection_symmetric,
                             masking_symmetric=masking_symmetric,
                             **kwargs)
                         
