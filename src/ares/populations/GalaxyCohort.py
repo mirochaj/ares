@@ -1082,7 +1082,8 @@ class GalaxyCohort(GalaxyAggregate):
         if 'Mh' in kwargs:
             assert np.allclose(kwargs['Mh'], Mh)
 
-        return self.get_smhm(**kwargs) * Mh
+        mstell = self.get_smhm(**kwargs) * Mh
+        return mstell
 
     def get_sfr_sys(self, **kwargs):
         """
@@ -1561,8 +1562,8 @@ class GalaxyCohort(GalaxyAggregate):
                     # Integrate over halo mass (or <M_stell>) axis
                     phi_tot = np.trapezoid(integrand, x=np.log(Ms_c[ok==1]), axis=0)
 
-
-                    return bin_c, np.interp(bin_c, np.log10(Ms_c), phi_tot)
+                    return bin_c, np.interp(bin_c, np.log10(Ms_c[ok==1]), 
+                        phi_tot[ok==1], left=tiny_phi, right=tiny_phi)
                 else:
                     pdf = 1
                     sigma = 0
@@ -1632,8 +1633,9 @@ class GalaxyCohort(GalaxyAggregate):
                     # Integrate over halo mass axis
                     phi_tot = np.trapezoid(integrand[ok==1,None] * pdf[ok==1,:],
                         x=np.log(Ms_c[ok==1]), axis=0)
-
-                    return bin_c, np.interp(bin_c, np.log10(Ms_c[ok==1]), phi_tot[ok==1])
+                    return bin_c, np.interp(bin_c, 
+                        np.log10(Ms_c[ok==1]), phi_tot[ok==1],
+                        left=tiny_phi, right=tiny_phi)
                 else:
                     #
                     dndlnm = dndlnm_sat
@@ -1643,7 +1645,8 @@ class GalaxyCohort(GalaxyAggregate):
             phi = (dndlnm * np.log(10.)) * dlog10mdlog10M
 
             if bins is not None:
-                return bin_c, np.interp(bin_c, logMc, phi)
+                return bin_c, np.interp(bin_c, logMc[ok==1], phi[ok==1], 
+                    left=tiny_phi, right=tiny_phi)
             else:
                 return logMc, phi
 
