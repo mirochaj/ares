@@ -636,11 +636,13 @@ class Simulation(object):
 
         # Read-in or generate selection function and mask from scratch.
         if type(masking_criteria) == np.ndarray:
+            raise NotImplementedError('This was causing problems')
             fmask = masking_criteria
         else:
             fmask = self.get_masks(masking_criteria, pops)
 
         if type(selection_criteria) == np.ndarray:
+            raise NotImplementedError('This was causing problems')
             fsel_allz = selection_criteria
         else:
             fsel_allz = self.get_galaxy_subsample(selection_criteria, pops=pops)

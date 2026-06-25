@@ -2053,7 +2053,6 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             # This occasionally still happens in the scatter=0 limit
             # for halos so massive they don't matter.
-            #print(f"Should this still happen? z={z}, x={x}", self.id_num, np.all(np.diff(Lh) > 0), np.all(np.diff(xx) > 0))
             
             _x_, _dx_ = split_by_sign(xx, dx)
             _y_, _dx_ = split_by_sign(yy, dx)
@@ -2062,7 +2061,6 @@ class GalaxyCohort(GalaxyAggregate):
             phi_of_x = np.zeros_like(bins_abs)
 
             for i in range(nchunks):
-                #print(i, np.all(_dx_[i] > 0), _x_[i], np.log10(_y_[i]))
                 if np.all(_dx_[i] > 0):
                     
                     tmp = 10**np.interp(bins_abs, _x_[i], np.log10(_y_[i]), 
@@ -2072,39 +2070,6 @@ class GalaxyCohort(GalaxyAggregate):
                         left=-np.inf, right=-np.inf)
                 
                 phi_of_x += tmp
-
-                #plt.semilogy(bins_abs, 10**(np.log10(tmp) + i * 0.5), ls='-' if np.all(_dx_[i] > 0) else '--',
-                #    lw=1 if np.all(_dx_[i] > 0) else 3, color=_colors[i])
-                #plt.ylim(1e-8, 1e1)
-                #plt.xlim(-25, -15)
-
-            #plt.ylim(1e-10, 1)
-#
-            #plt.figure(int(z * 10) + 100)
-            #plt.semilogy(xx, yy, ls='-', color='k', lw=1)
-            #plt.semilogy(bins_abs, phi_of_x, ls='--', color='b', lw=3)
-            #plt.xlim(-25, -15)
-            #plt.savefig(f'test_z_{z:.2f}.png')
-            #input('<enter>')
-#
-            #plt.figure(int(z * 10) + 200)
-            #plt.scatter(xx[0:-1], dx, ls='-', color='k', lw=1)
-            #plt.xlim(-25, -15)
-            #if sum(dx < 0) < 100:
-            #    _ok = np.argwhere(dx > 0).squeeze()            
-            #    phi_of_x = np.interp(bins_abs, xx[_ok], yy[_ok], left=0, right=0)
-            #    print('issue with DVN 1', z)
-        # Otherwise, smooth a bit. This is usually just due to small numerical
-        # noise.
-            #else:
-            #    print('issue with DVN 2', z, sum(dx < 0))
-            #    # Just smooth
-            #    width = 11
-    #
-            #    yy = smooth(xx, width)
-            #    xx = smooth(yy, width)
-    #
-            #    phi_of_x = np.interp(bins_abs, xx, yy, left=0, right=0)
 
         return bins, phi_of_x
 
