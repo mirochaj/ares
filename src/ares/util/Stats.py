@@ -531,16 +531,20 @@ def bin_samples(x, y, xbin_c, weights=None, limits=False, percentile=None,
         return quantify_scatter(x, y, xbin_c, weights=weights,
             method_std='std', inclusive=inclusive)
 
-def lognormal(x, mu, sigma):
+def lognormal(x, mu, sigma, return_dndx=False):
     """
-    This is dP/dlnx. Sometimes you'll see an extra factor of x in the denominator, but remember:
+    This is dP/dlnx. Sometimes you'll see an extra factor of x in 
+    the denominator, but remember:
     
     (i) dn/dlog10x = dn/dlnx / ln(10.)
     (ii) dn/dlnx = x * dn/dx
 
-    So if you see an extra factor of x in the denominator elsewhere, you're seeing dn/dx.
+    So if you see an extra factor of x in the denominator elsewhere
+    in the code, you're seeing dn/dx. You can instead use return_dndx=True
+    to let this routine divide out by x for you. Obviously not hard but
+    just a good reminder of what's going on as a user.
 
-    If you integrate this function from -inf to inf, you should obtain 0.
+    If you integrate this function from -inf to inf, you should obtain 1.
 
     Parameters
     ----------
@@ -553,8 +557,13 @@ def lognormal(x, mu, sigma):
 
     Returns
     -------
-    PDF, i.e., dn/dlnx.
-    
+    By default, dn/dlnx, but if return_dndx=True, then PDF is dn/dx instead.
     """
-    return np.exp(-0.5 * (x - mu)**2 / sigma**2) \
+    
+    y = np.exp(-0.5 * (x - mu)**2 / sigma**2) \
          / np.sqrt(2. * np.pi) / sigma
+    
+    if return_dndx:
+        return y / x
+    else:
+        return y

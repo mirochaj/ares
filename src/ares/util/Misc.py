@@ -20,6 +20,95 @@ from ..physics.Constants import c, erg_per_ev, h_p, E_LL, E_LyA
 letters = list('abcdefg')
 numeric_types = [int, float, np.int64, np.int32, np.float64, np.float32]
 
+_hmod_terms = 'shot', '1h', '2h'
+_hmod_labels = r'$I_1 x I_2 (\nu_1 = \nu_2)$', \
+        r'$I_1 x I_2 (\nu_1 \neq \nu_2)$', \
+        r'$g \times I$', '$gg$'
+
+def get_hmod_elements(sim, fluctuation_type=0, redundancy_convention='lower'):
+    """
+    Figure out which terms in "inter-population cross-correlation matrix"
+    should be non-zero.
+
+    There are four types of fluctuations:
+    1. Intensity autos
+    2. Galaxy catalog / intensity crosses
+    3. Galaxy autos
+    4. Intensity internal crosses
+
+    Note that there's not really an analog of internal crosses for 
+    galaxies. In principle their could be (e.g., ELG x LRG), but I 
+    don't think we'll ever do that.
+
+    Parameters
+    ----------
+    sim : object
+        An ares.simulations.Simulation instance.
+    fluctuation_type : int
+        Corresponding to items 1-4 listed above.
+    redundancy_convention : str
+        Can be 'lower' or 'upper'. Controls whether we keep only the lower
+        or upper diagonal of the matrix in cases where it is symmetric,
+        which at this stage is really just for 2-halo intensity autos.
+
+    Returns
+    -------
+    A 3-D array containing the interpop cross-corr matrix (final two axes)
+    for shot, 1-h, and 2-h terms (first axis of length 3).
+    
+    """
+
+    results = np.zeros([3] + [len(sim.pops)]*2)
+    
+    for j, term in enumerate(_hmod_terms):
+
+        has_power = np.zeros([len(sim.pops)]*2)
+        for k1, pop1 in enumerate(sim.pops):
+            
+            # No shot noise for diffuse emission sources
+            if (term == 'shot') and pop1.is_diffuse:
+                continue
+            
+            for k2, pop2 in enumerate(sim.pops):
+
+                if (term == 'shot') and pop2.is_diffuse:
+                    continue
+                
+                # For intensity autos, upper and lower halves
+                # of matrix are redundant. Keep upper only.
+                if fluctuation_type in [0, 2]:
+                    if redundancy_convention == 'lower' and (k2 > k1):
+                        continue
+                    elif redundancy_convention == 'upper' and (k2 < k1):
+                        continue
+                    
+                # For internal cross spectrum, 
+                
+                # For galaxy-intensity cross or galaxy autos, 
+                # diffuse sources don't contribute.
+                if (fluctuation_type == 1) and (pop1.is_diffuse):
+                    continue
+                if (fluctuation_type == 2) and (pop1.is_diffuse or pop2.is_diffuse):
+                    continue
+                                
+                # OK
+                if term == 'shot':
+                    has_power[k1,k2] = \
+                        pop1.id_num_actual == pop2.id_num_actual
+                elif term == '1h':
+                    has_power[k1,k2] = \
+                        (pop1.is_central_pop + pop2.is_central_pop) in [0,1]
+                elif term == '2h':
+                    has_power[k1,k2] = 1
+                else:
+                    raise NotImplementedError(f'Unknown term={term}')
+        
+    
+        # Save
+        results[j,:,:] = has_power
+
+    return results
+
 def get_wave_or_equivalent(x_in, units, units_out):
     """
     Convert between photon wavelength, energy, and frequency.
@@ -50,7 +139,7 @@ def get_wave_or_equivalent(x_in, units, units_out):
         x_cm = x_in
     elif units.lower().startswith('ang'):
         x_cm = x_in * 1e-8
-    elif units.lower().startswith('mic'):
+    elif (units.lower() == 'um') or units.lower().startswith('mic'):
         x_cm = x_in * 1e-4
     elif units.lower() == 'hz':
         x_cm = c / x_in
@@ -69,7 +158,7 @@ def get_wave_or_equivalent(x_in, units, units_out):
         return x_cm
     elif units_out.lower().startswith('ang'):
         return x_cm * 1e8
-    elif units_out.lower().startswith('mic'):
+    elif (units.lower() == 'um') or units_out.lower().startswith('mic'):
         return x_cm * 1e4
     elif units_out.lower() == 'hz':
         return c / x_cm

@@ -175,6 +175,21 @@ class Population(object):
         self._id_num = int(value)
 
     @property
+    def id_num_actual(self):
+        if not hasattr(self, '_id_num_actual'):
+            if self.pf['pop_sfr_model'].startswith('link'):
+                link, whatever, idnum = self.pf['pop_sfr_model'].split(':')
+                self._id_num_actual = int(idnum)
+            else:
+                self._id_num_actual = self.id_num
+
+        return self._id_num_actual
+
+    @cached_property
+    def parent_id_num(self):
+        return self.pf['pop_parent_id']
+
+    @property
     def dust(self):
         if not hasattr(self, '_dust'):
             self._dust = DustExtinction(pf=self.pf, **self.pf)
@@ -203,7 +218,7 @@ class Population(object):
     def cosm(self):
         if not hasattr(self, '_cosm'):
             if self.grid is not None:
-                self._cosm = grid.cosm
+                self._cosm = self.grid.cosm
             elif self._cosm_ is not None:
                 self._cosm = self._cosm_
             else:

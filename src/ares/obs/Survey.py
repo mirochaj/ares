@@ -106,46 +106,72 @@ class Survey(object):
 
         """
 
-        if self.camera in ['nircam', 'jwst']:
-            return self._read_nircam(filters)
+        if not hasattr(self, '_throughput_cache'):
+            self._throughput_cache = {}
+
+        if filters is None:
+            filters = []
+
+        _data = {}
+        got_filt = 0
+        for filter in filters:
+            if filter not in self._throughput_cache.keys():
+                continue
+
+            _data[filter] = self._throughput_cache[filter]
+            got_filt += 1
+
+        # If all throughputs were in the cache, we're done.
+        if (got_filt == len(filters)) and (got_filt > 0):
+            return _data
+        # Otherwise, proceed with I/O
+        elif self.camera in ['nircam', 'jwst']:
+            data = self._read_nircam(filters)
         elif self.camera in ['hst', 'hubble']:
             wfc = self._read_wfc(filters)
             wfc3 = self._read_wfc3(filters)
             hst = wfc.copy()
             hst.update(wfc3)
-            return hst
+            data = hst
         elif self.camera == 'wfc3':
-            return self._read_wfc3(filters)
+            data = self._read_wfc3(filters)
         elif self.camera == 'wfc':
-            return self._read_wfc(filters)
+            data = self._read_wfc(filters)
         elif self.camera in ['irac', 'spitzer']:
-            return self._read_irac(filters)
+            data = self._read_irac(filters)
         elif self.camera == 'roman':
-            return self._read_roman(filters)
+            data = self._read_roman(filters)
         elif self.camera == 'wise':
-            return self._read_wise(filters)
+            data = self._read_wise(filters)
         elif self.camera == '2mass':
-            return self._read_2mass(filters)
+            data = self._read_2mass(filters)
         elif self.camera == 'galex':
-            return self._read_galex(filters)
+            data = self._read_galex(filters)
         elif self.camera == 'euclid':
-            return self._read_euclid(filters)
+            data = self._read_euclid(filters)
         elif self.camera == 'spherex':
-            return self._read_spherex(filters)
+            data = self._read_spherex(filters)
         elif self.camera == 'rubin':
-            return self._read_rubin(filters)
+            data = self._read_rubin(filters)
         elif self.camera == 'panstarrs':
-            return self._read_panstarrs(filters)
+            data = self._read_panstarrs(filters)
         elif self.camera == 'sdss':
-            return self._read_sdss(filters)
+            data = self._read_sdss(filters)
         elif self.camera == 'hsc':
-            return self._read_hsc(filters)
+            data = self._read_hsc(filters)
         elif self.camera == 'dirbe':
-            return self._read_dirbe(filters)
+            data = self._read_dirbe(filters)
         elif self.camera == 'tophat':
-            return self._read_tophat(filters)
+            data = self._read_tophat(filters)
         else:
             raise NotImplemented(f"Unrecognized cam '{cam}'")
+        
+        # Cache throughputs for later
+        for key in data:
+            if key not in self._throughput_cache:
+                self._throughput_cache[key] = data[key]
+
+        return data
 
     def _read_tophat(self, filters=None):
         """

@@ -50,7 +50,8 @@ centrals_sf = \
 
  'pop_centrals': True,
  'pop_zdead': 0,
- 'pop_include_1h': False,
+ 'pop_prof_1h': 'delta',   # still involved in cross-pop 1-h terms
+ 'pop_include_1h': False,  # 
  'pop_include_2h': True,
  'pop_include_shot': True,
 
@@ -73,7 +74,7 @@ centrals_sf = \
 
  'pop_Tmin': None,
  'pop_Mmin': 1e8,
- 'pop_Mmax': None,
+ 'pop_Mmax': 3e15,
 
  # Something with dust and metallicity here
 
@@ -296,11 +297,13 @@ for par in centrals_sf:
         del centrals_q[par]
 
 ihl_scaled = centrals_q.copy()
+ihl_scaled['pop_centrals'] = 0
 ihl_scaled['pop_focc'] = 1
 #ihl_scaled['pop_fstar'] = 'link:fstar:1' # Does it matter?
 ihl_scaled['pop_age'] = 5e3
 ihl_scaled['pop_ihl'] = 'pq[50]'
 ihl_scaled['pop_focc_inv'] = False
+ihl_scaled['pop_sys_method'] = 0       # no systematics for IHL
 ihl_scaled['pq_func[50]'] = 'pl_evolN'
 ihl_scaled['pq_func_var[50]'] = 'Mh'
 ihl_scaled['pq_func_var2[50]'] = '1+z'
@@ -312,9 +315,9 @@ ihl_scaled['pq_func_par4[50]'] = 0.  # No evolution by default [illustrative]
 ihl_scaled['pq_val_ceil[50]'] = 0.7
 
 # Deterministic luminosity 
-ihl_scaled['pop_scatter_sfh{4}'] = 0
+ihl_scaled['pop_scatter_sfh'] = 0
 
-
+ihl_scaled['pop_prof_1h'] = 'nfw'
 ihl_scaled['pop_include_1h'] = True
 ihl_scaled['pop_include_2h'] = True
 ihl_scaled['pop_include_shot'] = False
@@ -373,7 +376,7 @@ satellites_sf['pop_Mmin'] = 'pop_Mmin{0}'
 satellites_sf['pop_focc'] = 'link:focc:0'
 satellites_sf['pop_focc_inv'] = False
 satellites_sf['pop_centrals'] = 0
-satellites_sf['pop_centrals_id'] = 0
+satellites_sf['pop_parent_id'] = 0
 satellites_sf['pop_prof_1h'] = 'nfw'
 satellites_sf['pop_include_1h'] = True
 satellites_sf['pop_include_2h'] = True
@@ -396,7 +399,7 @@ satellites_q['pop_Mmin'] = 'pop_Mmin{0}'
 satellites_q['pop_focc'] = 'link:focc:2'
 satellites_q['pop_focc_inv'] = True
 satellites_q['pop_centrals'] = 0
-satellites_q['pop_centrals_id'] = 0
+satellites_q['pop_parent_id'] = 0
 satellites_q['pop_prof_1h'] = 'nfw'
 satellites_q['pop_include_1h'] = True
 satellites_q['pop_include_2h'] = True

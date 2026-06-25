@@ -538,7 +538,7 @@ class LogTanhAbsEvolvingMidpoint(BasePQ):
 
         if self.t == "1+z":
             mid = self.args[2] \
-                + self.args[4] * ((1. + kwargs["z"]) / self.args[5])
+                + self.args[5] * ((1. + kwargs["z"]) / self.args[4])
         else:
             raise NotImplemented("help")
 
@@ -556,8 +556,8 @@ class LogTanhAbsEvolvingMidpointFloorCeiling(BasePQ):
 
         logx = np.log10(x)
 
-        hi = self.args[0] + self.args[6] * ((1. + kwargs['z']) / self.args[5])
-        lo = self.args[1] + self.args[7] * ((1. + kwargs['z']) / self.args[5])
+        hi = self.args[0] + self.args[5] * ((1. + kwargs['z']) / self.args[4])
+        lo = self.args[1] + self.args[6] * ((1. + kwargs['z']) / self.args[4])
 
         hi = np.minimum(hi, 1.)
         lo = np.maximum(lo, 0.)
@@ -566,7 +566,7 @@ class LogTanhAbsEvolvingMidpointFloorCeiling(BasePQ):
 
         if self.t == '1+z':
             mid = self.args[2] \
-                + self.args[4] * ((1. + kwargs['z']) / self.args[5])
+                + self.args[7] * ((1. + kwargs['z']) / self.args[4])
         else:
             raise NotImplemented('help')
 
@@ -616,22 +616,17 @@ class LogTanhAbsEvolvingMidpointFloorCeilingWidth(BasePQ):
             t = 1 + kwargs['z']
         else:
             raise NotImplemented("help")
-
-        lo = self.args[0] * (t / self.args[4])**self.args[5]
-        hi = self.args[1] * (t / self.args[4])**self.args[6]
+        
+        hi = self.args[0] * (t / self.args[4])**self.args[5]
+        lo = self.args[1] * (t / self.args[4])**self.args[6]
 
         mid= self.args[2] * (t / self.args[4])**self.args[7]
         w  = self.args[3] * (t / self.args[4])**self.args[8]
 
-        hi = hi#np.minimum(hi, 1.)
-        lo = np.maximum(lo, 0.)
+        step = (hi - lo) * 0.5
+
+        y = lo + step * (np.tanh((mid - logx) / w) + 1.)
         
-        step = (hi - lo)
-
-        # tanh(x) goes from -1 to 1 as x goes from -inf to inf.
-        # So, for logx < mid
-        y = lo + step * 0.5 * (np.tanh((logx - mid) / w) + 1.)
-
         return y
 
 class LogTanhAbsEvolvingMidpointFloorCeilingWidthFlex(BasePQ):
@@ -684,6 +679,47 @@ class LogTanhAbsEvolvingWidth(BasePQ):
 
         return y
 
+class LogTanhAbsEvolvingAsB13(BasePQ):
+    def __call__(self, **kwargs):
+        # Must be mass
+        x = kwargs[self.x]
+        logx = np.log10(x)
+
+        z = self.get_var2(kwargs['z'])
+
+        # Need scale factor
+        a = 1. / (1. + z)
+
+        hi = self.args[0] + self.args[4] * (1 - a) \
+              + self.args[8] * np.log(1 + z) \
+              + self.args[12] * z \
+              + self.args[16] * a
+        lo = self.args[1] + self.args[5] * (1 - a) \
+              + self.args[9] * np.log(1 + z) \
+              + self.args[13] * z \
+              + self.args[17] * a
+        mid = self.args[2] + self.args[6] * (1 - a) \
+              + self.args[10] * np.log(1 + z) \
+              + self.args[14] * z \
+              + self.args[18] * a
+        w = self.args[3] + self.args[7] * (1 - a) \
+              + self.args[11] * np.log(1 + z) \
+              + self.args[15] * z \
+              + self.args[19] * a
+        
+        #hi = np.minimum(hi, 1.)
+        lo = np.maximum(lo, 0.)
+        #w = np.maximum(w, 0)
+
+        step = (hi - lo) * 0.5
+
+        y = lo + step * (np.tanh((mid - logx) / w) + 1.)
+
+        #print('hi', z, self.args, logx, lo, step, mid, w, y)
+        #input('<enter>')
+
+        return y
+    
 class LogTanhRel(BasePQ):
     def __call__(self, **kwargs):
         if self.x == "1+z":
@@ -1416,6 +1452,8 @@ class ParameterizedQuantity(object):
             self.func = LogTanhAbsEvolvingMidpointFloorCeilingWidthFlex(**kwargs)
         elif kwargs['pq_func'] == 'logtanh_abs_evolW':
             self.func = LogTanhAbsEvolvingWidth(**kwargs)
+        elif kwargs['pq_func'] == 'logtanh_abs_evolB13':
+            self.func = LogTanhAbsEvolvingAsB13(**kwargs)
         elif kwargs["pq_func"] == "logtanh_rel":
             self.func = LogTanhRel(**kwargs)
         elif kwargs["pq_func"] == 'logsigmoid_abs_evol_FCW':
