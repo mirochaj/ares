@@ -295,11 +295,11 @@ class Simulation(object):
         # Eventually might modify for cross-correlations
         # Could keep flux_units2 to correspond to waves2 or something.
         if flux_units.lower() == 'si':
-            to_ps_units = cm_per_m**2 / erg_per_s_per_nW
+            to_ps_units = cm_per_m**2 / erg_per_s_per_nW / cm_per_mpc**2
         elif flux_units.lower() == 'mjy':
-            to_ps_units = 1e17
+            to_ps_units = 1e17 / cm_per_mpc**2
         elif flux_units.lower() == 'cgs':
-            to_ps_units = 1
+            to_ps_units = 1 / cm_per_mpc**2
         else:
             raise NotImplemented('help')
         
@@ -307,11 +307,11 @@ class Simulation(object):
             flux_units2 = flux_units
         
         if flux_units2.lower() == 'si':
-            to_ps_units2 = cm_per_m**2 / erg_per_s_per_nW
+            to_ps_units2 = cm_per_m**2 / erg_per_s_per_nW / cm_per_mpc**2
         elif flux_units.lower() == 'mjy':
-            to_ps_units2 = 1e17
+            to_ps_units2 = 1e17 / cm_per_mpc**2
         elif flux_units2.lower() == 'cgs':
-            to_ps_units2 = 1
+            to_ps_units2 = 1 / cm_per_mpc**2
         else:
             raise NotImplemented('help')
         
@@ -386,7 +386,7 @@ class Simulation(object):
                         # same units as requested here!
                         # Could add check later.
                         #px[i,j,:,:] = _px[i,j,:,:] / to_ps_units
-                        ps_z[i,j,:,:,:] = _pz[i,j,:,:,:] / to_ps_units
+                        ps_z[i,j,:,:,:] = _pz[i,j,:,:,:] / to_ps_units / to_ps_units2
                         continue
 
                 for k, wave in enumerate(waves):
@@ -442,9 +442,9 @@ class Simulation(object):
         # crosses and EBL autos.
         # We get another factor of cMpc^-1 from integrating along the LoS.
         # 
-        ps_z *= to_ps_units * to_ps_units2 / cm_per_mpc**4
-        ps *= to_ps_units * to_ps_units2 / cm_per_mpc**4
-        ps_by_pop *= to_ps_units * to_ps_units2 / cm_per_mpc**4
+        ps_z *= to_ps_units * to_ps_units2
+        ps *= to_ps_units * to_ps_units2
+        ps_by_pop *= to_ps_units * to_ps_units2
         
         if pops is None:
             hist = self.history # poke
