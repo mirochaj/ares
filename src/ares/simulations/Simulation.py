@@ -661,17 +661,19 @@ class Simulation(object):
             len(scales), len(waves), len(zbins), zarr.size))
 
         # Read-in or generate selection function and mask from scratch.
-        common_mask = False
+        
         if type(masking_criteria) == np.ndarray:
             raise NotImplementedError('This was causing problems')
             fmask = masking_criteria
         else:
-            fmask = self.get_masks(masking_criteria, pops)
-
             if type(masking_criteria) != dict:
-                common_mask = True
+                common_mask = False
                 assert len(masking_criteria) == len(waves), \
                     "If providing list of masks must be one per channel!"
+            else:
+                common_mask = True
+
+            fmask = self.get_masks(masking_criteria, pops)
 
         if type(selection_criteria) == np.ndarray:
             raise NotImplementedError('This was causing problems')
@@ -787,7 +789,6 @@ class Simulation(object):
                                 ps_z[i,j,:,k,h,:] = _pz[i,j,:,k,h,:] / to_ps_units
                                 
                                 continue
-                                # Should continue
 
                         # (scales, waves, zbin, zall)
                         ps_z[i,j,:,k,h,:] = pop.get_xs_3d(scales,
@@ -798,10 +799,6 @@ class Simulation(object):
                             selection_symmetric=selection_symmetric,
                             masking_symmetric=masking_symmetric,
                             **kwargs)
-                        
-                        if j == 4:
-                            zok = np.logical_and(zarr >= zbin[0], zarr < zbin[1])
-                            print(i, j, wave, zbin, np.all(ps_z[i,j,:,k,h,:] == 0), ps_z[i,j,:,k,h,:].max(), ps_z[i,j,:,k,h,zok] / ps_z[0,0,:,k,h,zok])
                         
         ##
         # Final step: integrate along redshift axis.
