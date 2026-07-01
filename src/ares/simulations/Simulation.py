@@ -512,6 +512,32 @@ class Simulation(object):
         return f_sel
     
     def get_masks(self, masking_criteria, pops=None, mask_logic='or'):
+        """
+        Take a set of masking criteria and compute the fraction of galaxies
+        masked in every (z, Mh) bin.
+
+        Parameters
+        ----------
+        masking_criteria : dict, list
+            Generally our masks are supplied via, e.g., {'mag': [('sdss_z', 22)]}, 
+            which means mask out galaxies brighter than 22nd magnitude (AB) in the
+            SDSS z-band. Note that this criterion is in a list -- you can in principle
+            provide more mag cuts that will be applied using `mask_logic`.
+
+            If you provide a list instead, each element must be a dictionary as 
+            above. Use of a list implies that a different mask is used for each
+            spectral band, so the list should have the same length as the number
+            of bands.
+
+        Returns
+        -------
+        If `masking_criteria` is a dictionary (same mask for all bands), the output
+        is an array of shape (number of populations, num redshifts, num halo masses), 
+        where each element is the fraction of galaxies satisfying the masking 
+        criteria. If `masking_criteria` is a list, the output will have an additional
+        zeroth axis corresponding to the number of channels.
+
+        """
         ##
         # Need to determine fraction of halos that are masked
         if masking_criteria is None:
@@ -635,11 +661,17 @@ class Simulation(object):
             len(scales), len(waves), len(zbins), zarr.size))
 
         # Read-in or generate selection function and mask from scratch.
+        common_mask = False
         if type(masking_criteria) == np.ndarray:
             raise NotImplementedError('This was causing problems')
             fmask = masking_criteria
         else:
             fmask = self.get_masks(masking_criteria, pops)
+
+            if type(masking_criteria) != dict:
+                common_mask = True
+                assert len(masking_criteria) == len(waves), \
+                    "If providing list of masks must be one per channel!"
 
         if type(selection_criteria) == np.ndarray:
             raise NotImplementedError('This was causing problems')
@@ -657,7 +689,7 @@ class Simulation(object):
                 if i not in pops:
                     continue
                 
-            if type(masking_criteria) in [dict, NoneType]:
+            if common_mask:
                 num_i = self.pops[i].get_num_from_fsel(
                     fsel_allz[i] * (1 - fmask[i]) if masking_symmetric \
                     else fsel_allz[i] 
@@ -729,7 +761,7 @@ class Simulation(object):
                             continue
 
                     for k, wave in enumerate(waves):
-                        if type(masking_criteria) in [dict, NoneType]:
+                        if common_mask:
                             fsel1b = 1 - fmask[i] 
                             fsel2  = 1 - fmask[j]
                         else:
@@ -766,6 +798,10 @@ class Simulation(object):
                             selection_symmetric=selection_symmetric,
                             masking_symmetric=masking_symmetric,
                             **kwargs)
+                        
+                        if j == 4:
+                            zok = np.logical_and(zarr >= zbin[0], zarr < zbin[1])
+                            print(i, j, wave, zbin, np.all(ps_z[i,j,:,k,h,:] == 0), ps_z[i,j,:,k,h,:].max(), ps_z[i,j,:,k,h,zok] / ps_z[0,0,:,k,h,zok])
                         
         ##
         # Final step: integrate along redshift axis.
