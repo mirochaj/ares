@@ -490,7 +490,7 @@ class Simulation(object):
                 if i not in pops:
                     continue
 
-            if pop.is_diffuse:
+            if not pop.is_cataloged:
                 continue
 
             f_sel[i,:,:,:] = pop.get_galaxy_subsample(selection_criteria, 
@@ -1180,7 +1180,7 @@ class Simulation(object):
                     num_by_pop[i] = 0
                     continue
 
-            if pop.is_diffuse:
+            if not pop.is_cataloged:
                 num_by_pop[i] = 0
                 continue
 

@@ -66,12 +66,12 @@ def get_hmod_elements(sim, fluctuation_type=0, redundancy_convention='lower'):
         for k1, pop1 in enumerate(sim.pops):
             
             # No shot noise for diffuse emission sources
-            if (term == 'shot') and pop1.is_diffuse:
+            if (term == 'shot') and (not pop1.is_cataloged):
                 continue
             
             for k2, pop2 in enumerate(sim.pops):
 
-                if (term == 'shot') and pop2.is_diffuse:
+                if (term == 'shot') and (not pop2.is_cataloged):
                     continue
                 
                 # For intensity autos, upper and lower halves
@@ -86,9 +86,9 @@ def get_hmod_elements(sim, fluctuation_type=0, redundancy_convention='lower'):
                 
                 # For galaxy-intensity cross or galaxy autos, 
                 # diffuse sources don't contribute.
-                if (fluctuation_type == 1) and (pop1.is_diffuse):
+                if (fluctuation_type == 1) and (not pop1.is_cataloged):
                     continue
-                if (fluctuation_type == 2) and (pop1.is_diffuse or pop2.is_diffuse):
+                if (fluctuation_type == 2) and ((not pop1.is_cataloged) or (not pop2.is_cataloged)):
                     continue
                                 
                 # OK
@@ -103,7 +103,6 @@ def get_hmod_elements(sim, fluctuation_type=0, redundancy_convention='lower'):
                 else:
                     raise NotImplementedError(f'Unknown term={term}')
         
-    
         # Save
         results[j,:,:] = has_power
 

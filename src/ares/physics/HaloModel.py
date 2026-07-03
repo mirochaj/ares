@@ -205,17 +205,87 @@ class HaloModel(HaloMassFunction):
     def get_u_isl_exp(self, z, Mh, k, rmax=1e2, rstar=10):
         return np.arctan(rstar * k) / rstar / k
 
-    def get_u_exp(self, z, Mh, k, rmax=1e2):
-        rs = 1.
+    def get_u_exp(self, z, Mh, k, b=1):
 
-        L0 = (Mh / 1e11)**1.
-        c = rmax / rs
+        rvir = self.get_Rvir_from_Mh(Mh)
+        
+        A = (1 + b * rvir) * np.cos(k * rvir) + k * rvir * np.sin(k * rvir)
+        B = (1 + b * rvir) * np.sin(k * rvir) - k * rvir * np.cos(k * rvir)
 
-        kappa = k * rs
+        top = b**3 * (2 * b * k - np.exp(-b * rvir) \
+                   * (2 * b * k * A + (b**2 - k**2) * B)) 
+        bot = k * (b**2 + k**2)**2 * (2 - np.exp(-b * rvir) \
+                * (b**2 * rvir**2 + 2 * b * rvir + 2))
 
-        norm = rmax / rs**3
+        return top / bot
+    
+    def get_u_einasto(self, z, Mh, k, n=2, r_s=None):
+        # Hack at half-light radius for now
+        if r_s is None:
+            r_s = self.get_Rvir_from_Mh(Mh) / 10.
+            
+        b = sp.gammaincinv(2. * n, 0.5)
+        rho = lambda zz, MM, r: np.exp(-b * ((r / r_s)**(1. / n) - 1))
+        return self.get_u_general(z, Mh, k, rho, use_leggauss=1, use_clenshaw_curtis=0)
+        
+    def get_u_general(self, z, Mh, k, rho, use_clenshaw_curtis=0, use_leggauss=0):
+        """
+        Compute arbitrary Fourier-transformed profile by brute force.
 
-        return norm / (1. + kappa**2)**2.
+        Parameters
+        ----------
+        z : int, float
+        Mh : int, float
+        k : int, float, np.ndarray
+        rho : function
+            Must take three arguments: (z, Mh, r), in that order. The normalization
+            doesn't matter -- we'll normalize by the total mass here automatically.
+        use_clenshaw_curtis : bool
+            For highly-oscillatory integrals, set this to True to use a more
+            sophisticated integrator (through scipt.integrate's quad routine, using
+            `weights='sin'` keyword argument). Note that this can fail in cases 
+            where the integrand isn't all that wiggly.
+        use_leggauss : bool
+            This seems to generally be more robust than Clenshaw-Curtis. It 
+            essentially breaks the integrand into pieces one wiggle wide. 
+        
+        Returns
+        -------
+        u(k), i.e., the Fourier-transformed profile. 
+        
+        """
+        rvir = self.get_Rvir_from_Mh(Mh)
+
+        if type(k) != np.ndarray:
+            k = np.array([k])
+
+        result = np.zeros_like(k)
+        for i, _k_ in enumerate(k):
+            integ = lambda r: (4 * np.pi * r**2 / (_k_ * r)) * (rho(z, Mh, r) / Mh)
+            if use_leggauss:
+                result[i] = self._get_osc_integral(_k_, rvir, integ, order=100)
+            elif use_clenshaw_curtis:
+                result[i] = quad(integ, 0, rvir, weight='sin', wvar=_k_, 
+                    epsabs=0, epsrel=1e-12, limit=1000, maxp1=1000)[0]
+            else:
+                result[i] = quad(lambda r: integ(r) * np.sin(_k_ * r), 0, rvir, 
+                    epsabs=0, epsrel=1e-12, limit=1000, maxp1=1000)[0]
+                
+        norm = quad(lambda r: 4 * np.pi * r**2 * rho(z, Mh, r) / Mh, 0, rvir)[0]
+
+        return result.squeeze() / norm
+    
+    def _get_osc_integral(self, k, R, gofr, order=10):
+        """Integrate some function g(r) * sin(k * r) dr from 0 to R. """
+
+        edges = np.arange(0, R, np.pi/max(k, np.pi/R))
+        edges = np.append(edges, R)
+        x, w = np.polynomial.legendre.leggauss(order)
+        total = 0.0
+        for a, b in zip(edges[:-1], edges[1:]):
+            r = 0.5*(b-a)*x + 0.5*(b+a)
+            total += 0.5*(b-a) * np.sum(w * gofr(r) * np.sin(k*r))
+        return total
 
     def get_u_cgm_rahmati(self, z, Mh, k):
         rstar = 0.0025

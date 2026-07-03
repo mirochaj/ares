@@ -331,6 +331,10 @@ class Population(object):
             (self.pf['pop_include_1h'] and not self.pf['pop_include_shot'])
 
     @property
+    def is_cataloged(self):
+        return self.pf['pop_ihl'] is None
+
+    @property
     def is_src_radio(self):
         if not hasattr(self, '_is_src_radio'):
             if self.pf['pop_sed'] is not None:
