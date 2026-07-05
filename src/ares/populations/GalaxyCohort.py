@@ -6910,8 +6910,11 @@ class GalaxyCohort(GalaxyAggregate):
         elif prof == 'delta':
             prof = self._profile_delta
         elif prof == 'einasto':
-            r_s = lambda zz, mm: self.pf['pop_msr'](z, self.get_fstar(z=zz, Mh=mm) * mm) 
-            prof = lambda zz, mm, kk: self.halos.get_u_einasto(zz, mm, kk, r_s=r_s(zz,mm))
+            # Grab stellar half-light radius and convert to Mpc before passing
+            # into get_u_einasto (where we use R50/Rvir_mpc)
+            r_s = lambda zz, mm: self.pf['pop_msr'](z, self.get_fstar(z=zz, Mh=mm) * mm) / 1e3
+            n_s = 2 if self.is_star_forming else 4
+            prof = lambda zz, mm, kk: self.halos.get_u_einasto(zz, mm, kk, n=n_s, r_s=r_s(zz,mm))
         elif prof == 'isl':
             prof = lambda zz, mm, kk: self.halos.get_u_isl(zz, mm, kk)
         elif prof == 'isl_exp':
