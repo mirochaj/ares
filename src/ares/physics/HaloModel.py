@@ -142,7 +142,14 @@ class HaloModel(HaloMassFunction):
 
             if os.path.exists(fn):
                 with h5py.File(fn, 'r') as f:
-                    self._tab_u_nfw = np.array(f[('tab_u_nfw')])
+                    # This try/except is for backward compatibility. 
+                    # Used to only allow nfw, now there are more
+                    # options, always saved to their own file with `tab_u`
+                    # name.
+                    try:
+                        self._tab_u_nfw = np.array(f[('tab_u_nfw')])
+                    except KeyError:
+                        self._tab_u_nfw = np.array(f[('tab_u')])
 
                 if self.pf['verbose'] and rank == 0:
                     print(f"# Loaded {fn}.")
@@ -152,7 +159,28 @@ class HaloModel(HaloMassFunction):
                     print(f"# Did not find {fn}. Will generate u_nfw on the fly.")
 
         return self._tab_u_nfw
+    
+    @property
+    def tab_u_einasto(self):
+        if not hasattr(self, '_tab_u_einasto'):
+            
+            fn = os.path.join(
+                ARES, "halos", self.tab_prefix_prof('einasto') + ".hdf5"
+            )
 
+            if os.path.exists(fn):
+                with h5py.File(fn, 'r') as f:
+                    self._tab_u_einasto = np.array(f[('tab_u_einasto')])
+
+                if self.pf['verbose'] and rank == 0:
+                    print(f"# Loaded {fn}.")
+            else:
+                self._tab_u_einasto = None
+                if self.pf['verbose'] and rank == 0:
+                    print(f"# Did not find {fn}. Will generate u_nfw on the fly.")
+
+        return self._tab_u_einasto
+    
     @property
     def tab_Sigma_nfw(self):
         if not hasattr(self, '_tab_Sigma_nfw'):
@@ -1045,29 +1073,7 @@ class HaloModel(HaloMassFunction):
         else:
             raise IOError('Unrecognized format for halo_table.')
 
-    #def tab_prefix_prof(self):
-    #    M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
-    #    z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
-
-    #    dlogk = self.pf['halo_dlnk']
-    #    kmi, kma = self.pf['halo_lnk_min'], self.pf['halo_lnk_max']
-
-    #    logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
-    #        / self.pf['halo_dlogM']
-    #    zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
-    #        / self.pf['halo_dz']) + 1
-
-    #    assert logMsize % 1 == 0
-    #    logMsize = int(logMsize)
-    #    assert zsize % 1 == 0
-    #    zsize = int(round(zsize, 1))
-
-    #    # Should probably save NFW information etc. too
-    #    return 'halo_prof_%s_%s_logM_%s_%i-%i_z_%s_%i-%i_lnk_%.1f-%.1f_dlnk_%.3f' \
-    #        % (self.pf['halo_profile'], self.pf['halo_cmr'],
-    #            logMsize, M1, M2, zsize, z1, z2, kmi, kma, dlogk)
-
-    def tab_prefix_prof(self):
+    def tab_prefix_prof(self, prof=None):
         hmf_pref = self.tab_prefix_hmf(with_size=True)
 
         dlogk = self.pf['halo_dlnk']
@@ -1075,12 +1081,21 @@ class HaloModel(HaloMassFunction):
 
         Mz_info = hmf_pref[hmf_pref.find('logM'):].replace('.hdf5', '')
 
-        return 'halo_prof_{}_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
-            self.pf['halo_profile'],
-            self.pf['halo_cmr'],
-            Mz_info, kmi, kma, dlogk
-        )
+        if prof in [None, 'nfw']:
+            return 'halo_prof_{}_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
+                self.pf['halo_profile'],
+                self.pf['halo_cmr'],
+                Mz_info, kmi, kma, dlogk
+            )
+        else:
+            _fn = 'gal_prof_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
+                'einasto', Mz_info, kmi, kma, dlogk
+            
+            )
+            fn = os.path.join(ARES, "halos", _fn)
 
+        return fn
+    
     def tab_prefix_surf(self):
         M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
 
@@ -1428,8 +1443,8 @@ class HaloModel(HaloMassFunction):
         print('Wrote %s.' % fn)
         return
 
-    def generate_halo_prof(self, format='hdf5', clobber=False, checkpoint=True,
-        destination=None, **kwargs):
+    def generate_halo_prof(self, prof=None, format='hdf5', clobber=False, checkpoint=True,
+        destination=None, msr=None, **kwargs):
         """
         Generate a lookup table for Fourier-tranformed halo profiles.
         """
@@ -1439,49 +1454,87 @@ class HaloModel(HaloMassFunction):
         if destination is None:
             destination = '.'
 
-        fn = f'{destination}/{self.tab_prefix_prof()}.{format}'
+        fn = f'{destination}/{self.tab_prefix_prof(prof)}.{format}'
 
         if rank == 0:
             print(f"# Will save to {fn}.")
 
-        shape = (self.tab_z.size, self.tab_M.size, self.tab_k.size)
-        self._tab_u_nfw = np.zeros(shape)
+        if prof in [None, 'nfw']:
+            is_nfw = True
+            shape = (self.tab_z.size, self.tab_M.size, self.tab_k.size)
+        else:
+            is_nfw = False
+            assert prof == 'einasto'
+            assert msr is not None, "Must provide `msr` for Einasto profile!"
+            self.tab_nsers = np.arange(2, 6, 2)
+            shape = (self.tab_z.size, self.tab_M.size, self.tab_k.size, self.tab_nsers.size, 2)
 
-        if self._tab_u_nfw.nbytes / 1e9 > 8:
-            print(f"WARNING: Size of profile table projected to be >8 GB!")
+        self._tab_uofk = np.zeros(shape)
 
-        pb = ProgressBar(len(self.tab_z), 'u(z|k,M)', use=rank==0)
+        if self._tab_uofk.nbytes / 1e9 > 8:
+            print(f"WARNING: Size of profile table projected to be >8 GB! {self._tab_uofk.nbytes / 1e9:.2f} G")
+
+        pb = ProgressBar(len(self.tab_z) if is_nfw else np.prod(shape), 
+            'u(z|k,M)', use=rank==0)
         pb.start()
 
         MM, kk = np.meshgrid(self.tab_M, self.tab_k, indexing='ij')
 
+        ct = 0
         for i, z in enumerate(self.tab_z):
             if i % size != rank:
                 continue
+            
+            if is_nfw:
+                self._tab_uofk[i,:,:] = self.get_u_nfw(z, MM, kk)
+                pb.update(i)
+            else:
+                for nn, n in enumerate(self.tab_nsers):
+                    r_sfg = msr[0](z, self.tab_M * 1e-3) / 1e3
+                    r_qg = msr[1](z, self.tab_M * 1e-3) / 1e3
+                    for mm, M in enumerate(self.tab_M):
+                        for k, _kk_ in enumerate(self.tab_k):
+                            self._tab_uofk[i,mm,k,nn,0] = self.get_u_einasto(
+                                z, M, _kk_, n=n, r_s=r_sfg[mm]
+                            )
+                            self._tab_uofk[i,mm,k,nn,1] = self.get_u_einasto(
+                                z, M, _kk_, n=n, r_s=r_qg[mm]
+                            )
 
-            self._tab_u_nfw[i,:,:] = self.get_u_nfw(z, MM, kk)
-            pb.update(i)
+                        pb.update(ct)
+                        ct += 1
+
+            
 
         pb.finish()
 
         if size > 1:
 
             tmp = np.zeros(shape)
-            nothing = MPI.COMM_WORLD.Allreduce(self._tab_u_nfw, tmp)
-            self._tab_u_nfw = tmp
+            nothing = MPI.COMM_WORLD.Allreduce(self._tab_uofk, tmp)
+            self._tab_uofk = tmp
 
             # So only root processor writes to disk
             if rank > 0:
                 return
 
         with h5py.File(fn, 'w') as f:
-            f.create_dataset('tab_u_nfw', data=self._tab_u_nfw)
+            f.create_dataset('tab_u', data=self._tab_uofk)
             f.create_dataset('tab_k', data=self.tab_k)
-            f.create_dataset('tab_M', data=self.tab_M)
+            f.create_dataset('tab_M', data=self.tab_M if is_nfw else 1e-3 * self.tab_M)
             f.create_dataset('tab_z', data=self.tab_z)
+            if not is_nfw:
+                f.create_dataset('tab_nsers', data=self.tab_nsers)
 
         if rank == 0:
             print(f"# Wrote {fn}.")
+
+        if prof in [None, 'nfw']:
+            self._tab_u_nfw = self._tab_uofk
+        elif prof == 'einasto':
+            self._tab_u_einasto = self._tab_uofk
+        else:
+            raise NotImplementedError('Unrecognized u(k) profile={prof}!')
 
         return
     

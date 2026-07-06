@@ -14,6 +14,7 @@ import os
 import h5py
 import numbers
 import numpy as np
+from ..data import ARES
 import numdifftools as nd
 from inspect import ismethod
 from ..util import ProgressBar
@@ -6878,7 +6879,7 @@ class GalaxyCohort(GalaxyAggregate):
             ps = np.exp(np.interp(np.log(k), np.log(_k_), np.log(_ps_)))
 
             return ps
-
+        
     def get_prof(self, z, k, prof=None):
         """
         Set up a function for Fourier-transformed profile.
@@ -6910,11 +6911,26 @@ class GalaxyCohort(GalaxyAggregate):
         elif prof == 'delta':
             prof = self._profile_delta
         elif prof == 'einasto':
-            # Grab stellar half-light radius and convert to Mpc before passing
-            # into get_u_einasto (where we use R50/Rvir_mpc)
-            r_s = lambda zz, mm: self.pf['pop_msr'](z, self.get_fstar(z=zz, Mh=mm) * mm) / 1e3
-            n_s = 2 if self.is_star_forming else 4
-            prof = lambda zz, mm, kk: self.halos.get_u_einasto(zz, mm, kk, n=n_s, r_s=r_s(zz,mm))
+            prof = self.halos.tab_u_einasto
+            if prof is None:
+                # Grab stellar half-light radius and convert to Mpc before passing
+                # into get_u_einasto (where we use R50/Rvir_mpc)
+                r_s = lambda zz, mm: self.pf['pop_msr'](z, self.get_fstar(z=zz, Mh=mm) * mm) / 1e3
+                n_s = 2 if self.is_star_forming else 4
+                prof = lambda zz, mm, kk: self.halos.get_u_einasto(zz, mm, kk, n=n_s, r_s=r_s(zz,mm))
+            else:
+                iz = self.get_zindex(z)
+                i_ns = 0 if self.is_star_forming else 1
+                mstell = self.get_fstar(z=z, Mh=self.tab_Mh) * self.tab_Mh
+                i_k = np.argmin(np.abs(k - self.halos.tab_k))
+
+                uofk = np.zeros(self.halos.tab_M.size)
+                for i, _mstell in enumerate(mstell):
+                    uofk[i] = np.interp(_mstell, 1e-3 * self.halos.tab_M,
+                        prof[iz,:,i_k,i_ns,i_ns])
+                
+                return uofk
+
         elif prof == 'isl':
             prof = lambda zz, mm, kk: self.halos.get_u_isl(zz, mm, kk)
         elif prof == 'isl_exp':
@@ -7345,8 +7361,6 @@ class GalaxyCohort(GalaxyAggregate):
             #if self.is_central_pop and (pop2.is_central_pop and not pop2.pf['pop_include_1h']):
             if (self.is_central_pop and pop2.is_central_pop) and (self.id_num != pop2.id_num_actual):
                 return 0
-
-            print('doing 1-h cross', self.id_num, pop2.id_num, pop2.id_num_actual)
 
             iz = self.get_zindex(z)
             _fsel1 = self._get_fsel(fsel1, z=z)
