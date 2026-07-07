@@ -2,17 +2,14 @@
 
 hopkins2007.py
 
-Author: Jordan Mirocha
-Affiliation: Caltech
-Created on: Tue Jul  7 12:54:51 2026
-
-Description:
 
 """
 
 import os
 import numpy as np
 from . import ARES
+
+link = 'https://ui.adsabs.harvard.edu/abs/2007ApJ...654..731H/abstract'
 
 _data_raw = np.loadtxt(f"{ARES}/hopkins_lfs/bol_lf_point_dump.dat", unpack=True, 
     usecols=[0,1,2,3,4,5], comments=';;//')

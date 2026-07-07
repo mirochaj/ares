@@ -400,12 +400,12 @@ aux_data = {
         'http://www.tapir.caltech.edu/~phopkins/Site/',
         'bol_lf_point_dump.dat',
         None
-    ]
-    #'shen_lfs': [
-    #    'https://raw.githubusercontent.com/gkulkarni/QLF/refs/heads/master/Data/',
-    #    'allqlfs.dat',
-    #    None
-    #]
+    ],
+    'shen_lfs': [
+        'https://drive.google.com/file/d/1OVAO2uOrGcYkAj1Wj-vtHSgi_Y1zPOWX/view?usp=sharing',
+        'shen2020_qso_lfs.pkl',
+        None
+    ],
 }
 
 # define which files are needed for which things
