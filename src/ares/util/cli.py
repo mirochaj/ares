@@ -396,6 +396,11 @@ aux_data = {
         'allqlfs.dat',
         None
     ],
+    'hopkins_lfs': [
+        'http://www.tapir.caltech.edu/~phopkins/Site/',
+        'bol_lf_point_dump.dat',
+        None
+    ]
     #'shen_lfs': [
     #    'https://raw.githubusercontent.com/gkulkarni/QLF/refs/heads/master/Data/',
     #    'allqlfs.dat',
