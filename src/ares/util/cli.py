@@ -779,7 +779,7 @@ def generate_ukm_tables(path, prof=None, msr=None, **kwargs):
 
     halos = HaloModel(fmt='hdf5', halo_mf_load=True, **def_kwargs)
 
-    fn = f'./{halos.tab_prefix_prof(prof)}.hdf5'
+    fn = f'{halos.tab_prefix_prof(prof)}.hdf5'
 
     if os.path.exists(fn):
         print(f"# Found {fn}. Moving on...")

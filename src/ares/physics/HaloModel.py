@@ -171,6 +171,10 @@ class HaloModel(HaloMassFunction):
             if os.path.exists(fn):
                 with h5py.File(fn, 'r') as f:
                     self._tab_u_einasto = np.array(f[('tab_u_einasto')])
+                    self._tab_u_einasto_z = np.array(f[('tab_z')])
+                    self._tab_u_einasto_k = np.array(f[('tab_k')])
+                    self._tab_u_einasto_m = np.array(f[('tab_M')]) # Mstell
+                    self._tab_u_einasto_n = np.array(f[('tab_nsers')])
 
                 if self.pf['verbose'] and rank == 0:
                     print(f"# Loaded {fn}.")
@@ -1088,14 +1092,11 @@ class HaloModel(HaloMassFunction):
                 Mz_info, kmi, kma, dlogk
             )
         else:
-            _fn = 'gal_prof_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
+            return 'gal_prof_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
                 'einasto', Mz_info, kmi, kma, dlogk
             
             )
-            fn = os.path.join(ARES, "halos", _fn)
-
-        return fn
-    
+                
     def tab_prefix_surf(self):
         M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
 
@@ -1451,7 +1452,7 @@ class HaloModel(HaloMassFunction):
 
         assert format == 'hdf5'
 
-        if destination is None:
+        if (destination is None):
             destination = '.'
 
         fn = f'{destination}/{self.tab_prefix_prof(prof)}.{format}'
@@ -1480,31 +1481,44 @@ class HaloModel(HaloMassFunction):
 
         MM, kk = np.meshgrid(self.tab_M, self.tab_k, indexing='ij')
 
-        ct = 0
         for i, z in enumerate(self.tab_z):
             if i % size != rank:
                 continue
             
+            fn_z = fn.replace('.hdf5', f'_checkpt_{i}.pkl')
+            if os.path.exists(fn_z):
+                with open(fn_z, 'rb') as f:
+                    self._tab_uofk[i] = pickle.load(f)
+                print(f"! Loaded einasto checkpoint {fn_z}.")
+                pb.update(min(i+size, len(self.tab_z)))
+            
             if is_nfw:
                 self._tab_uofk[i,:,:] = self.get_u_nfw(z, MM, kk)
-                pb.update(i)
-            else:
-                for nn, n in enumerate(self.tab_nsers):
-                    r_sfg = msr[0](z, self.tab_M * 1e-3) / 1e3
-                    r_qg = msr[1](z, self.tab_M * 1e-3) / 1e3
+            else:    
+                r_sfg = msr[0](z, self.tab_M * 1e-3) / 1e3
+                r_qg = msr[1](z, self.tab_M * 1e-3) / 1e3
+                for nn, n in enumerate(self.tab_nsers):    
                     for mm, M in enumerate(self.tab_M):
                         for k, _kk_ in enumerate(self.tab_k):
-                            self._tab_uofk[i,mm,k,nn,0] = self.get_u_einasto(
-                                z, M, _kk_, n=n, r_s=r_sfg[mm]
-                            )
-                            self._tab_uofk[i,mm,k,nn,1] = self.get_u_einasto(
-                                z, M, _kk_, n=n, r_s=r_qg[mm]
-                            )
+                            
+                            # Eventually need to be more general
+                            # but for now just looking for speed-up.
+                            if nn == 0:
+                                self._tab_uofk[i,mm,k,nn,0] = self.get_u_einasto(
+                                    z, M, _kk_, n=n, r_s=r_sfg[mm]
+                                )
+                            elif nn == 1:
+                                self._tab_uofk[i,mm,k,nn,1] = self.get_u_einasto(
+                                    z, M, _kk_, n=n, r_s=r_qg[mm]
+                                )
+   
+            ##
+            # Update progress bar and write checkpoint
+            pb.update(min(i+size, len(self.tab_z)))
 
-                        pb.update(ct)
-                        ct += 1
-
-            
+            with open(fn_z, 'wb') as f:
+                pickle.dump(self._tab_uofk[i], f)
+            print(f"! Wrote checkpoint {fn_z}.")
 
         pb.finish()
 
