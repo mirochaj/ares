@@ -390,7 +390,17 @@ aux_data = {
         'https://oup.silverchair-cdn.com/oup/backfile/Content_public/Journal/mnras/484/3/10.1093_mnras_stz174/1/',
         'stz174_supplemental_file.zip',
         None,
-    ]
+    ],
+    'kulkarni_lfs': [
+        'https://raw.githubusercontent.com/gkulkarni/QLF/refs/heads/master/Data/',
+        'allqlfs.dat',
+        None
+    ],
+    #'shen_lfs': [
+    #    'https://raw.githubusercontent.com/gkulkarni/QLF/refs/heads/master/Data/',
+    #    'allqlfs.dat',
+    #    None
+    #]
 }
 
 # define which files are needed for which things
