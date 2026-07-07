@@ -1475,8 +1475,7 @@ class HaloModel(HaloMassFunction):
         if self._tab_uofk.nbytes / 1e9 > 8:
             print(f"WARNING: Size of profile table projected to be >8 GB! {self._tab_uofk.nbytes / 1e9:.2f} G")
 
-        pb = ProgressBar(len(self.tab_z) if is_nfw else np.prod(shape), 
-            'u(z|k,M)', use=rank==0)
+        pb = ProgressBar(len(self.tab_z), 'u(z|k,M)', use=rank==0)
         pb.start()
 
         MM, kk = np.meshgrid(self.tab_M, self.tab_k, indexing='ij')
