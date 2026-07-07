@@ -1491,6 +1491,7 @@ class HaloModel(HaloMassFunction):
                     self._tab_uofk[i] = pickle.load(f)
                 print(f"! Loaded einasto checkpoint {fn_z}.")
                 pb.update(min(i+size, len(self.tab_z)))
+                continue
             
             if is_nfw:
                 self._tab_uofk[i,:,:] = self.get_u_nfw(z, MM, kk)
