@@ -415,6 +415,74 @@ satellites_q['pop_ssp'] = True
 satellites_q['pop_age'] = 5e3
 satellites_q['pop_Z'] = 0.02
 
+agn = \
+{
+ 'pop_lum_per_mass': 1.26e38,
+ 'pop_solve_rte': (0.12, 13.6),
+ 'pop_Emin': 0.12,
+ 'pop_Emax': 13.6,
+ 'pop_fesc': 1,
+
+ 'pop_sfr_model': 'smhm-func',
+ # fstar is SMHM for 'smhm-func' SFR model
+ 'pop_fstar': 'pq[20]',
+ 'pq_func[20]': 'dplx_evolB13',
+ 'pq_func_var[20]': 'Mh',
+ 'pq_func_var2[20]': '1+z',
+ 'pq_func_par0[20]': 1e-6,
+ 'pq_func_par1[20]': 1e12,
+ 'pq_func_par2[20]': 1,
+ 'pq_func_par3[20]': 0.6,
+ 'pq_func_par4[20]': 1e10,           # normalization pinned to this Mh
+ 'pq_func_par5[20]': 0,              # norm
+ 'pq_func_par6[20]': 0,              # peak
+ 'pq_func_par7[20]': 0,              # low
+ 'pq_func_par8[20]': 0,              # high
+ 'pq_func_par9[20]': 0.0,            # norm
+ 'pq_func_par10[20]': 0.0,           # peak
+ 'pq_func_par11[20]': 0.0,           # low
+ 'pq_func_par12[20]': 0.0,           # high
+ 'pq_func_par13[20]': 0.0,           # norm
+ 'pq_func_par14[20]': 0.0,           # peak
+ 'pq_func_par15[20]': 0.0,           # low
+ 'pq_func_par16[20]': 0.0,           # high
+ 'pq_func_par17[20]': 0.0,           # norm
+ 'pq_func_par18[20]': 0.0,           # peak
+ 'pq_func_par19[20]': 0.0,           # low
+ 'pq_func_par20[20]': 0.0,           # high
+ 'pq_func_par21[20]': 0.0,           # 
+ 'pq_func_par22[20]': 0.0,           # 
+ 'pq_func_par23[20]': 0.0,           # 
+
+ # Right now: effectively flat focc by default.
+ 'pop_focc': 'pq[22]',
+ 'pq_func[22]': 'erf_evolB13',#'logsigmoid_abs_evol_FCW', # Evolving midpoint, floor, ceiling
+ 'pq_func_var[22]': 'Mh',
+ 'pq_func_var2[22]': '1+z',
+ 'pq_val_ceil[22]': 1,
+ 'pq_val_floor[22]': 0,
+ 'pq_func_par0[22]': 0,      # lower floor
+ 'pq_func_par1[22]': 1e-2,   # upper ceiling
+ 'pq_func_par2[22]': 0,   # log10(mass) where focc=50%
+ 'pq_func_par3[22]': 1,
+ 'pq_func_par4[22]': 0,      # terms that scale (1 - a)
+ 'pq_func_par5[22]': 0,      # terms that scale (1 - a)
+ 'pq_func_par6[22]': 0,      # terms that scale (1 - a)
+ 'pq_func_par7[22]': 0,      # terms that scale (1 - a)
+ 'pq_func_par8[22]': 0,      # terms that scale log(1+z)
+ 'pq_func_par9[22]': 0,      # terms that scale log(1+z)
+ 'pq_func_par10[22]': 0,     # terms that scale log(1+z)
+ 'pq_func_par11[22]': 0,     # terms that scale log(1+z)
+ 'pq_func_par12[22]': 0,     # terms that scale z
+ 'pq_func_par13[22]': 0,     # terms that scale z
+ 'pq_func_par14[22]': 0,     # terms that scale z
+ 'pq_func_par15[22]': 0,     # terms that scale z
+ 'pq_func_par16[22]': 0,     # terms that scale a
+ 'pq_func_par17[22]': 0,     # terms that scale a
+ 'pq_func_par18[22]': 0,     # terms that scale a
+ 'pq_func_par19[22]': 0,     # terms that scale a
+}
+
 #
 #ihl_from_sat = centrals_sf_old.copy()
 #ihl_from_sat['pop_focc'] = 1

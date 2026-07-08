@@ -404,7 +404,7 @@ aux_data = {
         None
     ],
     'shen_lfs': [
-        'https://drive.google.com/file/d/1OVAO2uOrGcYkAj1Wj-vtHSgi_Y1zPOWX/view?usp=sharing',
+        'https://drive.google.com/file/d/1lY1YDERmJnpEytcl4yypzms6bNy3-J8q/view?usp=sharing',
         'shen2020_qso_lfs.pkl',
         None
     ],

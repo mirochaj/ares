@@ -72,18 +72,19 @@ for z in redshifts:
         
         _Lbol, _phi, _err, _xerr = get_data(z, dataid)
 
-        if len(Lbol):
+        if len(_Lbol) == 0:
             continue
 
         L.extend(list(_Lbol))
         phi.extend(list(_phi))
         err.extend(list(_err))
+        band.extend([h07band_from_dataids[dataid]]*len(_Lbol))
         
     # Save
     data[z]['L'] = np.array(L)
     data[z]['phi'] = np.array(phi)
     data[z]['err'] = np.array(err)
-    data[z]['band'] = np.array([h07band_from_dataids[dataid]]*len(L))
+    data[z]['band'] = np.array(band)
 
 
 with open('shen2020_qso_lfs.pkl', 'wb') as f:

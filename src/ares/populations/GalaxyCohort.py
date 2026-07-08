@@ -2821,8 +2821,9 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Determine fesc [will apply in a minute]
-        fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
-            units=units)
+        if (band is not None) and (not band.lower().startswith('bol')):
+            fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
+                units=units)
 
         # Generally need to know stellar masses and SFRs, just do it now.
         try:
@@ -2872,15 +2873,19 @@ class GalaxyCohort(GalaxyAggregate):
 
             Lbol = Ms * lum_per_mass
 
+            if (band is not None) and (band.lower().startswith('bol')):
+                return Lbol
+
             # Need to introduce SED modulation here
             wave = self.src.get_ang_from_x(x, units=units)
+
+            raise NotImplemented('help')
 
             if units_out.lower() == 'erg/s/hz':
                 pass
             else:
                 raise ValueError(f'unknown units={units_out}')
 
-            #return Lbol
 
         # or lookup table, in which case we need to interpolate
         elif self.pf['pop_lum_tab'] is not None:
@@ -3283,10 +3288,13 @@ class GalaxyCohort(GalaxyAggregate):
             if (cached_result is not None):
                 print('using cache')
                 return cached_result
-            
+
+        is_bol = (band is not None) and isinstance(band, str) and band.lower().startswith('bol')
+        if is_bol and (x is not None):
+            raise ValueError("To avoid confusion, if providing band='bol' please set x=None")
         ##
         # Enforce Emin and Emax
-        if (x is not None) or (band is not None):
+        if (x is not None) or ((band is not None) and not is_bol):
             x_eV = get_wave_or_equivalent(x if band is None else band, units, 'eV')
             if np.all(x_eV < self.pf['pop_Emin']) or np.all(x_eV > self.pf['pop_Emax']):
                 ret = np.zeros_like(self.halos.tab_M) if Mh is None else 0
@@ -3344,10 +3352,13 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Final step apply dust reddening [optional]
-        T = self.get_transmission(z, x, units=units, band=band,
-            use_tabs=use_tabs,
-            include_dust_transmission=include_dust_transmission,
-            include_igm_transmission=include_igm_transmission)
+        if is_bol:
+            T = 1
+        else:
+            T = self.get_transmission(z, x, units=units, band=band,
+                use_tabs=use_tabs,
+                include_dust_transmission=include_dust_transmission,
+                include_igm_transmission=include_igm_transmission)
 
         if (type(T) in numeric_types) or (T.size == 1):
             T = float(T) * np.ones_like(Lh)
