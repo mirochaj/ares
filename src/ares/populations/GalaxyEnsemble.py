@@ -29,6 +29,7 @@ from .GalaxyCohort import GalaxyCohort
 from scipy.interpolate import interp1d
 from scipy.integrate import quad, cumulative_trapezoid
 from ares.data import read as read_lit
+from ..util.Units import get_ang_from_x
 from ..obs.Photometry import get_filters_from_waves
 from ..util.Stats import bin_e2c, bin_c2e, bin_samples, quantify_scatter
 from ..core.SpectralSynthesis import SpectralSynthesis
@@ -2205,7 +2206,7 @@ class GalaxyEnsemble(HaloPopulation):
         # Some final adjustments
 
         # Take geometric mean or anything?
-        wave = self.src.get_ang_from_x(x, units=units) # only used if method='closest'
+        wave = get_ang_from_x(x, units=units) # only used if method='closest'
         mags = self.phot.get_avg_mags(mags, xout, method=method, wave=wave, z=z)
 
         if absolute:
@@ -2399,7 +2400,7 @@ class GalaxyEnsemble(HaloPopulation):
         density or Av; this routine fetches that first.
         """
 
-        waves = self.src.get_ang_from_x(x if band is None else band, units=units)
+        waves = get_ang_from_x(x if band is None else band, units=units)
         if band is not None:
             waves = np.mean(waves)
 

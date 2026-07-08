@@ -913,6 +913,9 @@ class Population(object):
         assert (x is not None) or (band is not None), \
             "Must supply `x` or `band`! "
 
+        if self.pf['pop_fesc'] == 1:
+            return 1
+        
         bname = self.src.get_band_name(x=x, band=band, units=units)
 
         if bname == 'LyC':

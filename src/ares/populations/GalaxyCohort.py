@@ -23,6 +23,7 @@ from ..analysis import ModelSet
 from scipy.optimize import fsolve
 from functools import cached_property
 from types import FunctionType, MethodType
+from ..util.Units import get_ang_from_x, get_ev_from_x
 from ..util.Misc import numeric_types, get_band_edges, split_by_sign
 from scipy.integrate import quad, simpson, cumulative_trapezoid, ode
 from .GalaxyAggregate import GalaxyAggregate
@@ -2188,7 +2189,7 @@ class GalaxyCohort(GalaxyAggregate):
             # reflective of the intrinsic luminosity of sources.
             # So, we need to compute the attenuation expected at our
             # observed magnitudes, `bins`.
-            wave = self.src.get_ang_from_x(x, units=units)
+            wave = get_ang_from_x(x, units=units)
             AUV = self.dust.get_attenuation(wave, MUV=bins, z=z)
 
             # Dust-reddened magnitudes
@@ -2613,7 +2614,7 @@ class GalaxyCohort(GalaxyAggregate):
         density or Av; this routine fetches that first.
         """
 
-        waves = self.src.get_ang_from_x(x if band is None else band, units=units)
+        waves = get_ang_from_x(x if band is None else band, units=units)
         if band is not None:
             waves = np.mean(waves)
 
@@ -2738,15 +2739,15 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Convert `band` to Angstroms regardless of input.
         if band is not None:
-            band = self.src.get_ang_from_x(band, units=units)
+            band = get_ang_from_x(band, units=units)
 
             if band[0] > band[1]:
                 band = band[::-1]
 
-            wave = np.mean(self.src.get_ang_from_x(band, units=units))
+            wave = np.mean(get_ang_from_x(band, units=units))
         # Save deal for `x`
         elif x is not None:
-            wave = self.src.get_ang_from_x(x, units=units)
+            wave = get_ang_from_x(x, units=units)
 
         R = 1 if self.pf['pop_sed_degrade'] is None \
             else self.pf['pop_sed_degrade']
@@ -2821,7 +2822,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Determine fesc [will apply in a minute]
-        if (band is not None) and (not band.lower().startswith('bol')):
+        if ((band is not None) and (not band.lower().startswith('bol'))) or (x is not None):
             fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
                 units=units)
 
@@ -2849,7 +2850,7 @@ class GalaxyCohort(GalaxyAggregate):
         # Manual override: if user supplies L/SFR directly.
         kludge = 1.
         if self.pf['pop_lum_per_sfr'] is not None:
-            wave = self.src.get_ang_from_x(x, units=units)
+            wave = get_ang_from_x(x, units=units)
             if wave not in [1500,1600]:
                 raise ValueError(f"Should only use pop_lum_per_sfr for rest UV! Attempted {wave} Angstrom.")
 
@@ -2877,16 +2878,31 @@ class GalaxyCohort(GalaxyAggregate):
                 return Lbol
 
             # Need to introduce SED modulation here
-            wave = self.src.get_ang_from_x(x, units=units)
+            E = get_ev_from_x(x, units=units)
 
-            raise NotImplemented('help')
+            Lh = self.src.get_spectrum(E) * Lbol
 
+            print('hello', x, units, E, self.src.get_spectrum(E))
+        
             if units_out.lower() == 'erg/s/hz':
-                pass
+                Lh *= ev_per_hz
             else:
                 raise ValueError(f'unknown units={units_out}')
+            
+            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z), 
+                                self.halos.tab_M < self.get_Mmax(z))
+            
+            #if (self.pf['pop_scatter_sfh'] == 0) or (not self.pf['pop_mask_use_adv']):
+            #    ok *= self.halos.tab_M < self.get_Mmax(z)
 
+            Lh[~ok] = 0
 
+            if Mh is None:
+                return Lh
+            else:
+                return 10**np.interp(np.log10(Mh), np.log10(self.halos.tab_M[ok==1]),
+                        np.log10(Lh[ok==1]), left=-np.inf, right=-np.inf)
+            
         # or lookup table, in which case we need to interpolate
         elif self.pf['pop_lum_tab'] is not None:
 
@@ -2921,7 +2937,7 @@ class GalaxyCohort(GalaxyAggregate):
             elif units_out.lower() == 'erg/s/hz':
                 pass
             elif units_out.lower().startswith('erg/s/a'):
-                wave = self.src.get_ang_from_x(x, units=units)
+                wave = get_ang_from_x(x, units=units)
                 Lh = Lh * c * 1e8 / (np.mean(wave))**2
 
                 if separate_lines:
@@ -3167,7 +3183,7 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Use correction for mean of band [if provided] or exact wavelength
         if band is not None:
-            _band = self.src.get_ang_from_x(band, units=units)
+            _band = get_ang_from_x(band, units=units)
             wave = np.mean(_band)
 
             iw1 = np.argmin(np.abs(min(_band) - ltab_w))
@@ -3177,7 +3193,7 @@ class GalaxyCohort(GalaxyAggregate):
                 axis=-1)
             
         elif x is not None:
-            wave = self.src.get_ang_from_x(x, units=units)
+            wave = get_ang_from_x(x, units=units)
             iw = np.argmin(np.abs(wave - ltab_w))
             lum = ltab[:,:,iw]
         else:
@@ -3590,8 +3606,8 @@ class GalaxyCohort(GalaxyAggregate):
         """
         Computes a UV slope ("beta") from two points. This is approximate!
         """
-        lam1 = self.src.get_ang_from_x(x1, units=units)
-        lam2 = self.src.get_ang_from_x(x2, units=units)
+        lam1 = get_ang_from_x(x1, units=units)
+        lam2 = get_ang_from_x(x2, units=units)
 
         lum1 = self.get_lum(z=z, x=x1, units='Ang',
             window=window, use_tabs=False, units_out='erg/s/Ang')
@@ -3657,7 +3673,7 @@ class GalaxyCohort(GalaxyAggregate):
             xout = filt, xfilt, dxfilt
 
         # Take geometric mean or anything?
-        wave = self.src.get_ang_from_x(x, units=units) # only used if method='closest'
+        wave = get_ang_from_x(x, units=units) # only used if method='closest'
         mags = self.phot.get_avg_mags(mags, xout, method=method, wave=wave, z=z)
 
         ##

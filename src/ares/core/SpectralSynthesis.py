@@ -17,6 +17,7 @@ from ..util import ProgressBar
 from ..util import ParameterFile
 from scipy.optimize import curve_fit
 from scipy.integrate import trapezoid
+from ..util.Units import get_ang_from_x
 from ..physics.Cosmology import Cosmology
 from scipy.interpolate import interp1d, RectBivariateSpline
 from ..physics.Constants import s_per_myr, c, h_p, erg_per_ev, flux_AB, \
@@ -1154,7 +1155,7 @@ class SpectralSynthesis(object):
                 #assert batch_mode
 
                 logA = np.log10(ages)
-                wave = self.src.get_ang_from_x(x, units=units)
+                wave = get_ang_from_x(x, units=units)
                 logL_at_wave = self.L_of_Z_t(wave)
 
                 if batch_mode:
@@ -1298,7 +1299,7 @@ class SpectralSynthesis(object):
                 #_kappa = self._cache_kappa(wave)
 
                 #if _kappa is None:
-                wave = self.src.get_ang_from_x(x, units=units)
+                wave = get_ang_from_x(x, units=units)
                 kappa = extras['kappa'](wave=wave)
                 #self._cache_kappa_[wave] = kappa
                 #else:

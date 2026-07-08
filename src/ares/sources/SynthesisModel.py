@@ -26,6 +26,7 @@ from ..physics import Cosmology
 from ares.data import read as read_lit
 from ..physics import NebularEmission
 from ..util.ParameterFile import ParameterFile
+from ..util.Units import get_ang_from_x, get_ev_from_x
 from ..physics.Constants import (
     h_p,
     c,
@@ -173,7 +174,7 @@ class SynthesisModelBase(Source):
         Return a normalized version of the spectrum at photon energy E / eV.
         """
 
-        E = self.get_ev_from_x(x, units=units)
+        E = get_ev_from_x(x, units=units)
 
         cached_result = self._cache_spec(E)
         if cached_result is not None:
@@ -417,7 +418,7 @@ class SynthesisModelBase(Source):
 
         if band is not None:
             # Work in eV regardless of input
-            E1, E2 = self.get_ev_from_x(band, units=units)
+            E1, E2 = get_ev_from_x(band, units=units)
 
             # If outside range, don't extrapolate, just set to zero.
             if (E1 < np.min(self.tab_energies_c)) and \
@@ -446,7 +447,7 @@ class SynthesisModelBase(Source):
                 # Special treatment for narrow bands
                 if (i0 == i1) or abs(i0 - i1) == 1:
                     # Work with wavelengths here
-                    l1, l2 = self.get_ang_from_x(band, units=units)
+                    l1, l2 = get_ang_from_x(band, units=units)
                     dlam = abs(l1 - l2)
 
                     if 'erg' in units_out.lower():
@@ -455,7 +456,7 @@ class SynthesisModelBase(Source):
                         yield_UV[i] = data[i1,i] * dlam \
                             / (self.tab_energies_c[i1] * erg_per_ev)
                 else:
-                    l1, l2 = self.get_ang_from_x(band, units=units)
+                    l1, l2 = get_ang_from_x(band, units=units)
 
                     if 'erg' in units_out.lower():
                         integrand = data[:,i] * self.tab_waves_c
@@ -472,7 +473,7 @@ class SynthesisModelBase(Source):
                         raise ValueError(f'Negative lum_per_sfr! band={band}, l1={l1}, l2={l2}')
 
         else:
-            wave = self.get_ang_from_x(x, units=units)
+            wave = get_ang_from_x(x, units=units)
             j = np.argmin(np.abs(wave - self.tab_waves_c))
 
             if Z is not None:

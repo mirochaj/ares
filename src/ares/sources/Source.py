@@ -18,6 +18,7 @@ from scipy.integrate import quad
 from ..util import ParameterFile
 from ..util.Misc import numeric_types
 from functools import cached_property
+from ..util.Units import get_ev_from_x
 from ..physics.Hydrogen import Hydrogen
 from ..physics.Cosmology import Cosmology
 from ..util.ParameterFile import ParameterFile
@@ -433,90 +434,91 @@ class Source(object):
         return quad(integrand, Emin, Emax, points=self.sharp_points)[0] \
              / quad(norm, Emin, Emax, points=self.sharp_points)[0]
 
-    def get_ang_from_x(self, x, units='eV'):
-        """
-        Convert input `x` from `units` to Angstroms.
-        """
+    #def get_ang_from_x(self, x, units='eV'):
+    #    """
+    #    Convert input `x` from `units` to Angstroms.
+    #    """
+    #    #return get_ang_from_x(x, units=units)
 
-        # If supplied units are already Angstroms, we're done.
-        if units.lower().startswith('ang'):
-            return x
-        
-        # This routine always returns in order of ascending photon energy,
-        # so it's possible that `x` has been flipped.
-        # There's a check below to make sure
-        xout = self.get_ev_from_x(x, units=units)
+    #    # If supplied units are already Angstroms, we're done.
+    #    if units.lower().startswith('ang'):
+    #        return x
+    #    
+    #    # This routine always returns in order of ascending photon energy,
+    #    # so it's possible that `x` has been flipped.
+    #    # There's a check below to make sure
+    #    xout = self.get_ev_from_x(x, units=units)
 
-        type_in = type(x)
+    #    type_in = type(x)
 
-        if isinstance(x, numbers.Number):
-            x_is_band = False
-            out = h_p * c / erg_per_ev / xout / 1e-8
-        else:
-            x_is_band = True
-            out = h_p * c / erg_per_ev / np.array(xout) / 1e-8
+    #    if isinstance(x, numbers.Number):
+    #        x_is_band = False
+    #        out = h_p * c / erg_per_ev / xout / 1e-8
+    #    else:
+    #        x_is_band = True
+    #        out = h_p * c / erg_per_ev / np.array(xout) / 1e-8
 
-        # Check for order change, since get_ev_from_x aways returns in
-        # ascending energy. Want to match input order of `x`.
-        # In other words, match order of input `x` unless we're converting
-        # from wavelength to energy.
-        if units.lower() not in ['ev', 'hz'] and x_is_band and (out[0] > out[1]):
-            # Maybe this is only microns right now?
-            out = np.flip(out)
+    #    # Check for order change, since get_ev_from_x aways returns in
+    #    # ascending energy. Want to match input order of `x`.
+    #    # In other words, match order of input `x` unless we're converting
+    #    # from wavelength to energy.
+    #    if units.lower() not in ['ev', 'hz'] and x_is_band and (out[0] > out[1]):
+    #        # Maybe this is only microns right now?
+    #        out = np.flip(out)
 
-        if type_in == tuple:
-            return tuple(out)
-        elif type_in == list:
-            return list(out)
-        elif type_in in numeric_types:
-            return float(out)
-        else:
-            return out
+    #    if type_in == tuple:
+    #        return tuple(out)
+    #    elif type_in == list:
+    #        return list(out)
+    #    elif type_in in numeric_types:
+    #        return float(out)
+    #    else:
+    #        return out
 
-    def get_ev_from_x(self, x, units='eV'):
-        """
-        Convert input `x` from `units` to electron volts.
-
-        .. note :: Will always return energies in ascending order! This is
-            because we're usually doing this to find some bounding range over
-            which to integrate.
-
-        .. note :: Currently understands the following units: eV, Angstroms,
-            microns, and Hz.
-
-        """
-
-        type_in = type(x)
-        if type_in in [list, tuple]:
-            x = np.array(x)
-        elif type_in in numeric_types:
-            x = np.array([x])
-
-        if units.lower() == 'ev':
-            xout = x.copy()
-        elif units.lower().startswith('ang'):
-            xout = h_p * c / erg_per_ev / x / 1e-8
-        elif (units.lower() == 'um') or units.lower().startswith('mic'):
-            xout = h_p * c / erg_per_ev / x / 1e-4
-        elif units.lower().startswith('hz'):
-            xout = h_p * x / erg_per_ev
-        else:
-            raise NotImplemented('help')
-
-        # Re-order if necessary
-        if x.size > 1:
-            if xout[0] > xout[1]:
-                xout = np.flip(xout)
-
-        if type_in == tuple:
-            return tuple(xout)
-        elif type_in == list:
-            return list(xout)
-        elif type_in in numeric_types:
-            return float(xout)
-        else:
-            return xout
-
+    #def get_ev_from_x(self, x, units='eV'):
+    #    """
+    #    Convert input `x` from `units` to electron volts.
+#
+    #    .. note :: Will always return energies in ascending order! This is
+    #        because we're usually doing this to find some bounding range over
+    #        which to integrate.
+#
+    #    .. note :: Currently understands the following units: eV, Angstroms,
+    #        microns, and Hz.
+#
+    #    """
+#
+    #    type_in = type(x)
+    #    if type_in in [list, tuple]:
+    #        x = np.array(x)
+    #    elif type_in in numeric_types:
+    #        x = np.array([x])
+#
+    #    if units.lower() == 'ev':
+    #        xout = x.copy()
+    #    elif units.lower().startswith('ang'):
+    #        xout = h_p * c / erg_per_ev / x / 1e-8
+    #    elif (units.lower() == 'um') or units.lower().startswith('mic'):
+    #        xout = h_p * c / erg_per_ev / x / 1e-4
+    #    elif units.lower().startswith('hz'):
+    #        xout = h_p * x / erg_per_ev
+    #    else:
+    #        raise NotImplemented('help')
+#
+    #    # Re-order if necessary
+    #    if x.size > 1:
+    #        if xout[0] > xout[1]:
+    #            xout = np.flip(xout)
+#
+    #    if type_in == tuple:
+    #        return tuple(xout)
+    #    elif type_in == list:
+    #        return list(xout)
+    #    elif type_in in numeric_types:
+    #        return float(xout)
+    #    else:
+    #        return xout
+#
     def get_band_name(self, x=None, band=None, units='eV'):
         """
         Some bandpasses get special treatment, e.g., Lyman-Werner,
@@ -536,7 +538,7 @@ class Source(object):
             band = x, x
 
         # Unpack band and convert units to eV for band identification
-        Emin, Emax = self.get_ev_from_x(band, units=units)
+        Emin, Emax = get_ev_from_x(band, units=units)
 
         # Easier case, check that energy/wave/freq lies in given interval.
         if monochromatic:
@@ -753,7 +755,7 @@ class Source(object):
 
         """
 
-        E = self.get_ev_from_x(x, units=units)
+        E = get_ev_from_x(x, units=units)
 
         if self.pf['source_Ekill'] is not None:
             if self.pf['source_Ekill'][0] <= E <= self.pf['source_Ekill'][1]:

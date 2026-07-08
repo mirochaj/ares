@@ -423,6 +423,8 @@ agn = \
  'pop_Emax': 13.6,
  'pop_fesc': 1,
 
+ 'pop_sed': 'krawczyk2013',
+
  'pop_sfr_model': 'smhm-func',
  # fstar is SMHM for 'smhm-func' SFR model
  'pop_fstar': 'pq[20]',
