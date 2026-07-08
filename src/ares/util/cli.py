@@ -16,12 +16,10 @@ import shutil
 import pickle
 import tarfile
 import zipfile
-from urllib.request import urlretrieve
 from urllib.error import URLError, HTTPError
-
+from urllib.request import urlretrieve, Request, urlopen, build_opener, install_opener
 import numpy as np
 import h5py
-
 from pathlib import Path
 from .Math import smooth
 from . import ParameterBundle
@@ -34,6 +32,10 @@ from ..solvers import OpticalDepth
 from ..sources import BlackHole, Galaxy
 from ..simulations import RaySegment
 
+
+opener = build_opener()
+opener.addheaders = [("User-Agent", "Mozilla/5.0")]
+install_opener(opener)
 
 try:
     import gdown
@@ -406,6 +408,11 @@ aux_data = {
         'shen2020_qso_lfs.pkl',
         None
     ],
+    'krawczyk_sed': [
+        'https://drive.google.com/file/d/1OhO2XlnLLsESNTvhFVZH6sMREpi9o5h4/view?usp=sharing',
+        'apjs468686t2_mrt.txt',
+        None
+    ]
 }
 
 # define which files are needed for which things
@@ -1056,9 +1063,28 @@ def _do_download(full_path, dl_link):
         print(f"# Downloading {dl_link} to {full_path}.")
         urlretrieve(dl_link, full_path)
         print(f"# Downloaded {dl_link} to {full_path}.")
-    except (URLError, HTTPError) as error:
+    except (URLError, HTTPError) as error1:
+
         print(f"! Error downloading file {dl_link} to {full_path}")
-        print(f"! error: {error}")
+        print(f"! error: {error1}")
+        
+        try:
+            
+
+            req = Request(
+                dl_link,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                   "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                   "Chrome/120.0 Safari/537.36"}
+            )
+            with urlopen(req) as response, open("apjs468686t2_mrt.txt", "wb") as f:
+                f.write(response.read())
+
+        except (URLError, HTTPError) as error2:
+
+            print(f"! Error downloading file {dl_link} to {full_path}")
+            print(f"! error: {error2}")
+            
     return
 
 def download_files(args):
