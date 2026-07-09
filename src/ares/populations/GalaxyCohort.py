@@ -2822,7 +2822,13 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Determine fesc [will apply in a minute]
-        if ((band is not None) and (not band.lower().startswith('bol'))) or (x is not None):
+        fesc = None
+        if (band is not None):
+            if isinstance(band, str):
+                assert band.lower().startswith('bol')
+                fesc = 1
+        
+        if fesc is None:
             fesc = self.get_fesc(z, Mh=self.halos.tab_M, x=x, band=band,
                 units=units)
 
@@ -2874,27 +2880,28 @@ class GalaxyCohort(GalaxyAggregate):
 
             Lbol = Ms * lum_per_mass
 
-            if (band is not None) and (band.lower().startswith('bol')):
-                return Lbol
+            if (band is not None):
+                if isinstance(band, str):
+                    assert band.lower().startswith('bol')
+                    return Lbol
 
-            # Need to introduce SED modulation here
-            E = get_ev_from_x(x, units=units)
-
-            Lh = self.src.get_spectrum(E) * Lbol
-
-            print('hello', x, units, E, self.src.get_spectrum(E))
-        
-            if units_out.lower() == 'erg/s/hz':
-                Lh *= ev_per_hz
+                # Need to introduce SED modulation here
+                E = get_ev_from_x(band, units=units)
+    
+                Lh = self.src.get_spectrum(E) * Lbol
             else:
-                raise ValueError(f'unknown units={units_out}')
+                E = get_ev_from_x(x, units=units)
+                Lh = self.src.get_spectrum(E) * Lbol
+
+        
+                if units_out.lower() == 'erg/s/hz':
+                    Lh *= ev_per_hz
+                else:
+                    raise ValueError(f'unknown units={units_out}')
             
             ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z), 
                                 self.halos.tab_M < self.get_Mmax(z))
             
-            #if (self.pf['pop_scatter_sfh'] == 0) or (not self.pf['pop_mask_use_adv']):
-            #    ok *= self.halos.tab_M < self.get_Mmax(z)
-
             Lh[~ok] = 0
 
             if Mh is None:

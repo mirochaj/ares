@@ -8,7 +8,8 @@ from . import ARES
 import numpy as np
 from astropy.io import ascii
 from ..physics.Constants import h_p, erg_per_ev
-
+from ..util.Misc import numeric_types
+from ..util.Math import integrate_with_subgrid_interp
 data = ascii.read(f"{ARES}/krawczyk_sed/apjs468686t2_mrt.txt")
 
 xunit = 'hz'
@@ -27,5 +28,8 @@ def get_spectrum(E, t=0.0, **kwargs):
     integrates to unity (if integrating over x/[eV])
     """
 
-    return np.interp(E, x_eV, y / norm, left=0, right=0)
+    if type(E) in numeric_types:
+        return np.interp(E, x_eV, y / norm, left=0, right=0)
+    else:
+        return integrate_with_subgrid_interp(x_eV, y / norm, E[0], E[1])
 

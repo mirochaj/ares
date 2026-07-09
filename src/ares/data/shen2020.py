@@ -59,7 +59,7 @@ from load_observations import get_data
 
 dataids = -np.arange(1, 6, 1)
 redshifts = [0.1,0.2,0.5,1,2,3,4,5,6,7]
-h07band_from_dataids = {-1:0, -2:3, -3:2, -4:1, -5: -99999}
+h07band_from_dataids = {-1:0, -2:3, -3:2, -4:1, -5: 5} # 4 is emission lines in h07
 data = {z:{} for z in redshifts}
 for z in redshifts:
 
@@ -106,3 +106,5 @@ from . import ARES
 redshifts = [0.1,0.2,0.5,1,2,3,4,5,6,7]
 with open(f"{ARES}/shen_lfs/shen2020_qso_lfs.pkl", "rb") as f:
     data = pickle.load(f)
+
+bands = {0:'optical', 1:'soft x-ray', 2:'hard x-ray', 3:'ir', 4:'emission lines', 5: 'uv'}
