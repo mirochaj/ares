@@ -727,7 +727,7 @@ def generate_nfw_Sigma_tables(path, **kwargs):
 
     return
 
-def generate_ukm_tables(path, prof=None, msr=None, **kwargs):
+def generate_ukm_tables(path, prof=None, msr=None, smhm=None, **kwargs):
     """
     Generate halo mass function tables for ARES.
 
@@ -787,7 +787,7 @@ def generate_ukm_tables(path, prof=None, msr=None, **kwargs):
 
     try:
         halos.generate_halo_prof(prof, clobber=False,
-            checkpoint=True, msr=msr)
+            checkpoint=True, msr=msr, smhm=smhm)
     except IOError as err:
         print(err)
     return

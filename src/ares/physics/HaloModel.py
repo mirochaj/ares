@@ -258,6 +258,8 @@ class HaloModel(HaloMassFunction):
             
         b = sp.gammaincinv(2. * n, 0.5)
         rho = lambda zz, MM, r: np.exp(-b * ((r / r_s)**(1. / n) - 1))
+
+        # Integrate rho over r
         return self.get_u_general(z, Mh, k, rho, use_leggauss=1, use_clenshaw_curtis=0)
         
     def get_u_general(self, z, Mh, k, rho, use_clenshaw_curtis=0, use_leggauss=0):
@@ -1445,7 +1447,7 @@ class HaloModel(HaloMassFunction):
         return
 
     def generate_halo_prof(self, prof=None, format='hdf5', clobber=False, checkpoint=True,
-        destination=None, msr=None, **kwargs):
+        destination=None, msr=None, smhm=None, **kwargs):
         """
         Generate a lookup table for Fourier-tranformed halo profiles.
         """
@@ -1495,12 +1497,18 @@ class HaloModel(HaloMassFunction):
             if is_nfw:
                 self._tab_uofk[i,:,:] = self.get_u_nfw(z, MM, kk)
             else:    
-                r_sfg = msr[0](z, self.tab_M * 1e-3) / 1e3
-                r_qg = msr[1](z, self.tab_M * 1e-3) / 1e3
+                r_sfg = msr[0](z, smhm[0](z=z, Mh=self.tab_M) * self.tab_M) / 1e3
+                r_qg = msr[1](z, smhm[1](z=z, Mh=self.tab_M) * self.tab_M) / 1e3
+                            
                 for nn, n in enumerate(self.tab_nsers):    
                     for mm, M in enumerate(self.tab_M):
                         for k, _kk_ in enumerate(self.tab_k):
-                            
+
+                            # Note:
+                            # For Einasto, the halo mass is only used 
+                            # to determine Rvir (and truncate the integral)
+                            #
+
                             # Eventually need to be more general
                             # but for now just looking for speed-up.
                             if nn == 0:
@@ -1535,7 +1543,7 @@ class HaloModel(HaloMassFunction):
         with h5py.File(fn, 'w') as f:
             f.create_dataset('tab_u', data=self._tab_uofk)
             f.create_dataset('tab_k', data=self.tab_k)
-            f.create_dataset('tab_M', data=self.tab_M if is_nfw else 1e-3 * self.tab_M)
+            f.create_dataset('tab_M', data=self.tab_M)
             f.create_dataset('tab_z', data=self.tab_z)
             if not is_nfw:
                 f.create_dataset('tab_nsers', data=self.tab_nsers)
