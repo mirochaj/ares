@@ -170,7 +170,7 @@ class HaloModel(HaloMassFunction):
 
             if os.path.exists(fn):
                 with h5py.File(fn, 'r') as f:
-                    self._tab_u_einasto = np.array(f[('tab_u_einasto')])
+                    self._tab_u_einasto = np.array(f[('tab_u')])
                     self._tab_u_einasto_z = np.array(f[('tab_z')])
                     self._tab_u_einasto_k = np.array(f[('tab_k')])
                     self._tab_u_einasto_m = np.array(f[('tab_M')]) # Mstell

@@ -6919,7 +6919,7 @@ class GalaxyCohort(GalaxyAggregate):
                 n_s = 2 if self.is_star_forming else 4
                 prof = lambda zz, mm, kk: self.halos.get_u_einasto(zz, mm, kk, n=n_s, r_s=r_s(zz,mm))
             # Revert to delta function at high z
-            elif z > self._tab_u_einasto_z.max():
+            elif z > self.halos._tab_u_einasto_z.max():
                 prof = self._profile_delta
             else:
                 iz = np.argmin(np.abs(z - self.halos._tab_u_einasto_z))
@@ -6927,7 +6927,7 @@ class GalaxyCohort(GalaxyAggregate):
                 i_k = np.argmin(np.abs(k - self.halos._tab_u_einasto_k))
 
                 # get stellar masses
-                mstell = self.get_fstar(z=z, Mh=self.tab_Mh) * self.tab_Mh
+                mstell = self.get_fstar(z=z, Mh=self.halos.tab_M) * self.halos.tab_M
                 
                 # Interpolate masses on halos.tab_M grid to the einasto M grid.
                 logm = np.log10(self.halos._tab_u_einasto_m)
