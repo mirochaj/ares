@@ -1587,7 +1587,8 @@ class HaloMassFunction(object):
             raise NotImplementedError('Unknown z gridding scheme! Provide halo_dz, halo_dt, or halo_dlogx please!')
 
 
-    def tab_prefix_hmf(self, with_size=False):
+    def tab_prefix_hmf(self, with_size=False, halo_dt=None, halo_tmin=None, 
+        halo_tmax=None, halo_dz=None, halo_dlogM=None):
         """
         What should we name this table?
 
@@ -1603,8 +1604,14 @@ class HaloMassFunction(object):
 
         M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
 
+        if halo_dz is None:
+            halo_dz = self.pf['halo_dz']
+
+        if halo_dt is None:
+            halo_dt = self.pf['halo_dt']    
+
         is_dlogx = False
-        if self.pf['halo_dz'] is not None:
+        if halo_dz is not None:
             z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
 
             # Just use integer redshift bounds please.
@@ -1621,8 +1628,13 @@ class HaloMassFunction(object):
                 / self.pf['halo_dz']
             ) + 1
 
-        elif self.pf['halo_dt'] is not None:
-            t1, t2 = self.pf['halo_tmin'], self.pf['halo_tmax']
+        elif halo_dt is not None:
+            if halo_tmin is None:
+                halo_tmin = self.pf['halo_tmin']
+            if halo_tmax is None:
+                halo_tmax = self.pf['halo_tmax']
+            
+            t1, t2 = halo_tmin, halo_tmax
 
             # Just use integer redshift bounds please.
             assert t1 % 1 == 0
@@ -1635,8 +1647,8 @@ class HaloMassFunction(object):
             s = 't'
 
             tsize = zsize = (
-                (self.pf['halo_tmax'] - self.pf['halo_tmin'])
-                / self.pf['halo_dt']
+                (halo_tmax - halo_tmin)
+                / halo_dt
             ) + 1
 
         elif self.pf['halo_dlogx'] is not None:
@@ -1657,9 +1669,11 @@ class HaloMassFunction(object):
             is_dlogx = True
 
         if with_size:
+            if halo_dlogM is None:
+                halo_dlogM = self.pf['halo_dlogM']
             logMsize = (
                 (self.pf['halo_logMmax'] - self.pf['halo_logMmin'])
-                / self.pf['halo_dlogM']
+                / halo_dlogM
             )
 
             assert logMsize % 1 == 0

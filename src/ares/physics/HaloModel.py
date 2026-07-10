@@ -160,12 +160,26 @@ class HaloModel(HaloMassFunction):
 
         return self._tab_u_nfw
     
-    @property
-    def tab_u_einasto(self):
+    def get_tab_u_einasto(self, halo_dt=None, halo_tmin=None, 
+        halo_dz=None, halo_dlogM=None, halo_dlnk=None):
+        """
+        Docstring for get_tab_u_einasto
+        
+        :param self: Description
+        :param halo_dt: Description
+        :param halo_tmin: Description
+        :param halo_dz: Description
+        :param halo_dlogM: Description
+        :param halo_dlnk: Description
+        """
+
         if not hasattr(self, '_tab_u_einasto'):
             
             fn = os.path.join(
-                ARES, "halos", self.tab_prefix_prof('einasto') + ".hdf5"
+                ARES, "halos", 
+                self.tab_prefix_prof('einasto', halo_dt=halo_dt, halo_tmin=halo_tmin,
+                    halo_dz=halo_dz, halo_dlogM=halo_dlogM, halo_dlnk=halo_dlnk)
+                + ".hdf5"
             )
 
             if os.path.exists(fn):
@@ -1079,10 +1093,26 @@ class HaloModel(HaloMassFunction):
         else:
             raise IOError('Unrecognized format for halo_table.')
 
-    def tab_prefix_prof(self, prof=None):
-        hmf_pref = self.tab_prefix_hmf(with_size=True)
+    def tab_prefix_prof(self, prof=None, halo_dt=None, halo_tmin=None, 
+        halo_tmax=None, halo_dz=None, halo_dlogM=None, halo_dlnk=None):
+        """
+        Docstring for tab_prefix_prof
+        
+        :param self: Description
+        :param prof: Description
+        :param halo_dt: Description
+        :param halo_tmin: Description
+        :param halo_dz: Description
+        :param halo_dlogM: Description
+        :param halo_dlnk: Description
+        """
+        hmf_pref = self.tab_prefix_hmf(with_size=True, halo_dt=halo_dt,
+            halo_tmin=halo_tmin, halo_tmax=halo_tmax, halo_dz=halo_dz,
+            halo_dlogM=halo_dlogM)
 
-        dlogk = self.pf['halo_dlnk']
+        if halo_dlnk is None:
+            halo_dlnk = self.pf['halo_dlnk']
+
         kmi, kma = self.pf['halo_lnk_min'], self.pf['halo_lnk_max']
 
         Mz_info = hmf_pref[hmf_pref.find('logM'):].replace('.hdf5', '')
@@ -1091,11 +1121,11 @@ class HaloModel(HaloMassFunction):
             return 'halo_prof_{}_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
                 self.pf['halo_profile'],
                 self.pf['halo_cmr'],
-                Mz_info, kmi, kma, dlogk
+                Mz_info, kmi, kma, halo_dlnk
             )
         else:
             return 'gal_prof_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
-                'einasto', Mz_info, kmi, kma, dlogk
+                'einasto', Mz_info, kmi, kma, halo_dlnk
             
             )
                 

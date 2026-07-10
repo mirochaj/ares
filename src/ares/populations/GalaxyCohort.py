@@ -6911,42 +6911,29 @@ class GalaxyCohort(GalaxyAggregate):
         elif prof == 'delta':
             prof = self._profile_delta
         elif prof == 'einasto':
-            prof_tab = self.halos.tab_u_einasto
-            #if prof_tab is None:
-            # Grab stellar half-light radius and convert to Mpc before passing
-            # into get_u_einasto (where we use R50/Rvir_mpc)
-            r_s = lambda zz, mm: self.pf['pop_msr'](z, self.get_fstar(z=zz, Mh=mm) * mm) / 1e3
-            n_s = 2 if self.is_star_forming else 4
-            prof = lambda zz, mm, kk: self.halos.get_u_einasto(zz, mm, kk, n=n_s, r_s=r_s(zz,mm))
+            prof = self.halos.get_tab_u_einasto(halo_dt=self.pf['pop_prof_dt'],
+                halo_tmin=self.pf['pop_prof_tmin'], halo_dz=self.pf['pop_prof_dz'],
+                halo_dlogM=self.pf['pop_prof_dlogM'], halo_dlnk=self.pf['pop_prof_dlnk'])
+            
+            if prof is None:
+                # Grab stellar half-light radius and convert to Mpc before passing
+                # into get_u_einasto (where we use R50/Rvir_mpc)
+                r_s = lambda zz, mm: self.pf['pop_msr'](z, self.get_fstar(z=zz, Mh=mm) * mm) / 1e3
+                n_s = 2 if self.is_star_forming else 4
+                prof = lambda zz, mm, kk: self.halos.get_u_einasto(zz, mm, kk, n=n_s, r_s=r_s(zz,mm))
             # Revert to delta function at high z
-            if z > self.halos._tab_u_einasto_z.max():
+            elif z > self.halos._tab_u_einasto_z.max():
                 prof = self._profile_delta
             else:
                 iz = np.argmin(np.abs(z - self.halos._tab_u_einasto_z))
                 i_ns = 0 if self.is_star_forming else 1
                 i_k = np.argmin(np.abs(k - self.halos._tab_u_einasto_k))
 
-                # get stellar masses
-                mstell = self.get_fstar(z=z, Mh=self.halos.tab_M) * self.halos.tab_M
-            
                 # Interpolate masses on halos.tab_M grid to the einasto M grid.
                 logm = np.log10(self.halos._tab_u_einasto_m)
-                uofk = np.zeros(self.halos.tab_M.size)
 
-                #import matplotlib.pyplot as plt
-                #plt.figure(10)
-                #i_m = np.argmin(np.abs(12 - logm))
-                #plt.scatter(self.halos._tab_u_einasto_m, prof_tab[iz,:,i_k,i_ns,i_ns])
-                #plt.semilogx(self.halos.tab_M, [prof(z, M, k) for M in self.halos.tab_M])
-                #plt.title(r'$z=%.3f, k=%.3f$' % (z,k))
-                #plt.xlim(1e9, 1e18)
-                #input('<enter>')
-                #plt.close()
-
-                # Could be more accurate, e.g., interpolate in redshift and/or k too
-                for i, _mstell in enumerate(mstell):
-                    uofk[i] = np.interp(np.log10(_mstell), logm,
-                        prof_tab[iz,:,i_k,i_ns,i_ns])
+                uofk = np.interp(np.log10(self.halos.tab_M), logm,
+                    prof[iz,:,i_k,i_ns,i_ns])
                     
                 return uofk
 
