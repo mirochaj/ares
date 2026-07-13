@@ -484,7 +484,7 @@ agn = \
  'pq_func_par18[22]': 0,     # terms that scale a
  'pq_func_par19[22]': 0,     # terms that scale a
 }
-
+agn.update(setup)
 #
 #ihl_from_sat = centrals_sf_old.copy()
 #ihl_from_sat['pop_focc'] = 1
