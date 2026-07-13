@@ -14,6 +14,7 @@ import os
 import h5py
 import numbers
 import numpy as np
+from ..data import ARES
 import numdifftools as nd
 from inspect import ismethod
 from ..util import ProgressBar
@@ -3855,7 +3856,7 @@ class GalaxyCohort(GalaxyAggregate):
         #else:
         
         tab_fsel = np.ones((self.halos.tab_z.size, self.halos.tab_M.size, 2))
-        if (selection_criteria is None) or (self.is_diffuse):
+        if (selection_criteria is None) or (not self.is_cataloged):
             return tab_fsel
         
         ##
@@ -4120,7 +4121,7 @@ class GalaxyCohort(GalaxyAggregate):
             
         """
 
-        if self.is_diffuse:
+        if not self.is_cataloged:
             if (zbin is not None) or (z is not None):
                 return 0
             else:
@@ -6879,7 +6880,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         return Mh, zeta
 
-    def _profile_delta(self, k, M, z):
+    def _profile_delta(self, z, M, k):
         """
         Delta-function profile for the delta component of power spectrum (discrete galaxies)
         """
@@ -6912,7 +6913,7 @@ class GalaxyCohort(GalaxyAggregate):
             ps = np.exp(np.interp(np.log(k), np.log(_k_), np.log(_ps_)))
 
             return ps
-
+        
     def get_prof(self, z, k, prof=None):
         """
         Set up a function for Fourier-transformed profile.
@@ -6943,12 +6944,39 @@ class GalaxyCohort(GalaxyAggregate):
                 prof = self.halos.get_u_nfw
         elif prof == 'delta':
             prof = self._profile_delta
+        elif prof == 'einasto':
+            prof = self.halos.get_tab_u_einasto(halo_dt=self.pf['pop_prof_dt'],
+                halo_tmin=self.pf['pop_prof_tmin'], halo_dz=self.pf['pop_prof_dz'],
+                halo_dlogM=self.pf['pop_prof_dlogM'], halo_dlnk=self.pf['pop_prof_dlnk'])
+            
+            if prof is None:
+                # Grab stellar half-light radius and convert to Mpc before passing
+                # into get_u_einasto (where we use R50/Rvir_mpc)
+                r_s = lambda zz, mm: self.pf['pop_msr'](z, self.get_fstar(z=zz, Mh=mm) * mm) / 1e3
+                n_s = 2 if self.is_star_forming else 4
+                prof = lambda zz, mm, kk: self.halos.get_u_einasto(zz, mm, kk, n=n_s, r_s=r_s(zz,mm))
+            # Revert to delta function at high z
+            elif z > self.halos._tab_u_einasto_z.max():
+                prof = self._profile_delta
+            else:
+                iz = np.argmin(np.abs(z - self.halos._tab_u_einasto_z))
+                i_ns = 0 if self.is_star_forming else 1
+                i_k = np.argmin(np.abs(k - self.halos._tab_u_einasto_k))
+
+                # Interpolate masses on halos.tab_M grid to the einasto M grid.
+                logm = np.log10(self.halos._tab_u_einasto_m)
+
+                uofk = np.interp(np.log10(self.halos.tab_M), logm,
+                    prof[iz,:,i_k,i_ns,i_ns])
+                    
+                return uofk
+
         elif prof == 'isl':
             prof = lambda zz, mm, kk: self.halos.get_u_isl(zz, mm, kk)
         elif prof == 'isl_exp':
             prof = lambda zz, mm, kk: self.halos.get_u_isl_exp(zz, mm, kk)
         elif prof == 'exp':
-            prof = lambda zz, mm, kk: self.halos.get_u_isl(zz, mm, kk)
+            prof = lambda zz, mm, kk: self.halos.get_u_exp(zz, mm, kk)
         elif prof == 'cgm_rahmati':
             prof = lambda zz, mm, kk: self.halos.get_u_cgm_rahmati(zz, mm, kk)
         elif prof == 'cgm_steidel':
@@ -7164,7 +7192,7 @@ class GalaxyCohort(GalaxyAggregate):
         # Kernels are different for galaxy field...
         if isnum:
 
-            if self.is_diffuse:
+            if not self.is_cataloged:
                 return np.zeros_like(self.halos.tab_M)
 
             if term == 0:
@@ -7252,10 +7280,10 @@ class GalaxyCohort(GalaxyAggregate):
         elif isnum1 + isnum2 == 1:
             assert isnum1, "Must set galaxy field to first population."
 
-            if self.is_diffuse:
+            if not self.is_cataloged:
                 return 0
             # No shot contribution from diffuse emission
-            if pop2.is_diffuse:
+            if not pop2.is_cataloged:
                 return 0
             
             iz = self.get_zindex(z)
@@ -7350,7 +7378,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         # Diffuse sources are not cataloged and so do not contribute
         # to the "g" part of galaxy x intensity cross correlations.
-        if isnum1 and self.is_diffuse:
+        if isnum1 and (not self.is_cataloged):
             return 0.0
         
         # 1-h from single population.
@@ -7368,9 +7396,10 @@ class GalaxyCohort(GalaxyAggregate):
         else:
 
             # It's OK for centrals to be involved here, except if 
-            # both self and pop2 are centrals
+            # they are different source populations.
             # (note that IHL will have is_central_pop=False)
-            if self.is_central_pop and pop2.is_central_pop:
+            #if self.is_central_pop and (pop2.is_central_pop and not pop2.pf['pop_include_1h']):
+            if (self.is_central_pop and pop2.is_central_pop) and (self.id_num != pop2.id_num_actual):
                 return 0
 
             iz = self.get_zindex(z)
@@ -7458,7 +7487,10 @@ class GalaxyCohort(GalaxyAggregate):
                         dx=self.halos.dlnm, axis=1)
 
             # This will be a delta function for centrals and NFW for sats
-            uofk1 = self.get_prof(z, k)
+            if self.is_central_pop:
+                uofk1 = self.get_prof(z, k, prof='delta')
+            else:
+                uofk1 = self.get_prof(z, k)
 
             ##
             # On to the intensity piece of the cross.

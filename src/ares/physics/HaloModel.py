@@ -142,7 +142,14 @@ class HaloModel(HaloMassFunction):
 
             if os.path.exists(fn):
                 with h5py.File(fn, 'r') as f:
-                    self._tab_u_nfw = np.array(f[('tab_u_nfw')])
+                    # This try/except is for backward compatibility. 
+                    # Used to only allow nfw, now there are more
+                    # options, always saved to their own file with `tab_u`
+                    # name.
+                    try:
+                        self._tab_u_nfw = np.array(f[('tab_u_nfw')])
+                    except KeyError:
+                        self._tab_u_nfw = np.array(f[('tab_u')])
 
                 if self.pf['verbose'] and rank == 0:
                     print(f"# Loaded {fn}.")
@@ -152,7 +159,46 @@ class HaloModel(HaloMassFunction):
                     print(f"# Did not find {fn}. Will generate u_nfw on the fly.")
 
         return self._tab_u_nfw
+    
+    def get_tab_u_einasto(self, halo_dt=None, halo_tmin=None, 
+        halo_dz=None, halo_dlogM=None, halo_dlnk=None):
+        """
+        Docstring for get_tab_u_einasto
+        
+        :param self: Description
+        :param halo_dt: Description
+        :param halo_tmin: Description
+        :param halo_dz: Description
+        :param halo_dlogM: Description
+        :param halo_dlnk: Description
+        """
 
+        if not hasattr(self, '_tab_u_einasto'):
+            
+            fn = os.path.join(
+                ARES, "halos", 
+                self.tab_prefix_prof('einasto', halo_dt=halo_dt, halo_tmin=halo_tmin,
+                    halo_dz=halo_dz, halo_dlogM=halo_dlogM, halo_dlnk=halo_dlnk)
+                + ".hdf5"
+            )
+
+            if os.path.exists(fn):
+                with h5py.File(fn, 'r') as f:
+                    self._tab_u_einasto = np.array(f[('tab_u')])
+                    self._tab_u_einasto_z = np.array(f[('tab_z')])
+                    self._tab_u_einasto_k = np.array(f[('tab_k')])
+                    self._tab_u_einasto_m = np.array(f[('tab_M')]) # Mstell
+                    self._tab_u_einasto_n = np.array(f[('tab_nsers')])
+
+                if self.pf['verbose'] and rank == 0:
+                    print(f"# Loaded {fn}.")
+            else:
+                self._tab_u_einasto = None
+                if self.pf['verbose'] and rank == 0:
+                    print(f"# Did not find {fn}. Will generate u_nfw on the fly.")
+
+        return self._tab_u_einasto
+    
     @property
     def tab_Sigma_nfw(self):
         if not hasattr(self, '_tab_Sigma_nfw'):
@@ -205,17 +251,89 @@ class HaloModel(HaloMassFunction):
     def get_u_isl_exp(self, z, Mh, k, rmax=1e2, rstar=10):
         return np.arctan(rstar * k) / rstar / k
 
-    def get_u_exp(self, z, Mh, k, rmax=1e2):
-        rs = 1.
+    def get_u_exp(self, z, Mh, k, b=1):
 
-        L0 = (Mh / 1e11)**1.
-        c = rmax / rs
+        rvir = self.get_Rvir_from_Mh(Mh)
+        
+        A = (1 + b * rvir) * np.cos(k * rvir) + k * rvir * np.sin(k * rvir)
+        B = (1 + b * rvir) * np.sin(k * rvir) - k * rvir * np.cos(k * rvir)
 
-        kappa = k * rs
+        top = b**3 * (2 * b * k - np.exp(-b * rvir) \
+                   * (2 * b * k * A + (b**2 - k**2) * B)) 
+        bot = k * (b**2 + k**2)**2 * (2 - np.exp(-b * rvir) \
+                * (b**2 * rvir**2 + 2 * b * rvir + 2))
 
-        norm = rmax / rs**3
+        return top / bot
+    
+    def get_u_einasto(self, z, Mh, k, n=2, r_s=None):
+        # Hack at half-light radius for now
+        if r_s is None:
+            r_s = self.get_Rvir_from_Mh(Mh) / 10.
+            
+        b = sp.gammaincinv(2. * n, 0.5)
+        rho = lambda zz, MM, r: np.exp(-b * ((r / r_s)**(1. / n) - 1))
 
-        return norm / (1. + kappa**2)**2.
+        # Integrate rho over r
+        return self.get_u_general(z, Mh, k, rho, use_leggauss=1, use_clenshaw_curtis=0)
+        
+    def get_u_general(self, z, Mh, k, rho, use_clenshaw_curtis=0, use_leggauss=0):
+        """
+        Compute arbitrary Fourier-transformed profile by brute force.
+
+        Parameters
+        ----------
+        z : int, float
+        Mh : int, float
+        k : int, float, np.ndarray
+        rho : function
+            Must take three arguments: (z, Mh, r), in that order. The normalization
+            doesn't matter -- we'll normalize by the total mass here automatically.
+        use_clenshaw_curtis : bool
+            For highly-oscillatory integrals, set this to True to use a more
+            sophisticated integrator (through scipt.integrate's quad routine, using
+            `weights='sin'` keyword argument). Note that this can fail in cases 
+            where the integrand isn't all that wiggly.
+        use_leggauss : bool
+            This seems to generally be more robust than Clenshaw-Curtis. It 
+            essentially breaks the integrand into pieces one wiggle wide. 
+        
+        Returns
+        -------
+        u(k), i.e., the Fourier-transformed profile. 
+        
+        """
+        rvir = self.get_Rvir_from_Mh(Mh)
+
+        if type(k) != np.ndarray:
+            k = np.array([k])
+
+        result = np.zeros_like(k)
+        for i, _k_ in enumerate(k):
+            integ = lambda r: (4 * np.pi * r**2 / (_k_ * r)) * (rho(z, Mh, r) / Mh)
+            if use_leggauss:
+                result[i] = self._get_osc_integral(_k_, rvir, integ, order=100)
+            elif use_clenshaw_curtis:
+                result[i] = quad(integ, 0, rvir, weight='sin', wvar=_k_, 
+                    epsabs=0, epsrel=1e-12, limit=1000, maxp1=1000)[0]
+            else:
+                result[i] = quad(lambda r: integ(r) * np.sin(_k_ * r), 0, rvir, 
+                    epsabs=0, epsrel=1e-12, limit=1000, maxp1=1000)[0]
+                
+        norm = quad(lambda r: 4 * np.pi * r**2 * rho(z, Mh, r) / Mh, 0, rvir)[0]
+
+        return result.squeeze() / norm
+    
+    def _get_osc_integral(self, k, R, gofr, order=10):
+        """Integrate some function g(r) * sin(k * r) dr from 0 to R. """
+
+        edges = np.arange(0, R, np.pi/max(k, np.pi/R))
+        edges = np.append(edges, R)
+        x, w = np.polynomial.legendre.leggauss(order)
+        total = 0.0
+        for a, b in zip(edges[:-1], edges[1:]):
+            r = 0.5*(b-a)*x + 0.5*(b+a)
+            total += 0.5*(b-a) * np.sum(w * gofr(r) * np.sin(k*r))
+        return total
 
     def get_u_cgm_rahmati(self, z, Mh, k):
         rstar = 0.0025
@@ -975,42 +1093,42 @@ class HaloModel(HaloMassFunction):
         else:
             raise IOError('Unrecognized format for halo_table.')
 
-    #def tab_prefix_prof(self):
-    #    M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
-    #    z1, z2 = self.pf['halo_zmin'], self.pf['halo_zmax']
+    def tab_prefix_prof(self, prof=None, halo_dt=None, halo_tmin=None, 
+        halo_tmax=None, halo_dz=None, halo_dlogM=None, halo_dlnk=None):
+        """
+        Docstring for tab_prefix_prof
+        
+        :param self: Description
+        :param prof: Description
+        :param halo_dt: Description
+        :param halo_tmin: Description
+        :param halo_dz: Description
+        :param halo_dlogM: Description
+        :param halo_dlnk: Description
+        """
+        hmf_pref = self.tab_prefix_hmf(with_size=True, halo_dt=halo_dt,
+            halo_tmin=halo_tmin, halo_tmax=halo_tmax, halo_dz=halo_dz,
+            halo_dlogM=halo_dlogM)
 
-    #    dlogk = self.pf['halo_dlnk']
-    #    kmi, kma = self.pf['halo_lnk_min'], self.pf['halo_lnk_max']
+        if halo_dlnk is None:
+            halo_dlnk = self.pf['halo_dlnk']
 
-    #    logMsize = (self.pf['halo_logMmax'] - self.pf['halo_logMmin']) \
-    #        / self.pf['halo_dlogM']
-    #    zsize = ((self.pf['halo_zmax'] - self.pf['halo_zmin']) \
-    #        / self.pf['halo_dz']) + 1
-
-    #    assert logMsize % 1 == 0
-    #    logMsize = int(logMsize)
-    #    assert zsize % 1 == 0
-    #    zsize = int(round(zsize, 1))
-
-    #    # Should probably save NFW information etc. too
-    #    return 'halo_prof_%s_%s_logM_%s_%i-%i_z_%s_%i-%i_lnk_%.1f-%.1f_dlnk_%.3f' \
-    #        % (self.pf['halo_profile'], self.pf['halo_cmr'],
-    #            logMsize, M1, M2, zsize, z1, z2, kmi, kma, dlogk)
-
-    def tab_prefix_prof(self):
-        hmf_pref = self.tab_prefix_hmf(with_size=True)
-
-        dlogk = self.pf['halo_dlnk']
         kmi, kma = self.pf['halo_lnk_min'], self.pf['halo_lnk_max']
 
         Mz_info = hmf_pref[hmf_pref.find('logM'):].replace('.hdf5', '')
 
-        return 'halo_prof_{}_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
-            self.pf['halo_profile'],
-            self.pf['halo_cmr'],
-            Mz_info, kmi, kma, dlogk
-        )
-
+        if prof in [None, 'nfw']:
+            return 'halo_prof_{}_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
+                self.pf['halo_profile'],
+                self.pf['halo_cmr'],
+                Mz_info, kmi, kma, halo_dlnk
+            )
+        else:
+            return 'gal_prof_{}_{}_lnk_{:.1f}-{:.1f}_dlnk_{:.3f}'.format(
+                'einasto', Mz_info, kmi, kma, halo_dlnk
+            
+            )
+                
     def tab_prefix_surf(self):
         M1, M2 = self.pf['halo_logMmin'], self.pf['halo_logMmax']
 
@@ -1358,27 +1476,36 @@ class HaloModel(HaloMassFunction):
         print('Wrote %s.' % fn)
         return
 
-    def generate_halo_prof(self, format='hdf5', clobber=False, checkpoint=True,
-        destination=None, **kwargs):
+    def generate_halo_prof(self, prof=None, format='hdf5', clobber=False, checkpoint=True,
+        destination=None, msr=None, smhm=None, **kwargs):
         """
         Generate a lookup table for Fourier-tranformed halo profiles.
         """
 
         assert format == 'hdf5'
 
-        if destination is None:
+        if (destination is None):
             destination = '.'
 
-        fn = f'{destination}/{self.tab_prefix_prof()}.{format}'
+        fn = f'{destination}/{self.tab_prefix_prof(prof)}.{format}'
 
         if rank == 0:
             print(f"# Will save to {fn}.")
 
-        shape = (self.tab_z.size, self.tab_M.size, self.tab_k.size)
-        self._tab_u_nfw = np.zeros(shape)
+        if prof in [None, 'nfw']:
+            is_nfw = True
+            shape = (self.tab_z.size, self.tab_M.size, self.tab_k.size)
+        else:
+            is_nfw = False
+            assert prof == 'einasto'
+            assert msr is not None, "Must provide `msr` for Einasto profile!"
+            self.tab_nsers = np.arange(2, 6, 2)
+            shape = (self.tab_z.size, self.tab_M.size, self.tab_k.size, self.tab_nsers.size, 2)
 
-        if self._tab_u_nfw.nbytes / 1e9 > 8:
-            print(f"WARNING: Size of profile table projected to be >8 GB!")
+        self._tab_uofk = np.zeros(shape)
+
+        if self._tab_uofk.nbytes / 1e9 > 8:
+            print(f"WARNING: Size of profile table projected to be >8 GB! {self._tab_uofk.nbytes / 1e9:.2f} G")
 
         pb = ProgressBar(len(self.tab_z), 'u(z|k,M)', use=rank==0)
         pb.start()
@@ -1388,30 +1515,78 @@ class HaloModel(HaloMassFunction):
         for i, z in enumerate(self.tab_z):
             if i % size != rank:
                 continue
+            
+            fn_z = fn.replace('.hdf5', f'_checkpt_{i}.pkl')
+            if os.path.exists(fn_z):
+                with open(fn_z, 'rb') as f:
+                    self._tab_uofk[i] = pickle.load(f)
+                print(f"! Loaded einasto checkpoint {fn_z}.")
+                pb.update(min(i+size, len(self.tab_z)))
+                continue
+            
+            if is_nfw:
+                self._tab_uofk[i,:,:] = self.get_u_nfw(z, MM, kk)
+            else:    
+                r_sfg = msr[0](z, smhm[0](z=z, Mh=self.tab_M) * self.tab_M) / 1e3
+                r_qg = msr[1](z, smhm[1](z=z, Mh=self.tab_M) * self.tab_M) / 1e3
+                            
+                for nn, n in enumerate(self.tab_nsers):    
+                    for mm, M in enumerate(self.tab_M):
+                        for k, _kk_ in enumerate(self.tab_k):
 
-            self._tab_u_nfw[i,:,:] = self.get_u_nfw(z, MM, kk)
-            pb.update(i)
+                            # Note:
+                            # For Einasto, the halo mass is only used 
+                            # to determine Rvir (and truncate the integral)
+                            #
+
+                            # Eventually need to be more general
+                            # but for now just looking for speed-up.
+                            if nn == 0:
+                                self._tab_uofk[i,mm,k,nn,0] = self.get_u_einasto(
+                                    z, M, _kk_, n=n, r_s=r_sfg[mm]
+                                )
+                            elif nn == 1:
+                                self._tab_uofk[i,mm,k,nn,1] = self.get_u_einasto(
+                                    z, M, _kk_, n=n, r_s=r_qg[mm]
+                                )
+   
+            ##
+            # Update progress bar and write checkpoint
+            pb.update(min(i+size, len(self.tab_z)))
+
+            with open(fn_z, 'wb') as f:
+                pickle.dump(self._tab_uofk[i], f)
+            print(f"! Wrote checkpoint {fn_z}.")
 
         pb.finish()
 
         if size > 1:
 
             tmp = np.zeros(shape)
-            nothing = MPI.COMM_WORLD.Allreduce(self._tab_u_nfw, tmp)
-            self._tab_u_nfw = tmp
+            nothing = MPI.COMM_WORLD.Allreduce(self._tab_uofk, tmp)
+            self._tab_uofk = tmp
 
             # So only root processor writes to disk
             if rank > 0:
                 return
 
         with h5py.File(fn, 'w') as f:
-            f.create_dataset('tab_u_nfw', data=self._tab_u_nfw)
+            f.create_dataset('tab_u', data=self._tab_uofk)
             f.create_dataset('tab_k', data=self.tab_k)
             f.create_dataset('tab_M', data=self.tab_M)
             f.create_dataset('tab_z', data=self.tab_z)
+            if not is_nfw:
+                f.create_dataset('tab_nsers', data=self.tab_nsers)
 
         if rank == 0:
             print(f"# Wrote {fn}.")
+
+        if prof in [None, 'nfw']:
+            self._tab_u_nfw = self._tab_uofk
+        elif prof == 'einasto':
+            self._tab_u_einasto = self._tab_uofk
+        else:
+            raise NotImplementedError('Unrecognized u(k) profile={prof}!')
 
         return
     

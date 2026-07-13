@@ -56,6 +56,13 @@ def _mv_halosurf(parent_dir):
         shutil.move(fn_pre, fn_new)
         print(f"# Moved {fn_pre} to {fn_new}")
 
+def _mv_galprof(parent_dir):
+    for fn in os.listdir(f"{parent_dir}/"):
+        fn_pre = f"{parent_dir}/{fn}"
+        fn_new = f"{parent_dir.replace('gal_prof', 'halos')}/{fn}"
+        shutil.move(fn_pre, fn_new)
+        print(f"# Moved {fn_pre} to {fn_new}")
+
 # define helper function
 def read_FJS10(parent_dir):
     E_th = [13.6, 24.6, 54.4]
@@ -412,7 +419,12 @@ aux_data = {
         'https://drive.google.com/file/d/1OhO2XlnLLsESNTvhFVZH6sMREpi9o5h4/view?usp=sharing',
         'apjs468686t2_mrt.txt',
         None
-    ]
+    ],
+    'gal_prof': [
+        'https://drive.google.com/file/d/1PlbspVW6_Gv8tq1Mx53xCt8sk42Aox56/view?usp=sharing',
+        'gal_prof_einasto_logM_70_4-18_t_88_5000-13700_lnk_-9.0-11.0_dlnk_0.100.hdf5',
+        _mv_galprof,
+    ],
 }
 
 # define which files are needed for which things
@@ -749,7 +761,7 @@ def generate_nfw_Sigma_tables(path, **kwargs):
 
     return
 
-def generate_nfw_ukm_tables(path, **kwargs):
+def generate_ukm_tables(path, prof=None, msr=None, smhm=None, **kwargs):
     """
     Generate halo mass function tables for ARES.
 
@@ -801,15 +813,15 @@ def generate_nfw_ukm_tables(path, **kwargs):
 
     halos = HaloModel(fmt='hdf5', halo_mf_load=True, **def_kwargs)
 
-    fn = f'./{halos.tab_prefix_prof()}.hdf5'
+    fn = f'{halos.tab_prefix_prof(prof)}.hdf5'
 
     if os.path.exists(fn):
         print(f"# Found {fn}. Moving on...")
         return
 
     try:
-        halos.generate_halo_prof(clobber=False,
-            checkpoint=True)
+        halos.generate_halo_prof(prof, clobber=False,
+            checkpoint=True, msr=msr, smhm=smhm)
     except IOError as err:
         print(err)
     return
@@ -1363,9 +1375,9 @@ def init_ares(args):
         generate_hmf_tables(f"{args.path}/halos",
             halo_mf='Tinker10', halo_dt=10, halo_tmin=30, halo_dz=None)
 
-        generate_nfw_ukm_tables(f"{args.path}/halos",
+        generate_ukm_tables(f"{args.path}/halos", prof='nfw',
             halo_mf='Tinker10', halo_dt=100, halo_tmin=100, halo_dz=None)
-        generate_nfw_ukm_tables(f"{args.path}/halos",
+        generate_ukm_tables(f"{args.path}/halos", prof='nfw',
             halo_mf='Tinker10', halo_dt=10, halo_tmin=30, halo_dz=None)
 
         # Nice to have UniverseMachine for comparison and for 
