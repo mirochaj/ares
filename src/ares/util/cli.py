@@ -54,6 +54,13 @@ def _mv_halosurf(parent_dir):
         shutil.move(fn_pre, fn_new)
         print(f"# Moved {fn_pre} to {fn_new}")
 
+def _mv_galprof(parent_dir):
+    for fn in os.listdir(f"{parent_dir}/"):
+        fn_pre = f"{parent_dir}/{fn}"
+        fn_new = f"{parent_dir.replace('gal_prof', 'halos')}/{fn}"
+        shutil.move(fn_pre, fn_new)
+        print(f"# Moved {fn_pre} to {fn_new}")
+
 # define helper function
 def read_FJS10(parent_dir):
     E_th = [13.6, 24.6, 54.4]
@@ -390,7 +397,12 @@ aux_data = {
         'https://oup.silverchair-cdn.com/oup/backfile/Content_public/Journal/mnras/484/3/10.1093_mnras_stz174/1/',
         'stz174_supplemental_file.zip',
         None,
-    ]
+    ],
+    'gal_prof': [
+        'https://drive.google.com/file/d/1PlbspVW6_Gv8tq1Mx53xCt8sk42Aox56/view?usp=sharing',
+        'gal_prof_einasto_logM_70_4-18_t_88_5000-13700_lnk_-9.0-11.0_dlnk_0.100.hdf5',
+        _mv_galprof,
+    ],
 }
 
 # define which files are needed for which things

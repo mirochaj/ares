@@ -783,6 +783,22 @@ no_lines = \
  'pop_lum_per_sfr_at_wave{2}': None,
 }
 
+resolved_galaxies = {}
+resolved_galaxies['pop_include_1h{0}'] = True
+resolved_galaxies['pop_include_1h{1}'] = True
+resolved_galaxies['pop_prof_1h{0}'] = 'einasto'
+resolved_galaxies['pop_prof_1h{1}'] = 'einasto'
+resolved_galaxies['pop_prof_dt{0}'] = 100
+resolved_galaxies['pop_prof_tmin{0}'] = 5e3
+resolved_galaxies['pop_prof_dz{0}'] = None
+resolved_galaxies['pop_prof_dlogM{0}'] = 0.2
+resolved_galaxies['pop_prof_dlnk{0}'] = 0.1
+resolved_galaxies['pop_prof_dt{1}'] = 100
+resolved_galaxies['pop_prof_tmin{1}'] = 5e3
+resolved_galaxies['pop_prof_dz{1}'] = None
+resolved_galaxies['pop_prof_dlogM{1}'] = 0.2
+resolved_galaxies['pop_prof_dlnk{1}'] = 0.1
+
 faster = \
 {
  "halo_dlogM": 0.05,
