@@ -11,7 +11,6 @@ Description:
 """
 
 import os
-import h5py
 import numbers
 import numpy as np
 from ..data import ARES
@@ -39,6 +38,11 @@ from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     cm_per_pc, m_H, s_per_myr, Lsun
 
 root2 = np.sqrt(2.)
+
+try:
+    import h5py
+except ImportError:
+    pass
 
 try:
     from mpi4py import MPI

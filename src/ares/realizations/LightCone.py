@@ -13,7 +13,6 @@ Description:
 import os
 import gc
 import time
-import h5py
 import numpy as np
 from pathlib import Path
 from scipy.stats import truncnorm
@@ -25,6 +24,12 @@ from scipy.interpolate import RegularGridInterpolator
 from ..util.Misc import numeric_types, get_hash, get_pop_info
 from ..physics.Constants import sqdeg_per_std, cm_per_mpc, cm_per_m, \
     erg_per_s_per_nW, c, s_per_myr
+
+
+try:
+    import h5py
+except ImportError:
+    pass
 
 try:
     from astropy.io import fits

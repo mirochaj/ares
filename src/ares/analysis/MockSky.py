@@ -11,8 +11,12 @@ Description:
 """
 
 import os
-import h5py
 import numpy as np
+
+try:
+    import h5py
+except ImportError:
+    pass
 
 try:
     from astropy.io import fits

@@ -19,7 +19,6 @@ import zipfile
 from urllib.error import URLError, HTTPError
 from urllib.request import urlretrieve, Request, urlopen, build_opener, install_opener
 import numpy as np
-import h5py
 from pathlib import Path
 from .Math import smooth
 from . import ParameterBundle
@@ -36,6 +35,11 @@ from ..simulations import RaySegment
 opener = build_opener()
 opener.addheaders = [("User-Agent", "Mozilla/5.0")]
 install_opener(opener)
+
+try:
+    import h5py
+except ImportError:
+    pass
 
 try:
     import gdown

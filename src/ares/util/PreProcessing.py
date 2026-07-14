@@ -13,7 +13,6 @@ Description:
 import gc
 import os
 import sys
-import h5py
 import time
 import pickle
 import numpy as np
@@ -22,6 +21,11 @@ from . import ParameterBundle
 from itertools import product
 from ..simulations import Simulation
 from ..physics.Constants import s_per_myr
+
+try:
+    import h5py
+except ImportError:
+    pass
 
 try:
     from multiprocess import Pool, current_process
