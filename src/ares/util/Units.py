@@ -53,7 +53,7 @@ def get_ev_from_x(x, units='eV'):
     elif type_in == list:
         return list(xout)
     elif type_in in numeric_types:
-        return float(xout)
+        return xout
     else:
         return xout
     
@@ -91,7 +91,7 @@ def get_ang_from_x(x, units='eV'):
     elif type_in == list:
         return list(out)
     elif type_in in numeric_types:
-        return float(out)
+        return out
     else:
         return out
 
