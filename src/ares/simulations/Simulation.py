@@ -1104,7 +1104,7 @@ class Simulation(object):
                             num[:,j,:].sum(axis=0), zlo, zhi)
                     
                     W_g = n_vs_zall / n_in_zbin / ((c / cm_per_mpc) / Hofz)
-                    W_I = (freqs[j] / dnu[j]) / (4. * np.pi) / (1 + zarr)**2 
+                    W_I = freqs[j] / (4. * np.pi) / (1 + zarr)**2 
 
                     # The None slicing here is to match the first axis of
                     # `ps3d` which is ell.
