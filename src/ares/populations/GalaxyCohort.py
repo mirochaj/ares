@@ -3186,9 +3186,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Final correction to units.
-        if band is not None:            
+        if band is not None:
             Lh = Lh / get_dwave_or_equivalent(band, units, units_out)
-            print('hi', Lh[Lh > 0].min(), Lh[Lh > 0].max())
         else:
             if units_out.lower() == 'erg/s/hz':
                 pass
