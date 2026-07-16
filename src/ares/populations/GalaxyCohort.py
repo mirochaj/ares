@@ -23,16 +23,16 @@ from ..analysis import ModelSet
 from scipy.optimize import fsolve
 from functools import cached_property
 from types import FunctionType, MethodType
-from ..util.Units import get_ang_from_x, get_ev_from_x
 from ..util.Misc import numeric_types, get_band_edges, split_by_sign
 from scipy.integrate import quad, simpson, cumulative_trapezoid, ode
 from .GalaxyAggregate import GalaxyAggregate
-from ..util.Misc import get_wave_or_equivalent
 from .Population import normalize_sed, complex_sfhs
 from ..util.Stats import bin_c2e, bin_e2c, lognormal
 from scipy.interpolate import RectBivariateSpline, LinearNDInterpolator
 from ..util.Math import central_difference, interp1d_wrapper, \
     interp1d, smooth, integrate_with_subgrid_interp
+from ..util.Units import get_ang_from_x, get_ev_from_x, \
+    get_wave_or_equivalent, get_dwave_or_equivalent
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
     cm_per_pc, m_H, s_per_myr, Lsun
@@ -1921,7 +1921,7 @@ class GalaxyCohort(GalaxyAggregate):
     #    return b_g, dNdz
                 
 
-    def get_number_counts(self, bins, zmin=0, zmax=10, x=1600.,
+    def get_number_counts(self, bins, zmin=0, zmax=10, x=1600., band=None,
         units='Angstroms', window=1, absolute=False, cam=None, filters=None,
         dlam=20, zbin=0.1, volume_density=False, selection_criteria=None):
         """
@@ -1950,7 +1950,7 @@ class GalaxyCohort(GalaxyAggregate):
 
         """
 
-        assert units.lower().startswith('ang')
+        #assert units.lower().startswith('ang')
 
         dmag = np.diff(bins)
 
@@ -1964,17 +1964,22 @@ class GalaxyCohort(GalaxyAggregate):
         counts = np.zeros_like(bins)
 
         for i, z in enumerate(zcen):
-            if cam is None:
+            # Should deprecate this : x is always rest frame 
+            # internally except this one particular application.
+            # Should just use band.
+            if (x is not None) and (cam is None) and (band is None):
                 _x_ = x / (1. + z)
                 _w_ = int(window / (1. + z))
                 if _w_ % 2 == 0:
                     _w_ += 1
+                _band = None
             else:
                 _w_ = None
                 _x_ = None
+                _band = band / (1. + z)
 
             mags, phi = self.get_lf(z, bins, x=_x_,
-                units=units, window=_w_,
+                units=units, window=_w_, band=_band,
                 use_mags=True, absolute=absolute, cam=cam, filters=filters,
                 dlam=dlam, selection_criteria=selection_criteria)
 
@@ -1999,7 +2004,7 @@ class GalaxyCohort(GalaxyAggregate):
             self._is_uvlf_parametric = self.pf['pop_uvlf'] is not None
         return self._is_uvlf_parametric
 
-    def _get_lf_mags(self, z, bins=None, x=1600., use_tabs=True,
+    def _get_lf_mags(self, z, bins=None, x=1600., band=None, use_tabs=True,
         units='Angstroms', window=1, absolute=True, cam=None, filters=None,
         dlam=20, mag_cen=None, selection_criteria=None):
 
@@ -2013,10 +2018,10 @@ class GalaxyCohort(GalaxyAggregate):
         ##
 
         Lh, phi_of_L = self._get_lf_lum(z,
-            x=x, units=units, window=window,
+            x=x, units=units, band=band, window=window,
             use_tabs=use_tabs, cam=cam, filters=filters, dlam=dlam,
             mag_cen=mag_cen, selection_criteria=selection_criteria)
-                
+                        
         MAB = self.magsys.get_mag_abs_from_lum(Lh)
 
         phi_of_M = phi_of_L[1:] * np.abs(np.diff(np.log(Lh)) / np.diff(MAB))
@@ -2129,31 +2134,31 @@ class GalaxyCohort(GalaxyAggregate):
             assert self.pf['pop_volume'] is not None
 
             if use_mags:
-                _x_, x = self.get_mags(z=z, x=x, units=units, window=window,
+                _x_, x = self.get_mags(z=z, x=x, units=units, band=band, window=window,
                     absolute=absolute, raw=raw, nebular_only=nebular_only,
                     cam=cam, filters=filters, dlam=dlam,
                     presets=presets)
             else:
-                x = self.get_lum(z=z, x=x, units=units, window=window,
+                x = self.get_lum(z=z, x=x, units=units, band=band, window=window,
                     raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz')
 
             phi, b_e = np.histogram(x, bins=bin_c2e(bins))
             return bins, phi / self.pf['pop_volume']
-
+        
         ##
         # Standard treatment: just need to know if user wants mags or L
         if use_mags:
             # This is essentially calling _get_lf_lum under the hood
             # and converting to magnitudes.
             _x_, phi_of_x = self._get_lf_mags(z, bins=bins, x=x,
-                use_tabs=use_tabs, units=units,
+                use_tabs=use_tabs, units=units, band=band,
                 window=window, absolute=absolute,
                 cam=cam, filters=filters, dlam=dlam, mag_cen=mag_cen,
                 selection_criteria=selection_criteria)
         else:
             # By default, we compute dn/dlnL.
             _lum_, dndlnL = self._get_lf_lum(z, x=x,
-                use_tabs=use_tabs,
+                use_tabs=use_tabs, 
                 units=units,
                 window=window, raw=raw, nebular_only=nebular_only, band=band,
                 mag_cen=mag_cen, selection_criteria=selection_criteria)
@@ -2341,10 +2346,11 @@ class GalaxyCohort(GalaxyAggregate):
                     include_igm_transmission=include_igm_transmission,
                     total_sat=total_sat)
 
-                if '/ang' in units_out.lower():
-                    lum[:,i] /= dlam[i]
-                else:
-                    lum[:,i] /= dfreq[i]
+                # This is handled in get_lum now
+                #if '/ang' in units_out.lower():
+                #    lum[:,i] /= dlam[i]
+                #else:
+                #    lum[:,i] /= dfreq[i]
 
             return lum
         else:
@@ -2871,6 +2877,9 @@ class GalaxyCohort(GalaxyAggregate):
             # Assumed to be erg/s/Hz/(Msun/yr)
             lum_per_sfr = self.pf['pop_lum_per_sfr']
 
+            ##
+            # Could in principle convert user-supplied units 
+            # to something else, just don't right now.
             if units_out.lower() == 'erg/s/hz':
                 pass
             else:
@@ -2879,12 +2888,18 @@ class GalaxyCohort(GalaxyAggregate):
             Lh = sfr * lum_per_sfr
 
             return Lh
+        ##
+        # This is a hack to model BH populations.
+        # We can use the get_fstar machinery to represent BH 
+        # masses rather than stellar masses, and just scale
+        # the luminosity with BH mass.
         elif self.pf['pop_lum_per_mass']:
             # Assumed to be erg/s/Msun bolometric
+            # ~10^38 erg/s/(solar mass)
             lum_per_mass = self.pf['pop_lum_per_mass']
 
             Lbol = Ms * lum_per_mass
-
+            
             if (band is not None):
                 if isinstance(band, str):
                     assert band.lower().startswith('bol')
@@ -2892,19 +2907,22 @@ class GalaxyCohort(GalaxyAggregate):
 
                 # Need to introduce SED modulation here
                 E = get_ev_from_x(band, units=units)
-    
+
+                # get_spectrum here knows if E is a band to
+                # integrate over it.
                 Lh = self.src.get_spectrum(E) * Lbol
+                dnu = get_dwave_or_equivalent(band, units, units_out)
+                Lh = Lh / dnu
             else:
                 E = get_ev_from_x(x, units=units)
                 Lh = self.src.get_spectrum(E) * Lbol
-
         
                 if units_out.lower() == 'erg/s/hz':
                     Lh *= ev_per_hz
                 else:
                     raise ValueError(f'unknown units={units_out}')
-            
-            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z), 
+                    
+            ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
                                 self.halos.tab_M < self.get_Mmax(z))
             
             Lh[~ok] = 0
@@ -2919,7 +2937,7 @@ class GalaxyCohort(GalaxyAggregate):
         elif self.pf['pop_lum_tab'] is not None:
 
             if band is None:
-                assert 'hz' in units_out.lower()
+                assert '/hz' in units_out.lower()
 
             Lh_l = self._get_lum_lines_per_sfr(z, x=x, band=band, units=units,
                 units_out='erg/s/Hz') * sfr
@@ -2945,7 +2963,11 @@ class GalaxyCohort(GalaxyAggregate):
             # This stuff should go in _get_lum_from_tab
             if (band is not None):
                 # If `band` was provided we've already integrated out the Hz^-1 or Ang^-1
-                pass
+                # Need to put it back in IF units_out still has Hz^-1 or Ang^-1 in it
+                # (get_dwave_or_equivalent will return 1 if units_out doesn't end 
+                # with /hz or /ang).
+                dnu = get_dwave_or_equivalent(band, units, units_out)
+                Lh = Lh / dnu
             elif units_out.lower() == 'erg/s/hz':
                 pass
             elif units_out.lower().startswith('erg/s/a'):
@@ -2991,6 +3013,12 @@ class GalaxyCohort(GalaxyAggregate):
                     return Ltot
 
         ##
+        # If we made it this far we're not using a user-supplied function,
+        # or table to generate the spectrum of objects. It must be 
+        # some canned functional form (e.g., 'pl', 'mcd') or stellar
+        # population synthesis model.
+
+        ##
         # Loop over components (most often just one) and determine L
         Lh = np.zeros_like(self.halos.tab_M, dtype=np.float64)
         ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
@@ -3007,30 +3035,28 @@ class GalaxyCohort(GalaxyAggregate):
                 # source_EminNorm to source_EmaxNorm (in eV) -> 1
                 if band is None:
                     L_sfr = src.pf['source_rad_yield'] \
-                        * src.get_spectrum(x, units=units) * ev_per_hz
-                    
-                    dev = 1.
+                        * src.get_spectrum(x, units=units) * ev_per_hz                    
                 else:
                     xev = get_wave_or_equivalent(band, units, 'ev')
                     L_sfr = quad(lambda xx: src.get_spectrum(xx, units='eV'), 
                         min(xev), max(xev))[0] * src.pf['source_rad_yield']
-                    
-                    dev = np.abs(np.diff(xev))
-                
+                                    
                 ##
                 # get_spectrum is a normalized SED per eV
-                if units_out.lower() == 'erg/s/hz':
-                    pass
-                elif units_out.lower() == 'erg/s/ev' and band is None:
-                    L_sfr /= ev_per_hz
-                else:
-                    raise ValueError(f'unknown units={units_out}')
+                #if units_out.lower() == 'erg/s/hz':
+                #    pass
+                #elif units_out.lower() == 'erg/s/ev' and band is None:
+                #    L_sfr /= ev_per_hz
+                #else:
+                #    raise ValueError(f'unknown units={units_out}')
 
                 _Lh_ = sfr * L_sfr
                 _Lh_[~ok] = 0
                 Lh += _Lh_
                 continue
-
+            
+            ##
+            # If we're here we're dealing with a constant SFH or SSP
             Zfe = src.pf['source_Z']
             age_def = self.pf['pop_age_definition']
 
@@ -3040,7 +3066,6 @@ class GalaxyCohort(GalaxyAggregate):
             #if (src.is_ssp or self.is_sed_multicomponent):
             #assert isinstance(age, numbers.Number) or (age is None), \
             #    f"Age must be constant or None for now! source_age={age}"
-
 
             # Enforce maximum of a Hubble time
             t_H = self.cosm.t_of_z(z) / s_per_myr
@@ -3155,11 +3180,22 @@ class GalaxyCohort(GalaxyAggregate):
                     Ls = sfr * L_sfr
                     _Lh_= self.get_lum_sat_tot(z, Ls, use_tabs=use_tabs)
 
-
-            
             _Lh_[~ok] = 0
             ##
             Lh += _Lh_
+
+        ##
+        # Final correction to units.
+        if band is not None:            
+            Lh = Lh / get_dwave_or_equivalent(band, units, units_out)
+            print('hi', Lh[Lh > 0].min(), Lh[Lh > 0].max())
+        else:
+            if units_out.lower() == 'erg/s/hz':
+                pass
+            elif units_out.lower() == 'erg/s/ev' and band is None:
+                Lh /= ev_per_hz
+            else:
+                raise ValueError(f'unknown units={units_out}')
 
         ##
         # Done
@@ -3246,9 +3282,9 @@ class GalaxyCohort(GalaxyAggregate):
         # Not a kludge in this case, just luminosity
         return kludge
 
-    def get_lum(self, z, x=1600, use_tabs=True,
-        band=None, window=1, units='Angstrom', cam=None, filt=None,
-        units_out='erg/s/A', load=True, raw=False, nebular_only=False,
+    def get_lum(self, z, x=1600, band=None, window=1, cam=None, filt=None, 
+        units='Angstrom', units_out='erg/s/A', 
+        use_tabs=True, load=True, raw=False, nebular_only=False,
         age=None, Mh=None, include_dust_transmission=True,
         include_igm_transmission=True, total_sat=False, separate_lines=False,
         selection_criteria=None):
@@ -3261,10 +3297,22 @@ class GalaxyCohort(GalaxyAggregate):
             Redshift of interest.
         x : int, float
             Wavelength or photon energy or photon frequency, set by `units`.
-        band : 2-element tuple
-            Defines edge of band, if interested in band-integrated luminosity
-            rather than monochromatic luminosity. Abides by `units` keyword
-            as well. Note: will override `x` if both are provided!
+            Assumed to be in rest frame, not observer frame.
+        window : int, float
+            If provided, the luminosity will be computed after averaging 
+            over a +/- 0.5 * window range.
+        band : tuple, np.ndarray
+            If provided, the luminosity will be computed within this observed
+            band, rather than at monochromatic wavelength/energy/frequency `x`.
+            Kind of like `window` except we provided the observed band
+            directly. Abides by `units` keyword as well. 
+            Note: will override `x` if both are provided!
+        units : str
+            Tells us what the units of input `x` or `band` are.
+        units_out : str
+            Tells us what the units of the output should be. This is generally
+            'erg/s/hz' or 'erg/s/ang'. However, if `band` is provided, the 
+            output 
         total_sat : bool
             For NON-central populations, this parameter controls whether the
             returned luminosity is the total luminosity of satellites as a
@@ -3283,21 +3331,38 @@ class GalaxyCohort(GalaxyAggregate):
             include_dust_transmission, include_igm_transmission, total_sat, use_tabs
 
         ##
-        # If cam/filters provided, need to recursively call this routine, piece 
-        # together intrinsic luminosity at `dlam` resolution, and then convolve
-        # with filter transmission.
+        # First, can compute luminosity from photometry in some bands.
+        # The method `get_mags` effectively calls this routine recursively.
         if (cam is not None):
-            assert filt is not None
+            assert filt is not None, \
+                "Must provide `filt` if `cam` is provided!"
 
             # get_mags already does this for us
             _x_, mags = self.get_mags(z, absolute=0, x=None, band=None,
                 cam=cam, filters=(filt))
             
-            assert mags.shape[1] == 1
+            assert mags.shape[1] == 1, \
+                "Must provide one filter at a time for now! (see `filt`)"
+
             # This should be erg/s/Hz
             L = self.magsys.get_lum_from_mag_app(z, mags[:,0])
 
+            if units_out.lower() == 'erg/s/hz':
+                pass
+            else:
+                msg = 'Only allow erg/s/hz output for photometry right now!'
+                msg += ' Easy fix, just need to do it.'
+                raise NotImplemented(msg)
+            
             return L
+        
+        ##
+        # If we made it here, we're computing luminosities at given
+        # input `x` or `band`. A few checks to begin, including 
+        # whether the user input some halo masses of interest 
+        # and whether `x` and/or `band` obey this population's 
+        # allowed emission range.
+
 
         # If user-supplied halos from simulation, retrieve 'em
         if self.pf['pop_halos'] is not None:
@@ -3320,6 +3385,7 @@ class GalaxyCohort(GalaxyAggregate):
         is_bol = (band is not None) and isinstance(band, str) and band.lower().startswith('bol')
         if is_bol and (x is not None):
             raise ValueError("To avoid confusion, if providing band='bol' please set x=None")
+        
         ##
         # Enforce Emin and Emax
         if (x is not None) or ((band is not None) and not is_bol):
@@ -3330,16 +3396,22 @@ class GalaxyCohort(GalaxyAggregate):
                     return ret, ret
                 else:
                     return ret
-   
+
+        ##
+        # Now we're getting into different options for modeling luminosity.
+
         ##
         # Have options for stars or BHs
         if self.pf['pop_lum_func'] is not None:
-            Lh = self.pf['pop_lum_func'](z=z, Mh=self.halos.tab_M if Mh is None else Mh, 
+            Lh = self.pf['pop_lum_func'](z=z, 
+                Mh=self.halos.tab_M if Mh is None else Mh, 
                 x=x, units=units, 
                 units_out=units_out, band=band, pf=self.pf)
             # Assume user has done all the legwork? Could later 
             # use same dust as host galaxies.
             include_dust_transmission = False
+        ##
+        # Most often we're modeling stars
         elif self.pf['pop_star_formation']:
             L = self._get_lum_stellar_pop(z, x=x, use_tabs=use_tabs,
                 band=band, window=window,
@@ -3351,6 +3423,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 Lh = L
         elif self.pf['pop_bh_formation']:
+            raise NotImplementedError('Probably should deprecate this.')
             # In this case, luminosity just proportional to BH mass.
             zarr, data = self.get_histories()
 
@@ -3685,7 +3758,13 @@ class GalaxyCohort(GalaxyAggregate):
             xout = filt, xfilt, dxfilt
 
         # Take geometric mean or anything?
-        wave = get_ang_from_x(x, units=units) # only used if method='closest'
+        if (x is not None) or (band is not None):
+            wave = get_ang_from_x(x if band is None else band, units=units)
+        else:
+            wave = None
+            assert method != 'closest'
+            # only used if method='closest'
+
         mags = self.phot.get_avg_mags(mags, xout, method=method, wave=wave, z=z)
 
         ##
@@ -3974,11 +4053,10 @@ class GalaxyCohort(GalaxyAggregate):
                 
                 # Should move this into get_lum and let units_out 
                 # of /Hz or no per-freq dictate the returned value
-                if band is not None:
-                    x_A = get_wave_or_equivalent(band, units=units, units_out='mic')
-                    nu = c / (np.array(x_A) * 1e-4)
-                    dnu = np.abs(np.diff(nu))
-                    Lh /= dnu
+                #if band is not None:
+                #    nu = get_wave_or_equivalent(band, units=units, units_out='hz')
+                #    dnu = np.abs(np.diff(nu))
+                #    Lh /= dnu
 
                 if (sigma == 0):
                     tmp_fsel[i,np.logical_and(Lh>=lum_lo, Lh<lum_hi),h,:] = 1
@@ -4310,11 +4388,11 @@ class GalaxyCohort(GalaxyAggregate):
 
         """
 
-        if not hasattr(self, '_phi_of_L'):
-            self._phi_of_L = {}
-        else:
-            if (z, x, window, cam, filters, dlam) in self._phi_of_L:
-                return self._phi_of_L[(z, x, window, cam, filters, dlam)]
+        #if not hasattr(self, '_phi_of_L'):
+        #    self._phi_of_L = {}
+        #else:
+        #    if (z, x, band, window, cam, filters, dlam) in self._phi_of_L:
+        #        return self._phi_of_L[(z, x, band, window, cam, filters, dlam)]
 
         # Recall: this is always the *median* luminosity vs. Mh
         # If scatter is provided, will handle below.
@@ -4322,7 +4400,7 @@ class GalaxyCohort(GalaxyAggregate):
             cam=cam, filt=filters,
             raw=raw, nebular_only=nebular_only, band=band, units=units,
             units_out='erg/s/Hz', total_sat=self.is_central_pop)
-        
+                
         ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
             self.halos.tab_M < self.get_Mmax(z))
         
@@ -4654,10 +4732,10 @@ class GalaxyCohort(GalaxyAggregate):
         
         lum = np.ma.array(Lh, mask=mask)
         phi = np.ma.array(phi_of_L, mask=mask, fill_value=tiny_phi)
+        return lum, phi
+        #self._phi_of_L[(z, x, window, cam, filters, dlam)] = lum, phi
 
-        self._phi_of_L[(z, x, window, cam, filters, dlam)] = lum, phi
-
-        return self._phi_of_L[(z, x, window, cam, filters, dlam)]
+        #return self._phi_of_L[(z, x, window, cam, filters, dlam)]
 
     def get_mag_lim(self, z, absolute=True, x=1600, band=None, units='Ang',
         window=1, load=True, raw=False, nebular_only=False, apply_dustcorr=False):
@@ -7214,7 +7292,7 @@ class GalaxyCohort(GalaxyAggregate):
             band = wave if type(wave) not in numeric_types else None
             
             lum1 = self.get_lum(z, x=wave, band=band, units='Angstrom', 
-                units_out='erg/s/Hz', total_sat=total_sat,
+                units_out='erg/s/hz', total_sat=total_sat,
                 selection_criteria=_fsel if total_sat else None)
 
             if (not total_sat) and (not self.is_diffuse): 
@@ -7226,7 +7304,7 @@ class GalaxyCohort(GalaxyAggregate):
                 band2 = wave2 if type(wave2) not in numeric_types else None
             
                 lum2 = self.get_lum(z, x=wave2, band=band2, units='Angstrom', 
-                    units_out='erg/s/Hz', total_sat=total_sat,
+                    units_out='erg/s/hz', total_sat=total_sat,
                     selection_criteria=_fsel if total_sat else None)
             
             if term == 0:
@@ -7398,6 +7476,8 @@ class GalaxyCohort(GalaxyAggregate):
         # 1-h inter-pop term is a special case. Don't call get_ps_kernel
         # just do everything here.
         else:
+            if not pop2.pf['pop_include_1h']:
+                return 0.0
 
             # It's OK for centrals to be involved here, except if 
             # they are different source populations.

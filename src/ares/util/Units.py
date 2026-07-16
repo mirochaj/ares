@@ -15,7 +15,99 @@ import numpy as np
 from ..physics.Constants import h_p, c, erg_per_ev
 from .Misc import numeric_types
 
-def get_ev_from_x(x, units='eV'):
+def get_wave_or_equivalent(x_in, units, units_out):
+    """
+    Convert between photon wavelength, energy, and frequency.
+
+    Parameters
+    ----------
+    x_in : int, float, np.ndarray
+        Array of values that we'd like convert to different units.
+    units : str
+        Units of `x_in`, e.g., 'cm', 'ang', 'mic', 'hz', 'ghz', 'ev', 'keV'.
+    units_out : str
+        Units we'd like to convert `x_in` to.
+
+    Returns
+    -------
+    Input array `x_in` converted to output units `units_out`.
+
+    """
+    if type(x_in) in [list, tuple]:
+        x_in = np.array(x_in)
+
+    if units.lower() == units_out.lower():
+        return x_in
+    
+    if type(x_in) in [tuple, list]:
+        x_in = np.array(x_in)
+    
+    ##
+    # Start by convert input unit to cm
+    if units.lower() == 'cm':
+        x_cm = x_in
+    elif units.lower().startswith('ang'):
+        x_cm = x_in * 1e-8
+    elif (units.lower() == 'um') or units.lower().startswith('mic'):
+        x_cm = x_in * 1e-4
+    elif units.lower() == 'hz':
+        x_cm = c / x_in
+    elif units.lower() == 'mhz':
+        x_cm = c / (x_in * 1e6)
+    elif units.lower() == 'ghz':
+        x_cm = c / (x_in * 1e9)
+    elif units.lower() == 'ev':
+        x_cm = h_p * c / (x_in * erg_per_ev)
+    elif units.lower() == 'kev':
+        x_cm = h_p * c / (x_in * 1e3 * erg_per_ev)
+    else:
+        raise NotImplemented(f'Unrecognized input unit={units}')
+    
+    if units_out.lower() == 'cm':
+        return x_cm
+    elif units_out.lower().startswith('ang'):
+        return x_cm * 1e8
+    elif (units.lower() == 'um') or units_out.lower().startswith('mic'):
+        return x_cm * 1e4
+    elif units_out.lower() == 'hz':
+        return c / x_cm
+    elif units_out.lower() == 'mhz':
+        return c / x_cm / 1e6
+    elif units_out.lower() == 'ghz':
+        return c / x_cm / 1e9
+    elif units_out.lower() == 'ev':
+        return h_p * c / x_cm / erg_per_ev
+    elif units_out.lower() == 'kev':
+        return h_p * c / x_cm / erg_per_ev / 1e3
+    else:
+        raise NotImplemented(f'Unrecognized input unit={units}')
+    
+def get_dwave_or_equivalent(x_in, units, units_out):
+    # Potentially put per-Hz or per-Ang back in
+    if units_out.lower().endswith('/hz'):
+        x_out = get_wave_or_equivalent(x_in, units=units, 
+            units_out='hz')
+    elif units_out.lower().endswith('/ang'):
+        x_out = get_wave_or_equivalent(x_in, units=units, 
+            units_out='ang')
+    else:
+        return 1.
+    
+    return np.abs(np.diff(x_out))
+
+def get_ev_from_x(x, units):
+    """
+    Convert input `x` from `units` to eV.
+    """
+    return get_wave_or_equivalent(x, units, 'eV')
+
+def get_ang_from_x(x, units):
+    """
+    Convert input `x` from `units` to Angstroms.
+    """
+    return get_wave_or_equivalent(x, units, 'ang')
+
+def get_ev_from_x_OLD(x, units='eV'):
     """
     Convert input `x` from `units` to electron volts.
 
@@ -57,7 +149,7 @@ def get_ev_from_x(x, units='eV'):
     else:
         return xout
     
-def get_ang_from_x(x, units='eV'):
+def get_ang_from_x_OLD(x, units='eV'):
     """
     Convert input `x` from `units` to Angstroms.
     """

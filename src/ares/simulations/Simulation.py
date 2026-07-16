@@ -7,11 +7,13 @@ from ..util import ParameterFile
 from ..util.Stats import bin_c2e
 from .Global21cm import Global21cm
 from types import FunctionType, NoneType
-from ..util.Misc import get_wave_or_equivalent
+from ..util.Units import get_wave_or_equivalent
 from .PowerSpectrum21cm import PowerSpectrum21cm
 from ..util.Math import integrate_with_subgrid_interp
 from ..physics.Constants import cm_per_mpc, c, s_per_yr, erg_per_ev, \
     erg_per_s_per_nW, h_p, cm_per_m, sqdeg_per_std
+
+from ..util.Units import get_dwave_or_equivalent
 
 class Simulation(object):
     def __init__(self, pf=None, pf_updates=None, **kwargs):
@@ -1013,8 +1015,9 @@ class Simulation(object):
 
             # Loop over waves
             for j in range(ps3d.shape[3]):
-                W_I_sq = (freqs[j] / dnu[j]) * (freqs2[j] / dnu2[j]) \
+                W_I_sq = freqs[j] * freqs2[j] \
                      / (4. * np.pi)**2 / (1 + zarr)**4
+                
                 # The None slicing here is to match the first axis of
                 # `ps3d` aftering summing over populations, which is ell.
                 limber_integ = dchi_dz_dsq[None,:] * W_I_sq[None,:] \
@@ -1144,10 +1147,12 @@ class Simulation(object):
         return ps_2d, ps_2d_by_pop
     
     def get_galaxy_number_counts(self, band, magbins, pops=None,
-        dlam=10, zmin=None, zmax=None, zbin=0.01, selection_criteria=None,
-        volume_density=False):
+        units='Angstroms', units_out='erg/s/cm^2', dlam=10, 
+        zmin=None, zmax=None, zbin=0.01, 
+        selection_criteria=None, volume_density=False):
         """
-        Compute the number of galaxies per square degree for each source populations.
+        Compute the number of galaxies per square degree for each 
+        source populations.
 
         Parameters
         ----------
@@ -1158,10 +1163,9 @@ class Simulation(object):
         """
 
         # Put band in terms that internal routines understand
-        x = np.mean(band) * 1e4
-        dx = (band[1] - band[0]) * 1e4
-        
-        assert dx > 3 * dlam
+        #x = np.mean(band) * 1e4
+        #dx = (band[1] - band[0]) * 1e4
+        #assert dx > 3 * dlam
 
         if pops is not None:
             if type(pops) not in [list, tuple]:
@@ -1198,7 +1202,7 @@ class Simulation(object):
 
             # Farm out the real work to the `pop` object.
             num_pop = pop.get_number_counts(magbins, 
-                x=x, units='Angstroms', window=dx, dlam=dlam, 
+                x=None, band=band, units=units, window=None, dlam=dlam, 
                 zmin=_zmin, zmax=_zmax, zbin=zbin,
                 selection_criteria=selection_criteria,
                 volume_density=volume_density)

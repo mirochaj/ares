@@ -418,11 +418,14 @@ satellites_q['pop_Z'] = 0.02
 agn = \
 {
  'pop_lum_per_mass': 1.26e38,
- 'pop_solve_rte': (0.12, 13.6),
- 'pop_Emin': 0.12,
- 'pop_Emax': 13.6,
+ 'pop_solve_rte': (0.1, 1e4),   # Krawczyk SED only goes out to ~10 keV
+ 'pop_Emin': 0.1,
+ 'pop_Emax': 1e4,
+ 'pop_EminNorm': 0.1,
+ 'pop_EmaxNorm': 1e4,
  'pop_fesc': 1,
-
+ 
+ 'pop_include_1h': False,
  'pop_sed': 'krawczyk2013',
 
  'pop_sfr_model': 'smhm-func',
@@ -485,6 +488,26 @@ agn = \
  'pq_func_par19[22]': 0,     # terms that scale a
 }
 agn.update(setup)
+
+# A start
+agn.update(
+{
+ 'pop_scatter_sfh{0}': np.float64(1.1365306054975266), 
+ 'pq_func_par0[20]{0}': np.float64(9.935714476138337e-07), 
+ 'pq_func_par1[20]{0}': np.float64(7667268589.895227), 
+ 'pq_func_par2[20]{0}': np.float64(1.9836667108945127), 
+ 'pq_func_par3[20]{0}': np.float64(-0.158780650804156), 
+ 'pq_func_par5[20]{0}': np.float64(3.2807644249059096), 
+ 'pq_func_par9[20]{0}': np.float64(-1.871538563548901), 
+ 'pq_func_par6[20]{0}': np.float64(1.748746922383442), 
+ 'pq_func_par10[20]{0}': np.float64(-0.16189507496528321), 
+ 'pq_func_par7[20]{0}': np.float64(-4.940962092958692), 
+ 'pq_func_par11[20]{0}': np.float64(3.1813640552948304), 
+ 'pq_func_par8[20]{0}': np.float64(-2.219468335284675), 
+ 'pq_func_par12[20]{0}': np.float64(1.332667958869168),
+}
+)
+
 #
 #ihl_from_sat = centrals_sf_old.copy()
 #ihl_from_sat['pop_focc'] = 1

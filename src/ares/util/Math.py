@@ -82,11 +82,11 @@ def integrate_with_subgrid_interp(x, y, bound_lo, bound_hi, method='trapz_trapz'
 
         assert np.all(np.diff(x) > 0), "Non-monotonic x values!"
         
-    # We don't do extrapolation here
+    # We don't do extrapolation here    
     assert bound_lo >= x.min(), \
-            f"Hey! bound_lo={bound_lo:.3e}, must be >= min(x)={min(x)}"
+            f"Hey! bound_lo={bound_lo:.3e}, must be >= min(x)={x.max()}"
     assert bound_hi <= x.max(), \
-            f"Hey! bound_hi={bound_hi:.3e}, must be <= max(x)={max(x)}"
+            f"Hey! bound_hi={bound_hi:.3e}, must be <= max(x)={x.max()}"
 
     ##
     # Otherwise, we're keeping it simpler/faster.
