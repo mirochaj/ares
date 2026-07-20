@@ -1722,7 +1722,7 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             return mags, cgal
 
-    def get_pdf_mstell(self, z, log10M=None):
+    def get_pdf_mstell(self, z, log10M=None, sigma=None):
         if not hasattr(self, '_cache_pdf_mstell'):
             self._cache_pdf_mstell = {}
 
@@ -1734,7 +1734,10 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             lnM = np.log(10**log10M)
 
-        pdf = lognormal(lnM[None,:], lnM[:,None], self.pf['pop_scatter_smhm'])
+        if sigma is None:
+            sigma = self.pf['pop_scatter_smhm']
+
+        pdf = lognormal(lnM[None,:], lnM[:,None], sigma)
 
         self._cache_pdf_mstell[z] = pdf
 
@@ -1754,116 +1757,91 @@ class GalaxyCohort(GalaxyAggregate):
 
         This routine exists to handle the non-trivial case when we have scatter
         in SFR and/or Mstell in a given halo mass bin. It integrates over the
-        PDF(s) of these quantites weighted by the abundance of galaxies in a
+        PDF(s) of these quantites weighted by the abundance of galaxies in the
         given bin.
 
         Returns
         -------
-        Star formation rate [Msun/yr; observed] in the provided stellar mass bin
-        (also assumed to be 'observed').
+        Star formation rate [Msun/yr; observed] in the provided log10(stellar mass)
+        `bin` (also assumed to be 'observed').
         """
         iz = self.get_zindex(z)
         dndlnm = self.halos.tab_dndlnm[iz]
-        # Recall: dndlog10x = dndlnx / np.log(10.)
-        dndlog10m = dndlnm * np.log(10.)
-        # [note that log(10) won't matter: will cancel in the end anyways]
-
-        # Bin centers
-        binc = 0.5 * (bin[0] + bin[1])
-
+                
         # Halo masses, bin centers and edges (in log10)
         Mh = self.halos.tab_M
-        logMh = self.halos.tab_log10M
-        logMh_e = self.halos.tab_log10M_e
+        log10Mh = self.halos.tab_log10M
 
         # Get mean relations
         sfr = self.get_sfr_obs(z=z, Mh=Mh)
         Ms = self.get_mstell_obs(z=z, Mh=Mh)
 
+        # SFR, SMHM, fQ
+        if use_tabs:
+            focc = self.tab_focc[iz,:]
+        else:
+            focc = self.get_focc(z=z, Mh=Mh)
+
+        # Need log10 of each
+        logMs = np.log(Ms)
+        log10Ms = np.log10(Ms)
+
+        # Shorthand
         if self.pf['pop_scatter_sfh'] > 0:
             assert self.pf['pop_scatter_sfr'] == self.pf['pop_scatter_smhm'] == 0,\
                 "SFH scatter OR (SFR and SMHM scatter) allowed, not both!"
-
-            return np.interp(binc, np.log10(Ms), sfr).squeeze()
-
-        # SFR, SMHM, fQ
-        if use_tabs:
-            fstar = self.tab_fstar[iz,:]
-            focc = self.tab_focc[iz,:]
+            sigma_m = sigma_sfr = self.pf['pop_scatter_sfh']
         else:
-            fstar = self.get_sfe(z=z, Mh=Mh)
-            focc = self.get_focc(z=z, Mh=Mh)
-
-
-        # Need log10 of each
-        log10M = np.log10(Ms)
-        log10SFR = np.log10(sfr)
-
-        # Halo mass bin corresponding to mean relation
-        log10Mh_bar = np.interp(binc, log10M, np.log10(Mh))
-
-        # Get stellar mass bin edges and centers
-        Ms_c = fstar * self.halos.tab_M
-        fstar_e = self.get_sfe(z=z, Mh=10**logMh_e)
-        Ms_e = fstar_e * 10**logMh_e
-        logMs_e = np.log10(Ms_e)
-
-        # dlogMh/dlogMstell
-        dlog10mdlog10M = np.diff(logMh_e) / np.diff(logMs_e)
-
-        # Shorthand
-        sigma_m = self.pf['pop_scatter_smhm']
-        sigma_sfr = self.pf['pop_scatter_sfr']
+            sigma_m = self.pf['pop_scatter_smhm']
+            sigma_sfr = self.pf['pop_scatter_sfr']
 
         if sigma_m == sigma_sfr == 0:
-            return np.interp(float(binc), log10M, sfr)
+            binc = 0.5 * (bin[0] + bin[1])
+            return np.interp(float(binc), log10Ms, sfr)
 
+        #
         log10Mmin = np.log10(self.get_Mmin(z))
+        log10Mmax = np.log10(self.get_Mmax(z))
+        ok_m = np.logical_and(log10Mh >= log10Mmin, log10Mh < log10Mmax)
 
-        # 2-D PDF: (<Mstell(Mh)>, Mstell)
-        # In other words, pdf[0] is the probability distribution of stellar mass
-        # for an object in halo 0, with mean stellar mass Ms[0]
-        pdf_m = self.get_pdf_mstell(z, log10M=log10M).copy()
-        # We make a copy to avoid nulling out all elements upon successive
-        # iterations (via `ok` mask below)
-
-        # Null out contributions from stellar masses outside the bin of interest
-        ok = np.logical_and(log10M >= bin[0], log10M < bin[1])
-        pdf_m[:,ok==0] = 0
-        #pdf_sfr[:,ok==0] = 0
-
-        # First: determine mean SFR in this halo mass bin
-        sfr_bin = sfr * np.exp(0.5 * sigma_sfr**2)
-
-        integrand = dndlog10m[:,None] * dlog10mdlog10M[:,None] \
-            * focc[:,None] * pdf_m[:,:]
-
-        norm = 0.0
-        mainseq = 0.0
-        for i, logM in enumerate(np.log10(self.halos.tab_M)):
-            if logM < log10Mmin:
+        ##
+        # Pre-compute fraction of halos at given M_h that are in the
+        # target stellar mass bin.
+        f_in_bin = np.zeros_like(Mh)
+        for i, _logMs_ in enumerate(logMs):
+            if (log10Mh[i] < log10Mmin) or (log10Mh[i] > log10Mmax):
                 continue
 
             # Skip elements way far away from mean relation to save time.
-            if (logM < (log10Mh_bar - 3 * sigma_m)) or \
-               (logM > (log10Mh_bar + 3 * sigma_m)):
+            if (log10Ms[i] < (bin[0] - 5 * sigma_m)) or \
+               (log10Ms[i] > (bin[1] + 5 * sigma_m)):
                continue
+            
+            f_in_bin[i] = \
+                quad(lambda logmstell: 
+                     lognormal(logmstell, _logMs_, sigma_m, return_dndx=0),
+                        np.log(10**bin[0]), np.log(10**bin[1]))[0]
+                
+        # Next, determine median SFR in this halo mass bin
+        sfr_med = sfr * np.exp(0.5 * sigma_sfr**2)
 
-            # Then: integrate over stellar mass PDF.
-            # `pdf_m` above, buried in `integrand`, is dn/dlnMstell, hence integral over np.log(Ms)
-            mainseq += np.trapezoid(sfr_bin[i] * integrand[i,:], x=np.log(Ms))
-
-            norm += np.trapezoid(integrand[i,:], x=log10M)
-
+        # And how many halos there are
+        ntot = np.trapz(f_in_bin[ok_m==1] * focc[ok_m==1] * dndlnm[ok_m==1], 
+            x=np.log(Mh[ok_m==1]))
+        
         ##
         # Rare, but we do occasionally request very low or very high mass
         # bins, for which there may not actually be any galaxies. Need to
         # check to avoid divide by zero error.
-        if norm == 0:
-            return 0.
+        if ntot == 0:
+            return 0
+        
+        # We're done -- just need to do final integral weighted by SFR
+        mainseq = np.trapz(sfr_med[ok_m==1] * f_in_bin[ok_m==1] * focc[ok_m==1] * dndlnm[ok_m==1], 
+            x=np.log(Mh[ok_m==1])) / ntot
 
-        return mainseq / norm
-
+        return mainseq
+    
     def get_sfr_mean(self, z, Mh):
         if (self.pf['pop_scatter_sfh'] > 0):
             sigma = self.pf['pop_scatter_sfh']
