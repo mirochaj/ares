@@ -17,7 +17,7 @@ from ..data import ARES
 import numdifftools as nd
 from inspect import ismethod
 from ..util import ProgressBar
-from scipy.special import erfc
+from scipy.special import erf, erfc
 from ..obs.Survey import Survey
 from ..analysis import ModelSet
 from scipy.optimize import fsolve
@@ -1817,10 +1817,10 @@ class GalaxyCohort(GalaxyAggregate):
                (log10Ms[i] > (bin[1] + 5 * sigma_m)):
                continue
             
-            f_in_bin[i] = \
-                quad(lambda logmstell: 
-                     lognormal(logmstell, _logMs_, sigma_m, return_dndx=0),
-                        np.log(10**bin[0]), np.log(10**bin[1]))[0]
+            # Integral of log-normal PDF in this bin
+            f_in_bin[i] = 0.5 * \
+                (erf((np.log(10**bin[1]) - _logMs_) / sigma_m / root2) \
+               - erf((np.log(10**bin[0]) - _logMs_) / sigma_m / root2))
                 
         # Next, determine median SFR in this halo mass bin
         sfr_med = sfr * np.exp(0.5 * sigma_sfr**2)
