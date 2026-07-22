@@ -14,6 +14,12 @@ info = \
  'label': 'Bouwens+ (2015)',
 }
 
+cosmo = \
+{
+ 'hubble_0': 0.7,
+ 'omega_m_0': 0.3,
+ 'omega_l_0': 0.7,
+}
 redshifts = np.array([3.8, 4.9, 5.9, 6.9, 7.9, 10.4])
 wavelength = 1600.
 
@@ -111,7 +117,7 @@ tmp_data['lf'] = \
        },
 }
 
-units = {'lf': 1.}
+units = {'phi': 'cMpc^-3', 'M': 'mags_abs'}
 
 data = {}
 data['lf'] = {}

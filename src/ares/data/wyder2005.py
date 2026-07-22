@@ -19,6 +19,12 @@ info = \
  'data': 'Table 3', 
 }
 
+cosmo = \
+{
+ 'hubble_0': 0.7,
+ 'omega_m_0': 0.3,
+ 'omega_l_0': 0.7,
+}
 redshifts = [(0, 0.1)]
 units = {'lf': 'log10'}
 wavelength = 1530, 2310

@@ -13,6 +13,12 @@ info = \
  'label': 'Oesch+ (2018)'
 }
 
+cosmo = \
+{
+ 'hubble_0': 0.7,
+ 'omega_m_0': 0.3,
+ 'omega_l_0': 0.7,
+}
 redshifts = np.array([10.])
 
 wavelength = 1600. # I think?
