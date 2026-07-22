@@ -10,12 +10,19 @@ https://ui.adsabs.harvard.edu/abs/2025MNRAS.536..518P/abstract
 import numpy as np
 
 redshifts = [0.5]
+cosmo = \
+{
+ 'hubble_0': 0.7,
+ 'omega_m_0': 0.3,
+ 'omega_l_0': 0.7,
+}
+units = {'M': 'mags_abs', 'phi': 'log10(density)'}
 
 magbins = np.arange(-20.72, -17.42, 0.3)
 
 # error bars are (+/-)
-
-data = \
+data = {}
+data['lf'] = \
 {
  0.5: {'M': magbins,
        'phi': np.array([-4.57, -4.27, -3.97, -3.66, -3.15, -2.97, -2.76, -2.61, 
@@ -26,5 +33,4 @@ data = \
       },
 }
 
-units = {'lf': 'log10'}
 

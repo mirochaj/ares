@@ -7,10 +7,15 @@ info = \
  'fits': 'Table 4', 
  'label': 'Bouwens+ (2014)',
 }
-
+cosmo = \
+{
+ 'hubble_0': 0.7,
+ 'omega_m_0': 0.3,
+ 'omega_l_0': 0.7,
+}
+units = {'M': 'mags_abs', 'beta': 'beta'}
 redshifts = [4, 5, 6, 7, 8]
 wavelength = None
-units = {'beta': 1.}
 
 _data = \
 {
