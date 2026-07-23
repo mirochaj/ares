@@ -26,7 +26,7 @@ cosmo = \
  'omega_l_0': 0.7,
 }
 redshifts = [(0, 0.1)]
-units = {'lf': 'log10', 'M': 'mags_abs'}
+units = {'phi': 'log10(density)', 'M': 'mags_abs'}
 wavelength = 1530, 2310
 bands = 'fuv', 'nuv'
 ULIM = -1e10

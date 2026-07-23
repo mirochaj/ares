@@ -9,7 +9,13 @@ info = \
 
 redshifts = [2.5]
 wavelength = None
-units = {'beta': 1.}
+units = {'beta': 'slope', 'M': 'mags_abs'}
+cosmo = \
+{
+ 'hubble_0': 0.7,
+ 'omega_m_0': 0.3,
+ 'omega_l_0': 0.7,
+}
 
 _data = \
 {

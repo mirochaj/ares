@@ -66,28 +66,29 @@ def fix_cosmology(data, cosmo_ours=None):
             # Is this ever not another dictionary?
 
             for key in data.data[element][red]:
-            
+                
+                ydat = np.array(data.data[element][red][key])
                 # Correct volume
                 if key == 'phi':
                     if data.units[key].startswith('log10'):
                         new_data.data[element][red][key] = \
-                            np.log10(Vcorr * 10**data.data[element][red][key])
+                            np.log10(Vcorr * 10**ydat)
                     else:
-                        new_data.data[element][red][key] = Vcorr * data.data[element][red][key]
+                        new_data.data[element][red][key] = Vcorr * ydat
                 elif key == 'mass':
                     if data.units[key].startswith('log10'):
                         new_data.data[element][red][key] = \
-                            np.log10(Mcorr * 10**data.data[element][red][key])
+                            np.log10(Mcorr * 10**ydat)
                     else:
-                        new_data.data[element][red][key] = Mcorr * data.data[element][red][key]
+                        new_data.data[element][red][key] = Mcorr * ydat
                 elif key == 'M':
                     if data.units[key] == 'mags_abs':
-                        new_data.data[element][red][key] = magcorr + data.data[element][red][key]
+                        new_data.data[element][red][key] = magcorr + ydat
                     else:
-                        new_data.data[element][red][key] = data.data[element][red][key]
+                        new_data.data[element][red][key] = ydat
                 else:
                     # Errors...what else?
-                    new_data.data[element][red][key] = data.data[element][red][key]
+                    new_data.data[element][red][key] = ydat
     
     return new_data
 
@@ -134,7 +135,7 @@ def read(prefix, path=None, verbose=True, cosmo_ours=None):
         # Save this for sanity checks later
         mod.path = loc
 
-    if cosmo_ours is None:
+    if (cosmo_ours is None) or (mod.cosmo is None):
         return mod
     else:
         return fix_cosmology(mod, cosmo_ours=cosmo_ours)

@@ -117,7 +117,7 @@ tmp_data['lf'] = \
        },
 }
 
-units = {'phi': 'cMpc^-3', 'M': 'mags_abs'}
+units = {'phi': 'density', 'M': 'mags_abs'}
 
 data = {}
 data['lf'] = {}

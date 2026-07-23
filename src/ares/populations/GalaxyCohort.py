@@ -2897,6 +2897,9 @@ class GalaxyCohort(GalaxyAggregate):
         
                 if units_out.lower() == 'erg/s/hz':
                     Lh *= ev_per_hz
+                elif units_out.lower().startswith('erg/s/a'):
+                    wave = get_ang_from_x(x, units=units)
+                    Lh = Lh * ev_per_hz * c * 1e8 / wave**2
                 else:
                     raise ValueError(f'unknown units={units_out}')
                     
@@ -3021,12 +3024,12 @@ class GalaxyCohort(GalaxyAggregate):
                                     
                 ##
                 # get_spectrum is a normalized SED per eV
-                #if units_out.lower() == 'erg/s/hz':
-                #    pass
-                #elif units_out.lower() == 'erg/s/ev' and band is None:
-                #    L_sfr /= ev_per_hz
-                #else:
-                #    raise ValueError(f'unknown units={units_out}')
+                if units_out.lower() == 'erg/s/hz':
+                    pass
+                elif units_out.lower() == 'erg/s/ev' and band is None:
+                    L_sfr /= ev_per_hz
+                else:
+                    raise ValueError(f'unknown units={units_out}')
 
                 _Lh_ = sfr * L_sfr
                 _Lh_[~ok] = 0
@@ -3164,16 +3167,11 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # Final correction to units.
+        # Note that units_out correction has happened already, this is just
+        # dealing with `band`.
         if band is not None:
             Lh = Lh / get_dwave_or_equivalent(band, units, units_out)
-        else:
-            if units_out.lower() == 'erg/s/hz':
-                pass
-            elif units_out.lower() == 'erg/s/ev' and band is None:
-                Lh /= ev_per_hz
-            else:
-                raise ValueError(f'unknown units={units_out}')
-
+        
         ##
         # Done
         if Mh is None:
@@ -3667,15 +3665,22 @@ class GalaxyCohort(GalaxyAggregate):
     def get_beta_approx(self, z, x1, x2, units='Ang', window=1):
         """
         Computes a UV slope ("beta") from two points. This is approximate!
+
+        Recall that beta is defined via $f_{\lambda} \propto \lambda^{\beta}$, or
+        equivalently: beta \equiv d\log f_{\lambda} d\log\lambda
+
+        [f_{\lambda}] = erg/s/Ang
+
+        Can also work in f_{\nu} = f_{\lambda} * d\lambda/d\nu = f_{\lambda} * c /\lambda^2
         """
         lam1 = get_ang_from_x(x1, units=units)
         lam2 = get_ang_from_x(x2, units=units)
 
         lum1 = self.get_lum(z=z, x=x1, units='Ang',
-            window=window, use_tabs=False, units_out='erg/s/Ang')
+            window=window, use_tabs=False, units_out='erg/s/ang')
         lum2 = self.get_lum(z=z, x=x2, units='Ang',
-            window=window, use_tabs=False, units_out='erg/s/Ang')
-
+            window=window, use_tabs=False, units_out='erg/s/ang')
+        
         beta = np.log(lum2 / lum1) / np.log(lam2 / lam1)
 
         return beta

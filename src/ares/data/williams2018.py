@@ -16,12 +16,12 @@ cosmo = \
  'omega_m_0': 0.3,
  'omega_l_0': 0.7,
 }
-units = {'lf': 'log10', 'M': 'mags_abs'}
+units = {'phi': 'log10', 'M': 'mags_abs'}
 
 magbins = np.arange(-22.75, -16.75, 0.5)
 redshifts = [0.5, 0.8, 1.25, 1.75, 2.25, 2.75, 3.75]
 
-data = \
+data_lf = \
 {
  0.5: {'M': magbins,
        'phi': np.array([-14.59, -10.42, -7.74, -6.02, -4.88, -4.13, -3.61,
@@ -68,6 +68,8 @@ data = \
 
 
 }
+
+data = {'lf': data_lf}
 
 
 def get_Reff(z, Ms, quiescent=False, cosm=None):
