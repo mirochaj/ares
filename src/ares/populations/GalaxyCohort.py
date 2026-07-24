@@ -3664,14 +3664,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_beta_approx(self, z, x1, x2, units='Ang', window=1):
         """
-        Computes a UV slope ("beta") from two points. This is approximate!
-
-        Recall that beta is defined via $f_{\lambda} \propto \lambda^{\beta}$, or
-        equivalently: beta \equiv d\log f_{\lambda} d\log\lambda
-
-        [f_{\lambda}] = erg/s/Ang
-
-        Can also work in f_{\nu} = f_{\lambda} * d\lambda/d\nu = f_{\lambda} * c /\lambda^2
+        Computes a UV slope ("beta") from two points. This is approximate!        
         """
         lam1 = get_ang_from_x(x1, units=units)
         lam2 = get_ang_from_x(x2, units=units)
@@ -7584,7 +7577,8 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 focc = pop2.tab_focc[iz]
                 fsurv = pop2.tab_fsurv[iz]
-                dndlnm_2d = self.halos.tab_dndlnm[iz][:,None]  \
+                #dndlnm_2d = #self.halos.tab_dndlnm[iz][:,None]  \
+                dndlnm_2d = 1.  \
                            * self.halos.tab_dndlnm_sub \
                            * focc[None,:] * fsurv[None,:]
 
