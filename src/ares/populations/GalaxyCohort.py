@@ -1826,7 +1826,7 @@ class GalaxyCohort(GalaxyAggregate):
         sfr_med = sfr * np.exp(0.5 * sigma_sfr**2)
 
         # And how many halos there are
-        ntot = np.trapz(f_in_bin[ok_m==1] * focc[ok_m==1] * dndlnm[ok_m==1], 
+        ntot = np.trapezoid(f_in_bin[ok_m==1] * focc[ok_m==1] * dndlnm[ok_m==1], 
             x=np.log(Mh[ok_m==1]))
         
         ##
@@ -1837,7 +1837,7 @@ class GalaxyCohort(GalaxyAggregate):
             return 0
         
         # We're done -- just need to do final integral weighted by SFR
-        mainseq = np.trapz(sfr_med[ok_m==1] * f_in_bin[ok_m==1] * focc[ok_m==1] * dndlnm[ok_m==1], 
+        mainseq = np.trapezoid(sfr_med[ok_m==1] * f_in_bin[ok_m==1] * focc[ok_m==1] * dndlnm[ok_m==1], 
             x=np.log(Mh[ok_m==1])) / ntot
 
         return mainseq
@@ -4429,7 +4429,7 @@ class GalaxyCohort(GalaxyAggregate):
         # The easiest solution to this problem is to smooth the Lh(Mh) 
         # function before differencing to avoid numerical noise.
         if self.pf['pop_lum_tab'] is not None:
-            #poke = self.tab_lum
+            poke = self.tab_lum
 
             # Reminder: already in log10
             dlogMstell = np.diff(self._tab_lum_Ms)[0]
@@ -7307,6 +7307,11 @@ class GalaxyCohort(GalaxyAggregate):
 
         if not self.pf['pop_include_shot']:
             return 0
+        
+        # If 1-h on for central, it means we're doing resolved profiles
+        # and so need to avoid double-counting shot level
+        if self.is_central_pop and self.pf['pop_include_1h']:
+            return 0.0
         
         # No inter-pop cross-shot terms for galaxy-galaxy
         # or intensity-intensity crosses! [exclusion issue]
