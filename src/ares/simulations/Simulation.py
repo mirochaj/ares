@@ -182,15 +182,15 @@ class Simulation(object):
                 x = np.mean(bands, axis=1)
                 flux = np.zeros(bands.shape[0])
 
-                pb = ProgressBar(x.size, name=f'ebl(pop={i})', use=self.pf['progress_bar'])
+                pb = ProgressBar(x.size, name=f'ebl(pop={i}|cts)', use=self.pf['progress_bar'])
                 pb.start()
                 for j, band in enumerate(bands):
                     pb.update(j)
 
                     nu = c / (np.mean(band) * 1e-4)
                     
-                    num = self.get_galaxy_number_counts(band, magbins, popids=i,
-                        **kwargs)
+                    num = self.get_galaxy_number_counts(band, magbins, pops=i,
+                        units=wave_units, **kwargs)
                     
                     # Cumulative flux [convert to nW m^-2 sr^-1 Hz^-1]
                     tot_Jy = np.trapezoid(num[i] * fbins, x=magbins) / 1e-23

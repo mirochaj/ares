@@ -1367,6 +1367,12 @@ class GalaxyCohort(GalaxyAggregate):
                 bins1, phi1 = self.get_lf(z1, x=x, use_mags=False, units=units,
                     use_logL=False, band=band)
                 
+                # kwargs used in get_number_counts
+                #mags, phi = self.get_lf(z, bins, x=_x_,
+                #units=units, window=_w_, band=_band,
+                #use_mags=True, absolute=absolute, cam=cam, filters=filters,
+                #dlam=dlam, selection_criteria=selection_criteria)
+                
                 if np.all(phi1[phi1.mask==0] == 0):
                     rhoL1 = 0
                 else:
@@ -3302,8 +3308,8 @@ class GalaxyCohort(GalaxyAggregate):
 
         """
 
-        kwtup = z, x, band, window, units, units_out, raw, nebular_only, age, \
-            include_dust_transmission, include_igm_transmission, total_sat, use_tabs
+        #kwtup = z, x, band, window, units, units_out, raw, nebular_only, age, \
+        #    include_dust_transmission, include_igm_transmission, total_sat, use_tabs
 
         ##
         # First, can compute luminosity from photometry in some bands.
@@ -3350,12 +3356,12 @@ class GalaxyCohort(GalaxyAggregate):
             Mh = _Mh
 
         # Otherwise check if there's cached luminosities.
-        if (Mh is None) and self.pf['pop_use_lum_cache'] and load:
-            cached_result = self._cache_L(*kwtup)
-
-            if (cached_result is not None):
-                print('using cache')
-                return cached_result
+        #if (Mh is None) and self.pf['pop_use_lum_cache'] and load:
+        #    cached_result = self._cache_L(*kwtup)
+#
+        #    if (cached_result is not None):
+        #        print('using cache')
+        #        return cached_result
 
         is_bol = (band is not None) and isinstance(band, str) and band.lower().startswith('bol')
         if is_bol and (x is not None):
@@ -3456,8 +3462,8 @@ class GalaxyCohort(GalaxyAggregate):
         if not hasattr(self, '_cache_L_'):
             self._cache_L_ = {}
 
-        if (Mh is None) and self.pf['pop_use_lum_cache']:
-            self._cache_L_[kwtup] = Lh
+        #if (Mh is None) and self.pf['pop_use_lum_cache']:
+        #    self._cache_L_[kwtup] = Lh
 
         if separate_lines:
             return Lh, Lh_l

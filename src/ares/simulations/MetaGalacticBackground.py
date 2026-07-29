@@ -1371,7 +1371,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         if flatten == True:
             The energy array is 1-D.
-            The flux array will have shape (z, E)
+            The flux array will have shape (z, E).
         else:
             The energies are stored as a list. The number of elements will
             be determined by how many sub-bands there are. Each element will
