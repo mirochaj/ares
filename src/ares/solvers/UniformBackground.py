@@ -350,46 +350,47 @@ class UniformBackground(object):
 
     #    return self._emissivities
 
-    def get_tab_emissivity(self, pop):
-        """
-        Tabulate the emissivity of a population over redshift and photon energy.
-        """
-        bands = self.bands_by_pop[i]
-        z, E, tau = self.get_grid(pop, bands)
+    #def get_tab_emissivity(self, pop):
+    #    """
+    #    Tabulate the emissivity of a population over redshift and photon energy.
+    #    """
+    #    bands = self.bands_by_pop[i]
+    #    z, E, tau = self.get_grid(pop, bands)
+#
+    #    ehat = []
+    #    for j, band in enumerate(bands):
+#
+    #        if has_sawtooth(*band):
+    #            ehat.append([pop.get_tab_emissivity(z, Earr) \
+    #                for Earr in E[j]])
+    #        else:
+    #            ehat.append(pop.get_tab_emissivity(z, E[j]))
 
+    def get_tab_emissivities(self, popid):
+        """
+        Emissivities for each population, with a sub-list for the emissivity
+        of each individual sub-band.
+        """
+        if hasattr(self, '_tab_emissivities'):
+            if popid in self._tab_emissivities:
+                return self._tab_emissivities[popid]
+        else:
+            self._tab_emissivities = {}
+        
+        pop = self.pops[popid]
+        bands = self.bands_by_pop[popid]
+        z, E, tau = self.get_grid(pop, bands)
         ehat = []
         for j, band in enumerate(bands):
-
             if has_sawtooth(*band):
                 ehat.append([pop.get_tab_emissivity(z, Earr) \
                     for Earr in E[j]])
             else:
                 ehat.append(pop.get_tab_emissivity(z, E[j]))
 
-    @property
-    def tab_emissivities(self):
-        """
-        Emissivities for each population, with a sub-list for the emissivity
-        of each individual sub-band.
-        """
-        if not hasattr(self, '_tab_emissivities'):
-            self._tab_emissivities = []
-            for i, pop in enumerate(self.pops):
-                bands = self.bands_by_pop[i]
-                z, E, tau = self.get_grid(pop, bands)
+        self._tab_emissivities[popid] = ehat
 
-                ehat = []
-                for j, band in enumerate(bands):
-
-                    if has_sawtooth(*band):
-                        ehat.append([pop.get_tab_emissivity(z, Earr) \
-                            for Earr in E[j]])
-                    else:
-                        ehat.append(pop.get_tab_emissivity(z, E[j]))
-
-                self._tab_emissivities.append(ehat)
-
-        return self._tab_emissivities
+        return ehat
 
     def get_grid(self, pop, bands, zi=None, zf=None, nz=None,
         compute_tau=False):
@@ -607,28 +608,30 @@ class UniformBackground(object):
         # Return what we got, not what we asked for
         return _z, _E, tau
 
-    @property
-    def generators(self):
+    def get_generator(self, popid):
         """
         Create generators for each population.
+
+        This should behave like a dictionary, elsewhere we call generators[0] etc
+        for the different source populations
 
         Returns
         -------
         Nothing. Sets attribute `generators`.
 
         """
-        if not hasattr(self, '_generators'):
+        if hasattr(self, '_generators'):
+            if popid in self._generators:
+                return self._generators[popid]
+        else:
+            self._generators = {}
 
-            self._generators = []
-            for i, pop in enumerate(self.pops):
-                if not np.any(self.solve_rte[i]):
-                    gen = None
-                else:
-                    gen = self.FluxGenerator(popid=i)
+        if not np.any(self.solve_rte[popid]):
+            self._generators[popid] = None
+        else:
+            self._generators[popid] = self.FluxGenerator(popid=popid)
 
-                self._generators.append(gen)
-
-        return self._generators
+        return self._generators[popid]
 
     def _set_integrator(self):
         """
@@ -1147,6 +1150,7 @@ class UniformBackground(object):
 
         # List of all intervals in rest-frame photon energy
         bands = self.bands_by_pop[popid]
+        ehat = self.get_tab_emissivities(popid)
 
         ct = 0
         generators_by_band = []
@@ -1156,12 +1160,12 @@ class UniformBackground(object):
                 ct += 1
             elif has_sawtooth(*band):
                 gen = self._flux_generator_sawtooth(E=self.energies[popid][i],
-                    z=self.redshifts[popid], ehat=self.tab_emissivities[popid][i],
+                    z=self.redshifts[popid], ehat=ehat[i],
                     tau=self.tau[popid][i], my_id=(popid,ct))
                 ct += len(self.energies[popid][i])
             else:
                 gen = self._flux_generator_generic(self.energies[popid][i],
-                    self.redshifts[popid], self.tab_emissivities[popid][i],
+                    self.redshifts[popid], ehat=ehat[i],
                     tau=self.tau[popid][i], my_id=(popid,ct))
                 ct += 1
 

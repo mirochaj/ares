@@ -213,7 +213,9 @@ class MetaGalacticBackground(AnalyzeMGB):
         count = self.count   # Just to make sure attribute exists
         self._count += 1
 
-        is_converged = self._is_Mmin_converged(self._lwb_sources)
+        lwb_and_in_pops = set(self._lwb_sources) & set(include_pops)
+
+        is_converged = self._is_Mmin_converged(lwb_and_in_pops)
 
         ##
         # Feedback
@@ -566,25 +568,24 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         return self._history
 
-    @property
-    def _subgen(self):
-        if not hasattr(self, '_subgen_'):
+    def get_subgen(self, popid):
+        if hasattr(self, '_subgen_'):
+            if popid in self._subgen_:
+                return self._subgen_[popid]
+        else:
             self._subgen_ = {}
 
-            for popid, pop in enumerate(self.pops):
-                gen = self.solver.generators[popid]
+        gen = self.solver.get_generator(popid)
+        if gen is None:
+            self._subgen_[popid] = None
+        else:
+            # This is kludgey.
+            if len(gen) == 1 and (not self.pops[popid].is_src_lw):
+                self._subgen_[popid] = False
+            else:
+                self._subgen_[popid] = True
 
-                if gen is None:
-                    self._subgen_[popid] = None
-                    continue
-
-                # This is kludgey.
-                if len(gen) == 1 and (not pop.is_src_lw):
-                    self._subgen_[popid] = False
-                else:
-                    self._subgen_[popid] = True
-
-        return self._subgen_
+        return self._subgen_[popid]
 
     def update_fluxes(self, popid=0):
         """
@@ -600,7 +601,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         """
 
-        pop_generator = self.solver.generators[popid]
+        pop_generator = self.solver.get_generator(popid)
 
         # Skip approximate (or non-contributing) backgrounds
         if pop_generator is None:
@@ -608,7 +609,7 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         fluxes_by_band = []
 
-        needs_flattening = self._subgen[popid]
+        needs_flattening = self.get_subgen(popid)
 
         # For each population, the band is broken up into pieces
         for j, generator in enumerate(pop_generator):
@@ -663,7 +664,8 @@ class MetaGalacticBackground(AnalyzeMGB):
             # could structure better, but i'm tired.
 
             fluxes = {i:None for i in range(self.solver.Npops)}
-            for i, pop_generator in enumerate(self.solver.generators):
+            generators = [self.solver.get_generator(i) for i in range(self.solver.Npops)]
+            for i, pop_generator in enumerate(generators):
 
                 kw['zone'] = self.pops[i].zone
                 also = {}
@@ -901,12 +903,9 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         # Need better long-term fix: Lya sources aren't necessarily LW
         # sources, if (for example) approx_all_pops = True.
-        if not self.pf['feedback_LW']:
-            # Will use all then
-            include_pops = None
-        elif include_pops is None:
-            include_pops = range(self.solver.Npops)
-
+        if self.pf['feedback_LW']:
+            assert np.allclose(include_pops, range(self.solver.Npops))
+            
         # Otherwise, grab all the fluxes
         zarr, Jc, Ji, Jlw = self.get_uvb_tot(include_pops)
         self._zarr = zarr

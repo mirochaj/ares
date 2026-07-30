@@ -892,6 +892,14 @@ resolved_galaxies['pop_prof_dz{1}'] = None
 resolved_galaxies['pop_prof_dlogM{1}'] = 0.2
 resolved_galaxies['pop_prof_dlnk{1}'] = 0.1
 
+fastest = \
+{
+ "halo_dlogM": 0.1,
+ "halo_tmin": 250,
+ "halo_tmax": 13.5e3,
+ "halo_dt": 250,
+}
+
 faster = \
 {
  "halo_dlogM": 0.05,

@@ -21,6 +21,7 @@ from . import ParameterBundle
 from itertools import product
 from ..simulations import Simulation
 from ..physics.Constants import s_per_myr
+from .cli import generate_hmf_tables, generate_ukm_tables
 
 try:
     import h5py
@@ -534,4 +535,30 @@ def generate_sed_tab(base_kwargs, output_dir, pop_idnum,
 
     return fn_out_final
     
+def generate_uofk_tab(base_kwargs, output_dir, 
+    clobber_checkpoints=0, clobber_final_database=0, 
+    use_multiprocess=1, nthreads=1, 
+    gprof_dt=100, gprof_tmin=5e3, gprof_dlogM=0.2, gprof_dlnk=0.1):
+    """
+    Generate u(k) lookup table for resolved galaxies.
+    """
+
+    sim = Simulation(**base_kwargs)
+
+    smhm_0 = sim.pops[0].get_fstar
+    smhm_1 = sim.pops[1].get_fstar
+
+    msr_0 = sim.pops[0].get_size
+    msr_1 = sim.pops[1].get_size
     
+    ##
+    # Pare down z and Mh resolution
+    generate_hmf_tables(output_dir, 
+        halo_dt=gprof_dt, halo_tmin=gprof_tmin, halo_dz=None, halo_dlogM=gprof_dlogM,
+        halo_dlnk=gprof_dlnk)
+    
+    generate_ukm_tables(output_dir, prof='einasto', 
+        msr=(msr_0, msr_1), smhm=(smhm_0, smhm_1),
+        halo_dt=gprof_dt, halo_tmin=gprof_tmin, halo_dz=None, halo_dlogM=gprof_dlogM,
+        halo_dlnk=gprof_dlnk)
+

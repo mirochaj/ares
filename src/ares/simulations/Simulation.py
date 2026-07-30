@@ -148,7 +148,7 @@ class Simulation(object):
             data = {}
 
         if (not self.background_intensity._run_complete) and (not compute_via_counts):
-            self.background_intensity.run()
+            self.background_intensity.run(include_pops=pops)
 
         for i in range(len(self.pops)):
             if i in data:
@@ -186,8 +186,6 @@ class Simulation(object):
                 pb.start()
                 for j, band in enumerate(bands):
                     pb.update(j)
-
-                    nu = c / (np.mean(band) * 1e-4)
                     
                     num = self.get_galaxy_number_counts(band, magbins, pops=i,
                         units=wave_units, **kwargs)
@@ -195,6 +193,8 @@ class Simulation(object):
                     # Cumulative flux [convert to nW m^-2 sr^-1 Hz^-1]
                     tot_Jy = np.trapezoid(num[i] * fbins, x=magbins) / 1e-23
                     
+                    nu = c / (np.mean(band) * 1e-4)
+
                     flux[j] = tot_Jy * 1e-23 * nu * (1e2)**2 \
                         * sqdeg_per_std / erg_per_s_per_nW
                 
