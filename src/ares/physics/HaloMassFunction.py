@@ -440,7 +440,7 @@ class HaloMassFunction(object):
                 self.tab_ngtm, self.tab_mgtm = self._get_ngtm_mgtm_from_dndm()
                 # tab_MAR will be re-generated automatically if summoned,
                 # as will tab_Mmin_floor.
-            else:
+            elif len(self.pf['halo_mf_cache']) == 10:
                 (
                     self.tab_z,
                     self.tab_t,
@@ -453,6 +453,26 @@ class HaloMassFunction(object):
                     self._tab_bias,
                     self._tab_dndlnm_sub
                 ) = self.pf['halo_mf_cache']
+            elif len(self.pf['halo_mf_cache']) == 14:
+                (
+                    self.tab_z,
+                    self.tab_t,
+                    self.tab_M,
+                    self.tab_dndm,
+                    self.tab_mgtm,
+                    self.tab_ngtm,
+                    self._tab_MAR,
+                    self.tab_Mmin_floor,
+                    self._tab_bias,
+                    self._tab_dndlnm_sub,
+                    self.tab_k_lin,
+                    self.tab_ps_lin,
+                    self.tab_growth,
+                    self.tab_sigma
+                ) = self.pf['halo_mf_cache']
+            else:
+                raise NotImplementedError('help')
+            
             return
 
         if self.pf['halo_mf_pca'] is not None: # pragma: no cover
@@ -845,9 +865,13 @@ class HaloMassFunction(object):
     def tab_t(self, value):
         self._tab_t = value
 
-    def prep_for_cache(self):
+    def prep_for_cache(self, include_ps=0):
         keys = ['tab_z', 'tab_t', 'tab_M', 'tab_dndm', 'tab_mgtm', 'tab_ngtm',
             'tab_MAR', 'tab_Mmin_floor', 'tab_bias', 'tab_dndlnm_sub']
+        
+        if include_ps:
+            keys.extend(['tab_k_lin', 'tab_ps_lin', 'tab_growth', 'tab_sigma'])
+
         hist = [self.__getattribute__(key) for key in keys]
         return hist
 

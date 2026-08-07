@@ -558,6 +558,19 @@ class Simulation(object):
 
         self._fmask = np.array(fmask)
         return self._fmask
+    
+    def get_ebl_xcorr(self, scales, waves, zbins, 
+        selection_criteria, masking_criteria, 
+        selection_symmetric=False, masking_symmetric=True,
+        wave_units='mic', flux_units='SI', pops=None,
+        cache_ipop_mtx=None, **kwargs):
+        """ Wrapper around get_ebl_x_galaxies. """
+        return self.get_ebl_x_galaxies(scales, waves, zbins, 
+            selection_criteria, masking_criteria, 
+            selection_symmetric=selection_symmetric, 
+            masking_symmetric=masking_symmetric,
+            wave_units=wave_units, flux_units=flux_units, pops=pops,
+            cache_ipop_mtx=cache_ipop_mtx, **kwargs)
 
     def get_ebl_x_galaxies(self, scales, waves, zbins, 
         selection_criteria, masking_criteria, 
@@ -742,11 +755,13 @@ class Simulation(object):
             fsel = np.array(fsel)
 
             if np.all(fsel == 0):
-                print(f"! No galaxies found satisfying selection!")
-                print(f"! z={zbin}, selection:", selection_criteria)
+                if self.pf['verbose']:
+                     print(f"! No galaxies found satisfying selection!")
+                     print(f"! z={zbin}, selection:", selection_criteria)
                 continue
             else:
-                print(f"! Generating crosses in z={zlo:.3f}-{zhi:.3f}...")
+                if self.pf['verbose']:
+                    print(f"! Generating crosses in z={zlo:.3f}-{zhi:.3f}...")
             
             for i, pop in enumerate(self.pops):
 
@@ -779,17 +794,30 @@ class Simulation(object):
 
                         # Try to load from cache [optional]
                         if (cache_ipop_mtx is not None):
-                            _px, _pz = cache_ipop_mtx
-                            _npops = _px.shape[0]
+                            (_ell_, _chan_, _zbins_), _pz = cache_ipop_mtx
+
+                            _npops = _pz.shape[0]
                             # If we're covered by the cache, use it
                             if (i < _npops) and (j < _npops):
-                                # Assumes cache_ipop_mtx is in 
-                                # same units as requested here!
-                                # Could add check later.
-                                #px[i,j,:,:] = _px[i,j,:,:] / to_ps_units
-                                # ps_z is (pops, pops, scales, waves, zbins, zarr)
-                                ps_z[i,j,:,k,h,:] = _pz[i,j,:,k,h,:] / to_ps_units
+
+                                # Find the right wavelength/zbin combo in the cache
+                                # and enforce a perfect match.
+                                _h_ = np.argmin(np.abs(np.mean(zbin) - np.mean(_zbins_, axis=1)))
+                                assert np.all(_zbins_[_h_] == zbin)
+
+                                _k_ = np.argmin(np.abs(wave.mean() - _chan_.mean(axis=1)))
+                                assert np.all(_chan_[_k_] == wave)
                                 
+                                if (_ell_.size == scales.size) \
+                                    and np.allclose(_ell_, scales):
+                                    ps_z[i,j,:,k,h,:] = _pz[i,j,:,_k_,_h_,:] / to_ps_units
+                                else:
+                                    for ll, _l_ in enumerate(scales):
+                                        iell = np.argmin(np.abs(_l_ - _ell_))
+                                        assert _ell_[iell] == _l_, \
+                                            f"Closest cached scale is not a match! {scales[iell]} v {_l_}"
+                                        ps_z[i,j,ll,k,h,:] = _pz[i,j,iell,_k_,_h_,:] / to_ps_units
+
                                 continue
 
                         # (scales, waves, zbin, zall)
