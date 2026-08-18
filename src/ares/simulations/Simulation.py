@@ -378,20 +378,40 @@ class Simulation(object):
                     if j not in pops:
                         continue
                 
-                # Try to load from cache [optional]
-                if (cache_ipop_mtx is not None) and include_inter_pop:
-                    _px, _pz = cache_ipop_mtx
-                    _npops = _px.shape[0]
-                    # If we're covered by the cache, use it
-                    if (i < _npops) and (j < _npops):
-                        # Assumes cache_ipop_mtx is in 
-                        # same units as requested here!
-                        # Could add check later.
-                        #px[i,j,:,:] = _px[i,j,:,:] / to_ps_units
-                        ps_z[i,j,:,:,:] = _pz[i,j,:,:,:] / to_ps_units / to_ps_units2
-                        continue
-
                 for k, wave in enumerate(waves):
+
+                    # Try to load from cache [optional]
+                    if (cache_ipop_mtx is not None) and include_inter_pop:
+                        (_ell_, _chan_), _pz = cache_ipop_mtx
+                        _npops = _pz.shape[0]
+                        # If we're covered by the cache, use it
+                        if (i < _npops) and (j < _npops):
+                            # Assumes cache_ipop_mtx is in 
+                            # same units as requested here!
+                            # Could add check later.
+                            #px[i,j,:,:] = _px[i,j,:,:] / to_ps_units
+                            #ps_z[i,j,:,:,:] = _pz[i,j,:,:,:] / to_ps_units / to_ps_units2
+                            #continue
+                            # Find the right wavelength/zbin combo in the cache
+                            # and enforce a perfect match.
+                            
+                            _k_ = np.argmin(np.abs(wave.mean() - _chan_.mean(axis=1)))
+                            assert np.allclose(_chan_[_k_], wave), \
+                                f"Mismatch in _chan_[k]={_chan_[k]} and wave={wave}!"
+
+                            if not np.allclose(xmic2[k], xmic[k]):
+                                raise NotImplemented('need to be careful with caching for internal cross')
+                            
+                            if (_ell_.size == scales.size) \
+                                and np.allclose(_ell_, scales):
+                                ps_z[i,j,:,k,:] = _pz[i,j,:,_k_,:] / to_ps_units / to_ps_units2
+                            else:
+                                for ll, _l_ in enumerate(scales):
+                                    iell = np.argmin(np.abs(_l_ - _ell_))
+                                    assert _ell_[iell] == _l_, \
+                                        f"Closest cached scale is not a match! {scales[iell]} v {_l_}"
+                                    ps_z[i,j,ll,k,:] = _pz[i,j,iell,_k_,:] / to_ps_units / to_ps_units2
+                            continue
 
                     if type(masking_criteria) in [dict, NoneType]:
                         fsel1 = 1-fmask[i]
@@ -982,7 +1002,8 @@ class Simulation(object):
 
         return ps#.sum(axis=0).sum(axis=0)
     
-    def get_limber_integral(self, ps3d, waves=None, zbins=None, num=None, waves2=None):
+    def get_limber_integral(self, ps3d, waves=None, zbins=None, num=None, 
+        waves2=None, zlo=None, zhi=None):
         """
         Take a 3-D power spectrum (along lightcone) and perform integration
         along z axis, i.e., perform the Limber integral.
@@ -1038,8 +1059,10 @@ class Simulation(object):
         # handle one by one for now. This could be condensed for
         # sure but probably at the expense of clarity.
         if is_ebl_auto:
-            zlo = self.pf['final_redshift']
-            zhi = self.pf['initial_redshift']
+            if zlo is None:
+                zlo = self.pf['final_redshift']
+            if zhi is None:
+                zhi = self.pf['initial_redshift']
 
             # Loop over waves
             for j in range(ps3d.shape[3]):

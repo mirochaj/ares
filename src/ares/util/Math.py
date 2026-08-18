@@ -84,7 +84,7 @@ def integrate_with_subgrid_interp(x, y, bound_lo, bound_hi, method='trapz_trapz'
         
     # We don't do extrapolation here    
     assert bound_lo >= x.min(), \
-            f"Hey! bound_lo={bound_lo:.3e}, must be >= min(x)={x.max()}"
+            f"Hey! bound_lo={bound_lo:.3e}, must be >= min(x)={x.min()}"
     assert bound_hi <= x.max(), \
             f"Hey! bound_hi={bound_hi:.3e}, must be <= max(x)={x.max()}"
 

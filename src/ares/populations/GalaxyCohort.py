@@ -4514,8 +4514,28 @@ class GalaxyCohort(GalaxyAggregate):
                     ##
                     # In this case, we use new grid for second axis.
                     if larr is None:
+                        # These are going to be numbers ~20-50 
+                        # in general, but occasionally (when mcmc'ing in a
+                        # dark corner of parameter space we may get nonsense,
+                        # hence the check below).
                         lmin = np.log10(Lh[_ok==1].min() * 0.5)
                         lmax = np.log10(Lh[_ok==1].max() * 1.5)
+
+                        if not np.isfinite(lmax):
+                            if not np.isfinite(lmin):
+                                #raise ValueError('inf lmax and lmin!')
+                                lmax = 50
+                                print('only non-zero luminosities are inf', _ok.sum(), Lh[_ok==1].min(), Lh[_ok==1].max())
+                                mask = np.ones_like(Lh)
+                                lum = np.ma.array(Lh, mask=mask)
+                                phi = np.ma.array(tiny_phi * np.ones_like(Lh), mask=mask)
+                                return lum, phi
+                
+                            else:
+                                lmax = lmin + 30
+                        if not np.isfinite(lmin):
+                            lmin = lmax - 30
+                            
                         larr = 10**np.arange(lmin, lmax, 0.01)
 
                     # So, in general, the PDF array will not be square.
@@ -4565,7 +4585,12 @@ class GalaxyCohort(GalaxyAggregate):
                     phi[lum < lum_lo] = 0
                     phi[lum >= lum_hi] = 0
 
-                assert np.all(np.diff(lum) > 0)
+                if not np.all(np.diff(lum) > 0):
+                    print('not all luminosities are ascending', lum)
+                    mask = np.ones_like(Lh)
+                    lum = np.ma.array(Lh, mask=mask)
+                    phi = np.ma.array(tiny_phi * np.ones_like(Lh), mask=mask)
+                    return lum, phi
 
                 # Remember: phi is dn/dlnL
                 return lum, phi
@@ -4652,6 +4677,20 @@ class GalaxyCohort(GalaxyAggregate):
                     if larr is None:
                         lmin = np.log10(Lh[_ok==1].min() * 0.5)
                         lmax = np.log10(Lh[_ok==1].max() * 1.5)
+
+                        if not np.isfinite(lmax):
+                            if not np.isfinite(lmin):
+                                #raise ValueError('inf lmax and lmin!')
+                                lmax = 50
+                                print('only non-zero luminosities are inf', _ok.sum(), Lh[_ok==1].min(), Lh[_ok==1].max())
+                                lum = np.ma.array(Lh, mask=mask)
+                                phi = np.ma.array(tiny_phi * np.ones_like(Lh), mask=mask)
+                                return lum, phi
+                            else:
+                                lmax = lmin + 30
+                        if not np.isfinite(lmin):
+                            lmin = lmax - 30
+
                         larr = 10**np.arange(lmin, lmax, 0.01)
 
                     # So, in general, the PDF array will not be square.
@@ -4690,8 +4729,14 @@ class GalaxyCohort(GalaxyAggregate):
                 lum = np.ma.array(Lh, mask=mask)
                 phi = np.ma.array(phi_tot, mask=mask, fill_value=-np.inf)
 
-                assert np.all(np.diff(lum) > 0), f"problem with `lum` for pop={self.id_num}"
-
+                #assert np.all(np.diff(lum) > 0), f"problem with `lum` for pop={self.id_num}"
+                if not np.all(np.diff(lum) > 0):
+                    print('not all luminosities are ascending (sats)', lum)
+                    mask = np.ones_like(Lh)
+                    lum = np.ma.array(Lh, mask=mask)
+                    phi = np.ma.array(tiny_phi * np.ones_like(Lh), mask=mask)
+                    return lum, phi
+                
                 # Already in dn/dlog10(Mstell,sat)
                 return lum, phi
             else:
