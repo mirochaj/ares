@@ -3141,11 +3141,10 @@ class GalaxyCohort(GalaxyAggregate):
                         else:
                             raise NotImplementedError('Only know ihl_definition=1,2!')
 
-                        if (self.pf['pop_ihl_suppression'] is not None) or \
-                           (self.pf['pop_ihl_mask'] is not None):
-                            fsupp = self.tab_fmask_ihl[iz,:]
-                            #fsupp = self.get_ihl_suppression(z=z,
-                            #    Mh=self.halos.tab_M)
+                        if (self.pf['pop_ihl_suppression'] is not None):
+                            #fsupp = self.tab_fmask_ihl[iz,:]
+                            fsupp = self.get_ihl_suppression(z=z,
+                                Mh=self.halos.tab_M)
                             _Lh_ *= (1 - fsupp)
 
                 else:
@@ -3502,15 +3501,91 @@ class GalaxyCohort(GalaxyAggregate):
 
         return arr
 
-    @cached_property
-    def tab_fmask_ihl(self):
-        self._tab_fmask_ihl = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
-        for i, z, in enumerate(self.halos.tab_z):
-            self._tab_fmask_ihl[i,:] = self.get_ihl_suppression(z=z,
-                Mh=self.halos.tab_M)
-        return self._tab_fmask_ihl
+    #@cached_property
+    #def tab_fmask_ihl(self):
+    #    self._tab_fmask_ihl = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size))
+    #    for i, z, in enumerate(self.halos.tab_z):
+    #        self._tab_fmask_ihl[i,:] = self.get_ihl_suppression(z=z,
+    #            Mh=self.halos.tab_M)
+    #    return self._tab_fmask_ihl
+
+    @property
+    def tab_fmask_for_ihl(self):
+        return self._tab_fmask_for_ihl
+    
+    @tab_fmask_for_ihl.setter
+    def tab_fmask_for_ihl(self, value):
+        self._tab_fmask_for_ihl = value
 
     def get_ihl_suppression(self, z, Mh):
+        """
+        This function returns the fraction of IHL emission lost to masking.
+        """
+
+        if self.pf['pop_ihl_suppression'] in [None, 0, False]:
+            return np.zeros_like(Mh)
+        
+        # Mask out 100% of IHL if central is masked
+        elif self.pf['pop_ihl_suppression'] == 1:
+            iz = self.get_zindex(z)
+
+            if self.tab_fmask_for_ihl.ndim == 2:
+                fsupp = self.tab_fmask_for_ihl[iz,:] > 0
+            else:
+                fsupp = self.tab_fmask_for_ihl > 0
+
+            return fsupp
+        elif self.pf['pop_ihl_suppression'] == 2:
+            iz = self.get_zindex(z)
+
+            if self.tab_fmask_for_ihl.ndim == 2:
+                fsupp = self.tab_fmask_for_ihl[iz,:] > 0
+            else:
+                fsupp = self.tab_fmask_for_ihl > 0
+
+            return fsupp * self.pf['pop_ihl_mask_fsat']
+
+        elif self.pf['pop_ihl_suppression'] == 3:
+            ##
+            # In the future, may want to use central_id to automatically 
+            # get 
+
+            # Need scaling factor that hits R_eff (size of central in arcsec)
+            # as well as pixel scale
+
+            pix = self.pf['pop_ihl_mask_pix']
+            assert pix is not None
+
+            xreff = self.pf["pop_ihl_mask_xreff"]
+            assert xreff is not None
+
+            iz = self.get_zindex(z)
+            Mh = self.halos.tab_M
+
+            r_s_gal = xreff * self.pf['pop_msr'](z, self.get_fstar(z=z, Mh=Mh) * Mh) / 1e3
+            r_s_pix = self.cosm.get_length_comoving_from_angle(z, pix / 60.) # already in Mpc
+
+            # Mask a region at least the size of the pixel scale, e.g.,
+            # in case where galaxy is unresolved
+            r_s = np.maximum(r_s_gal, r_s_pix)
+
+            R = self.halos.tab_R_nfw
+            fsupp = np.zeros_like(self.halos.tab_M)
+            for k, mcen in enumerate(self.halos.tab_M):
+                tab_sigma_nfw_cdf = self.halos.tab_Sigma_nfw_cdf[iz,k,:]
+                fsupp[k] = np.interp(np.log10(r_s[k]), np.log10(R), tab_sigma_nfw_cdf)
+
+            ##
+            # Need to only hit IHL of masked centrals with suppression factor
+            fsupp[self.tab_fmask_for_ihl[iz,:] == 0] = 0
+
+            return fsupp
+
+        else:
+            raise NotImplemented('help')
+
+
+    def get_ihl_suppression_OLD(self, z, Mh, central_mask=None):
         """
         This function returns the fraction of IHL emission lost to masking.
         """

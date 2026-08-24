@@ -512,7 +512,24 @@ class Simulation(object):
                 if i not in pops:
                     continue
 
+            # IHL detector
             if (not pop.is_cataloged):
+
+                # Check for masking according to central properties
+                if pop.pf['pop_ihl_suppression'] in [0, False, None]:
+                    continue
+
+                # Otherwise, doing something tricky.
+                # Need to pass mask of centrals into IHL population.
+                if pop.pf['pop_ihl_suppression'] == 1:
+                    pop.tab_fmask_for_ihl = f_sel[0,:,:,1]
+                elif pop.pf['pop_ihl_suppression'] == 2:
+                    pop.tab_fmask_for_ihl = f_sel[2,:,:,1]
+                elif pop.pf['pop_ihl_suppression'] == 3:
+                    pop.tab_fmask_for_ihl = f_sel[0,:,:,1]
+                else:
+                    raise NotImplementedError('help')
+
                 continue
 
             f_sel[i,:,:,:] = pop.get_galaxy_subsample(selection_criteria, 
