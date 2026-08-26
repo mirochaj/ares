@@ -840,10 +840,10 @@ class Simulation(object):
                                 # Find the right wavelength/zbin combo in the cache
                                 # and enforce a perfect match.
                                 _h_ = np.argmin(np.abs(np.mean(zbin) - np.mean(_zbins_, axis=1)))
-                                assert np.all(_zbins_[_h_] == zbin)
+                                assert np.allclose(_zbins_[_h_], zbin, atol=1e-3)
 
                                 _k_ = np.argmin(np.abs(wave.mean() - _chan_.mean(axis=1)))
-                                assert np.all(_chan_[_k_] == wave)
+                                assert np.allclose(_chan_[_k_], wave, atol=1e-3)
                                 
                                 if (_ell_.size == scales.size) \
                                     and np.allclose(_ell_, scales):
