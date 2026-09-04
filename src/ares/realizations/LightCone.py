@@ -675,7 +675,7 @@ class LightCone(object): # pragma: no cover
             # This can be OK for low-mass halos in models with really low SMHM,
             # basically we end up asking for luminosity off the low edge of
             # our lookup table.
-            print('hey', is_photometry, pid, Mh.shape, flux.shape)
+            print('hey', is_photometry, pid, Mh.shape, flux.shape, flux, zlim)
             smhm_0 = self.sim.pops[pid].get_smhm(z=zsub_mid, Mh=Mh[flux==0])
 
             out_of_bounds = np.logical_or(
@@ -695,7 +695,7 @@ class LightCone(object): # pragma: no cover
             print(np.log10(Mh[flux==0])[np.logical_not(out_of_bounds)])
 
             assert np.all(np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)] < 6), \
-                "This is hacky"
+                f"This is hacky. {np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)]}"
             
             flux[flux==0] = tiny_flux
             #assert np.all(out_of_bounds), \

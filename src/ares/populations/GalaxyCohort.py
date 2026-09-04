@@ -3217,9 +3217,15 @@ class GalaxyCohort(GalaxyAggregate):
             iw1 = np.argmin(np.abs(min(_band) - ltab_w))
             iw2 = np.argmin(np.abs(max(_band) - ltab_w))
             freqs = c * 1e8 / ltab_w
-            lum = np.trapezoid(ltab[:,:,iw1:iw2+1], x=-freqs[iw1:iw2+1],
-                axis=-1)
-            
+
+            # Would be nice to use integrate_with_subgrid_interp
+            # but haven't generalized beyond 1-D
+            if iw1 == iw2:
+                lum = ltab[:,:,iw1] * abs(np.diff(_band))
+            else:
+                lum = np.trapezoid(ltab[:,:,iw1:iw2+1], x=-freqs[iw1:iw2+1],
+                    axis=-1)
+                        
         elif x is not None:
             wave = get_ang_from_x(x, units=units)
             iw = np.argmin(np.abs(wave - ltab_w))
