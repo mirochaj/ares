@@ -92,7 +92,6 @@ class LogNormal(LightCone): # pragma: no cover
         self.apply_rotations = apply_rotations
         self.apply_translations = apply_translations
         self.distribute_sats_spatially = distribute_sats_spatially
-        self.logmlim_sats = logmlim_sats
 
         # Only used for NbodySimLC models
         self.zlayers = None

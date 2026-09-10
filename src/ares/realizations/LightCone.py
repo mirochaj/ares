@@ -675,24 +675,24 @@ class LightCone(object): # pragma: no cover
             # This can be OK for low-mass halos in models with really low SMHM,
             # basically we end up asking for luminosity off the low edge of
             # our lookup table.
-            print('hey', is_photometry, pid, Mh.shape, flux.shape, flux, zlim)
+            #print('hey', is_photometry, pid, Mh.shape, flux.shape, flux, zlim)
             smhm_0 = self.sim.pops[pid].get_smhm(z=zsub_mid, Mh=Mh[flux==0])
 
             out_of_bounds = np.logical_or(
                 Mh[flux==0] * smhm_0 < 10**self.sim.pops[pid]._tab_lum_Ms.min(),
                 Mh[flux==0] * smhm_0 > 10**self.sim.pops[pid]._tab_lum_Ms.max())
 
-            print(np.sum(flux==0), out_of_bounds.shape, np.sum(out_of_bounds), smhm_0.shape, Mh[flux==0].shape)
-            print(self.sim.pops[pid]._tab_lum_Ms.min(), self.sim.pops[pid]._tab_lum_Ms.max())
+            #print(np.sum(flux==0), out_of_bounds.shape, np.sum(out_of_bounds), smhm_0.shape, Mh[flux==0].shape)
+            #print(self.sim.pops[pid]._tab_lum_Ms.min(), self.sim.pops[pid]._tab_lum_Ms.max())
 
             min_0 = np.min(Mh[flux==0] * smhm_0)
             max_0 = np.max(Mh[flux==0] * smhm_0)
-            print(np.log10(min_0), np.log10(max_0))
+            #print(np.log10(min_0), np.log10(max_0))
             
             
-            print('hey', smhm_0.size, Mh[flux==0].size)
-            print(np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)])
-            print(np.log10(Mh[flux==0])[np.logical_not(out_of_bounds)])
+            #print('hey', smhm_0.size, Mh[flux==0].size)
+            #print(np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)])
+            #print(np.log10(Mh[flux==0])[np.logical_not(out_of_bounds)])
 
             assert np.all(np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)] < 6), \
                 f"This is hacky. {np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)]}"
@@ -1978,7 +1978,7 @@ class LightCone(object): # pragma: no cover
             if os.path.exists(fn) and (not clobber):
                 if verbose:
                     print(f"Found {fn}. Set clobber=True to overwrite.")
-                _ra, _dec, _red, _X, Xunit = self._load_cat(fn)
+                _ra, _dec, _red, _X, _Xunit = self._load_cat(fn)
                 ra.extend(list(_ra))
                 dec.extend(list(_dec))
                 red.extend(list(_red))
@@ -2145,7 +2145,7 @@ class LightCone(object): # pragma: no cover
                             # in kpc internally for some reason, convert to cMpc
                             _dat = self.sim.pops[pid].halos.get_Rvir(_red, _Mh) / 1e3    
                         elif channel in ['nsats']:
-                            _dat = self.get_Nsats(_Mh, logmlim=self.logmlim_sats)
+                            _dat = self.get_Nsats(_Mh, logmlim=logmlim_sats)
                         elif channel in ['parents']:
                             _dat = _parents
                         elif (type(channel) == str) and channel.lower() in known_lines:
