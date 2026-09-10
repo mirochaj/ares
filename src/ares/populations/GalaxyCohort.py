@@ -7461,13 +7461,15 @@ class GalaxyCohort(GalaxyAggregate):
                 isnum=isnum1, fsel=fsel1)
         # intensity autos
         elif isnum1 + isnum2 == 0:
-            if np.all(wave1 == wave2):
-                w2 = None
-            else:
-                w2 = wave1
+            #if np.all(wave1 == wave2):
+            #    w2 = None
+            #else:
+            #    w2 = wave1
 
-            f = self.get_ps_kernel(z, k, term=0, wave=wave1, wave2=w2,
-                isnum=isnum1, fsel=fsel1)
+            # Note: can still have two relevant masks.
+            # Should we take the minimum?
+            f = self.get_ps_kernel(z, k, term=0, wave=wave1, wave2=wave2,
+                isnum=isnum1, fsel=np.minimum(fsel1, fsel2))
         ##
         # Cross-shot is a special case. Don't call get_ps_kernel
         # just do everything here.
@@ -7755,13 +7757,28 @@ class GalaxyCohort(GalaxyAggregate):
         return np.trapezoid(f, x=self.halos.tab_lnM)
         
     def get_ps_2h(self, z, k, wave1, wave2, isnum1=0, isnum2=0, 
-        fsel1=1, fsel2=1, pop2=None, selection_symmetric=False, masking_symmetric=True):
+        fsel1=1, fsel2=1, pop2=None, selection_symmetric=False, 
+        masking_symmetric=True):
         """
         Compute the 2-halo power spectrum in 3-D.
         """
 
+        if not self.pf['pop_include_2h']:
+            return 0
+        
+
+        # If this is an "inter-population term," we have two integrals
+        # to compute. Otherwise, just one.
+        is_inter_pop = pop2 is not None
+
+        if is_inter_pop and (not pop2.pf['pop_include_2h']):
+            return 0
+
         # For crosses, may need combined mask
+        is_cross = 0
         if isnum1 + isnum2 == 1:
+            is_cross = 1
+            symmetric = selection_symmetric
             fsel_union = fsel1 * fsel2
             # Non-standard option: only include luminosity of untargeted sources
             if selection_symmetric == -1:
@@ -7774,15 +7791,20 @@ class GalaxyCohort(GalaxyAggregate):
                 _fmask_union = fsel1 * fsel2
             else:
                 raise NotImplementedError('help')
+        # intensity autos
+        elif isnum1 + isnum2 == 0:
+            symmetric = masking_symmetric
+            _fmask_union = np.minimum(fsel1, fsel2)
+            fsel_union = _fmask_union
         else:
-            fsel_union = fsel1
-            _fmask_union = 1
+            fsel_union = fsel1 #* fsel2 if is_inter_pop else fsel1
+            # Why would this be 1?
+            #_fmask_union = 1
+            _fmask_union = fsel1 #* fsel2 if is_inter_pop else fsel2
 
-        if self.pf['pop_include_2h']:
-            f1 = self.get_ps_kernel(z, k, term=2, wave=wave1, 
-                isnum=isnum1, fsel=fsel_union if masking_symmetric else fsel1)
-        else:
-            return 0
+        #
+        f1 = self.get_ps_kernel(z, k, term=2, wave=wave1, 
+            isnum=isnum1, fsel=_fmask_union)
         
         iz = self.get_zindex(z)
         b_h = self.halos.tab_bias[iz]
@@ -7792,20 +7814,21 @@ class GalaxyCohort(GalaxyAggregate):
         # in papers (but that's OK).
         b_1 = np.trapezoid(b_h * f1, x=self.halos.tab_lnM)
 
-        # If this is an "inter-population term," we have two integrals
-        # to compute. Otherwise, just one.
-        is_inter_pop = pop2 is not None
-
         if is_inter_pop:
-            if pop2.pf['pop_include_2h']:
-                f2 = pop2.get_ps_kernel(z, k, term=2, wave=wave2,
-                    isnum=isnum2, fsel=_fmask_union if selection_symmetric else fsel2)
-            else:
-                return 0
+            f2 = pop2.get_ps_kernel(z, k, term=2, wave=wave2,
+                isnum=isnum2, 
+                fsel=_fmask_union if symmetric else fsel2)
 
             b_2 = np.trapezoid(b_h * f2, x=self.halos.tab_lnM)
         else:
-            b_2 = b_1
+            if (wave2 is None) or (np.allclose(wave1, wave2)):
+                b_2 = b_1
+            else:
+                f2 = self.get_ps_kernel(z, k, term=2, wave=wave2,
+                    isnum=isnum2, 
+                    fsel=_fmask_union if symmetric else fsel2)
+
+                b_2 = np.trapezoid(b_h * f2, x=self.halos.tab_lnM)
 
         # Retrieve matter power spectrum
         pmm = self.halos.get_ps_mm(z, k=k)
