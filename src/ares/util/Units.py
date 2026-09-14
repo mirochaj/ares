@@ -43,7 +43,7 @@ def get_wave_or_equivalent(x_in, units, units_out):
         x_in = np.array(x_in)
     
     ##
-    # Start by convert input unit to cm
+    # Start by converting input unit to cm
     if units.lower() == 'cm':
         x_cm = x_in
     elif units.lower().startswith('ang'):
