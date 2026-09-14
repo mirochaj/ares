@@ -1963,7 +1963,7 @@ class GalaxyCohort(GalaxyAggregate):
                 _band = band / (1. + z)
 
             mags, phi = self.get_lf(z, bins, x=_x_,
-                units=units, window=_w_, band=_band, use_logL=0,
+                units=units, units_out='erg/s/hz', window=_w_, band=_band, use_logL=0,
                 use_mags=True, absolute=absolute, cam=cam, filters=filters,
                 dlam=dlam, selection_criteria=selection_criteria)
 
@@ -2002,7 +2002,7 @@ class GalaxyCohort(GalaxyAggregate):
         ##
 
         Lh, phi_of_L = self._get_lf_lum(z,
-            x=x, units=units, band=band, window=window,
+            x=x, units=units, units_out='erg/s/hz', band=band, window=window,
             use_tabs=use_tabs, cam=cam, filters=filters, dlam=dlam,
             mag_cen=mag_cen, selection_criteria=selection_criteria)
                         
@@ -3453,7 +3453,7 @@ class GalaxyCohort(GalaxyAggregate):
                 use_tabs=use_tabs,
                 include_dust_transmission=include_dust_transmission,
                 include_igm_transmission=include_igm_transmission)
-
+            
         if (type(T) in numeric_types) or (T.size == 1):
             T = T * np.ones_like(Lh)
 
