@@ -61,7 +61,7 @@ except ImportError:
 small_dz = 1e-8
 ztol = 1e-2
 tiny_phi = 1e-18
-tiny_lum = 1e-18 # in any units we use, this is tiny
+tiny_lum = 1e-30 # in any units we use, this is tiny
 #_sed_tab_attributes = ['Nion', 'Nlw', 'rad_yield', 'L1600_per_sfr',
 #    'L_per_sfr', 'sps-toy']
 
@@ -1963,7 +1963,7 @@ class GalaxyCohort(GalaxyAggregate):
                 _band = band / (1. + z)
 
             mags, phi = self.get_lf(z, bins, x=_x_,
-                units=units, window=_w_, band=_band,
+                units=units, window=_w_, band=_band, use_logL=0,
                 use_mags=True, absolute=absolute, cam=cam, filters=filters,
                 dlam=dlam, selection_criteria=selection_criteria)
 
@@ -2073,8 +2073,8 @@ class GalaxyCohort(GalaxyAggregate):
         return self.get_lf(z, bins, use_mags=use_mags, wave=wave,
             window=window, absolute=absolute)
 
-    def get_lf(self, z, bins=None, use_tabs=True,
-        use_mags=True, use_logL=True, x=1600., units='Angstrom', window=1.,
+    def get_lf(self, z, bins=None, use_tabs=True, window=1.,
+        use_mags=True, use_logL=True, x=1600., units='Angstrom', units_out='erg/s/hz', 
         absolute=True, raw=False, nebular_only=False, band=None, cam=None,
         filters=None, dlam=20, presets=None, mag_cen=None,
         selection_criteria=None):
@@ -2124,7 +2124,7 @@ class GalaxyCohort(GalaxyAggregate):
                     presets=presets)
             else:
                 x = self.get_lum(z=z, x=x, units=units, band=band, window=window,
-                    raw=raw, nebular_only=nebular_only, units_out='erg/s/Hz')
+                    raw=raw, nebular_only=nebular_only, units_out=units_out)
 
             phi, b_e = np.histogram(x, bins=bin_c2e(bins))
             return bins, phi / self.pf['pop_volume']
@@ -2143,7 +2143,7 @@ class GalaxyCohort(GalaxyAggregate):
             # By default, we compute dn/dlnL.
             _lum_, dndlnL = self._get_lf_lum(z, x=x,
                 use_tabs=use_tabs, 
-                units=units,
+                units=units, units_out=units_out,
                 window=window, raw=raw, nebular_only=nebular_only, band=band,
                 mag_cen=mag_cen, selection_criteria=selection_criteria)
                         
@@ -2166,8 +2166,13 @@ class GalaxyCohort(GalaxyAggregate):
                 bins = _x_ 
             
             if not np.any(ok):
-                phi_of_x = tiny_phi * np.ones_like(bins)
-                phi_of_x = np.ma.array(phi_of_x, mask=~ok)    
+                if bins_was_None:
+                    phi_of_x = tiny_phi * np.ones_like(_x_)
+                    phi_of_x = np.ma.array(phi_of_x, mask=np.ones_like(_x_))
+                else:
+                    phi_of_x = tiny_phi * np.ones_like(bins)
+                    phi_of_x = np.ma.array(phi_of_x, mask=np.ones_like(bins))
+            
             elif bins_was_None:
                 phi_of_x = np.ma.array(phi, mask=ok==0)
             else:
@@ -2895,8 +2900,10 @@ class GalaxyCohort(GalaxyAggregate):
                 # get_spectrum here knows if E is a band to
                 # integrate over it.
                 Lh = self.src.get_spectrum(E) * Lbol
+                # This will return 1 if units_out doesn't have a Hz^-1 or equivalent in it
                 dnu = get_dwave_or_equivalent(band, units, units_out)
                 Lh = Lh / dnu
+
             else:
                 E = get_ev_from_x(x, units=units)
                 Lh = self.src.get_spectrum(E) * Lbol
@@ -4422,7 +4429,7 @@ class GalaxyCohort(GalaxyAggregate):
         return mask
 
     def _get_lf_lum(self, z, larr=None, x=1600., window=1, raw=False,
-        nebular_only=False, band=None, units='Angstroms',
+        nebular_only=False, band=None, units='Angstroms', units_out='erg/s/hz',
         cam=None, filters=None, dlam=20, use_tabs=True, mag_cen=None,
         selection_criteria=None):
         """
@@ -4461,7 +4468,7 @@ class GalaxyCohort(GalaxyAggregate):
         Lh = self.get_lum(z, x=x, use_tabs=use_tabs, window=window,
             cam=cam, filt=filters,
             raw=raw, nebular_only=nebular_only, band=band, units=units,
-            units_out='erg/s/Hz', total_sat=self.is_central_pop)
+            units_out=units_out, total_sat=self.is_central_pop)
                 
         ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
             self.halos.tab_M < self.get_Mmax(z))
@@ -4667,12 +4674,11 @@ class GalaxyCohort(GalaxyAggregate):
                     phi[lum >= lum_hi] = 0
 
                 if not np.all(np.diff(lum) > 0):
-                    print('not all luminosities are ascending', lum)
                     mask = np.ones_like(Lh)
                     lum = np.ma.array(Lh, mask=mask)
                     phi = np.ma.array(tiny_phi * np.ones_like(Lh), mask=mask)
                     return lum, phi
-
+                
                 # Remember: phi is dn/dlnL
                 return lum, phi
             
@@ -7445,10 +7451,9 @@ class GalaxyCohort(GalaxyAggregate):
         if self.is_central_pop and self.pf['pop_include_1h']:
             return 0.0
         
-        # No inter-pop cross-shot terms for galaxy-galaxy
-        # or intensity-intensity crosses! [exclusion issue]
-        #if isnum1 + isnum2 % 2 == 0:
-        # Isn't this true for galaxy-galaxy and intensity-intensity too?
+        # No inter-pop cross-shot terms [exclusion issue]
+        # except if the second population is really the same
+        # as the first, just different wavelength (for example)
         if pop2 is not None:
             if not pop2.pf['pop_include_shot']:
                 return 0
@@ -7459,13 +7464,8 @@ class GalaxyCohort(GalaxyAggregate):
         if isnum1 and isnum2:
             f = self.get_ps_kernel(z, k, term=0, 
                 isnum=isnum1, fsel=fsel1)
-        # intensity autos
+        # intensity autos or intensity cross
         elif isnum1 + isnum2 == 0:
-            #if np.all(wave1 == wave2):
-            #    w2 = None
-            #else:
-            #    w2 = wave1
-
             # Note: can still have two relevant masks.
             # Should we take the minimum?
             f = self.get_ps_kernel(z, k, term=0, wave=wave1, wave2=wave2,
@@ -7766,7 +7766,6 @@ class GalaxyCohort(GalaxyAggregate):
         if not self.pf['pop_include_2h']:
             return 0
         
-
         # If this is an "inter-population term," we have two integrals
         # to compute. Otherwise, just one.
         is_inter_pop = pop2 is not None
@@ -7775,10 +7774,9 @@ class GalaxyCohort(GalaxyAggregate):
             return 0
 
         # For crosses, may need combined mask
-        is_cross = 0
         if isnum1 + isnum2 == 1:
-            is_cross = 1
-            symmetric = selection_symmetric
+            # Note that isnum1=1 for crosses always
+
             fsel_union = fsel1 * fsel2
             # Non-standard option: only include luminosity of untargeted sources
             if selection_symmetric == -1:
@@ -7793,18 +7791,23 @@ class GalaxyCohort(GalaxyAggregate):
                 raise NotImplementedError('help')
         # intensity autos
         elif isnum1 + isnum2 == 0:
-            symmetric = masking_symmetric
-            _fmask_union = np.minimum(fsel1, fsel2)
-            fsel_union = _fmask_union
+            fsel_union = np.minimum(fsel1, fsel2)#fsel1 * fsel2
+
+            if masking_symmetric:
+                _fmask_union = 1 - np.minimum(fsel1, fsel2)
+            else:
+                raise ValueError('Should always use symmetric_mask for intensity cross.')
+
+            #fsel_union = _fmask_union
         else:
-            fsel_union = fsel1 #* fsel2 if is_inter_pop else fsel1
+            #fsel_union = fsel1 #* fsel2 if is_inter_pop else fsel1
             # Why would this be 1?
             #_fmask_union = 1
             _fmask_union = fsel1 #* fsel2 if is_inter_pop else fsel2
 
         #
         f1 = self.get_ps_kernel(z, k, term=2, wave=wave1, 
-            isnum=isnum1, fsel=_fmask_union)
+            isnum=isnum1, fsel=fsel_union)
         
         iz = self.get_zindex(z)
         b_h = self.halos.tab_bias[iz]
@@ -7817,7 +7820,7 @@ class GalaxyCohort(GalaxyAggregate):
         if is_inter_pop:
             f2 = pop2.get_ps_kernel(z, k, term=2, wave=wave2,
                 isnum=isnum2, 
-                fsel=_fmask_union if symmetric else fsel2)
+                fsel=fsel_union)
 
             b_2 = np.trapezoid(b_h * f2, x=self.halos.tab_lnM)
         else:
@@ -7826,7 +7829,7 @@ class GalaxyCohort(GalaxyAggregate):
             else:
                 f2 = self.get_ps_kernel(z, k, term=2, wave=wave2,
                     isnum=isnum2, 
-                    fsel=_fmask_union if symmetric else fsel2)
+                    fsel=fsel_union)
 
                 b_2 = np.trapezoid(b_h * f2, x=self.halos.tab_lnM)
 

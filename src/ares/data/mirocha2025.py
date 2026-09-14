@@ -419,10 +419,10 @@ agn = \
 {
  'pop_lum_per_mass': 1.26e38,
  'pop_solve_rte': (0.1, 1e4),   # Krawczyk SED only goes out to ~10 keV
- 'pop_Emin': 0.1,
- 'pop_Emax': 1e4,
- 'pop_EminNorm': 0.1,
- 'pop_EmaxNorm': 1e4,
+ 'pop_Emin': 0,
+ 'pop_Emax': 10877.9,
+ 'pop_EminNorm': 0,
+ 'pop_EmaxNorm': 10877.9,
  'pop_fesc': 1,
  
  'pop_include_1h': False,
