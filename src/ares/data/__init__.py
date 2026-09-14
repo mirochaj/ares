@@ -51,6 +51,7 @@ def fix_cosmology(data, cosmo_ours=None):
         for red in data.data[element].keys():
             new_data.data[element][red] = {}
             z = np.mean(red) if type(red) == tuple else red
+
             # Volume
             Vcorr = (cosm_ours.get_hubble(z) \
                    / cosm_theirs.get_hubble(z))**3
@@ -75,7 +76,7 @@ def fix_cosmology(data, cosmo_ours=None):
                             np.log10(Vcorr * 10**ydat)
                     else:
                         new_data.data[element][red][key] = Vcorr * ydat
-                elif key == 'mass':
+                elif key in ['mass', 'L']:
                     if data.units[key].startswith('log10'):
                         new_data.data[element][red][key] = \
                             np.log10(Mcorr * 10**ydat)

@@ -103,8 +103,18 @@ This file shen2020_qso_lfs.pkl is what is downloaded via `ares download shen2020
 import pickle
 from . import ARES
 
+cosmo = \
+{
+ 'hubble_0': 0.7,
+ 'omega_m_0': 0.3,
+ 'omega_l_0': 0.7,
+}
+units = {'phi': 'log10(L)', 'L': 'log10(L)'}
+
 redshifts = [0.1,0.2,0.5,1,2,3,4,5,6,7]
 with open(f"{ARES}/shen_lfs/shen2020_qso_lfs.pkl", "rb") as f:
-    data = pickle.load(f)
+    _data = pickle.load(f)
+
+data = {'lf': _data}
 
 bands = {0:'optical', 1:'soft x-ray', 2:'hard x-ray', 3:'ir', 4:'emission lines', 5: 'uv'}
