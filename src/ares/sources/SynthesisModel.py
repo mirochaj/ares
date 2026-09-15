@@ -463,7 +463,7 @@ class SynthesisModelBase(Source):
                     else:
                         integrand = data[:,i] * self.tab_waves_c \
                             / (self.tab_energies_c * erg_per_ev)
-#                   
+                   
                     yield_UV[i] = integrate_with_subgrid_interp(
                         np.log(self.tab_waves_c), integrand,
                         np.log(l1), np.log(l2), method='trapz_trapz', 
@@ -507,7 +507,7 @@ class SynthesisModelBase(Source):
                 j1 = np.argmin(np.abs(wave - s - self.tab_waves_c))
                 j2 = np.argmin(np.abs(wave + s - self.tab_waves_c))
 
-                if 'Hz' in units_out:
+                if 'hz' in units_out.lower():
                     yield_UV = np.mean(self.tab_sed[j1:j2+1,:] \
                         * np.abs(self.tab_dwdn[j1:j2+1])[:,None], axis=0)
                 else:

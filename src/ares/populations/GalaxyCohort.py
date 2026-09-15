@@ -3106,6 +3106,8 @@ class GalaxyCohort(GalaxyAggregate):
                     window=window, band=band, units=units, raw=raw,
                     nebular_only=nebular_only, age=_age_,
                     units_out=units_out) for _age_ in age])
+                
+                print('hey', x, band, window, L_sfr)
             else:
                 # This means we've got uniform age, handled under the hood
                 # in the `src` object.
