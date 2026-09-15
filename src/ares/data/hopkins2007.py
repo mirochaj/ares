@@ -17,7 +17,7 @@ _data_raw = np.loadtxt(f"{ARES}/hopkins_lfs/bol_lf_point_dump.dat", unpack=True,
 redshifts = list(np.sort(np.unique(_data_raw[0])))
 
 
-data = {z:{} for z in redshifts}
+_data = {z:{} for z in redshifts}
 
 # Loop through file and load data
 _z = redshifts[0]
@@ -37,18 +37,18 @@ for i in range(_data_raw.shape[1]):
     _band.append(_data_raw[4,i])
 
     if i + 1 == _data_raw.shape[1] - 1:
-        data[_z]['L'] = np.array(_L)
-        data[_z]['phi'] = np.array(_phi)
-        data[_z]['err'] = np.array(_err)
-        data[_z]['band'] = np.array(_band)
+        _data[_z]['L'] = np.array(_L)
+        _data[_z]['phi'] = np.array(_phi)
+        _data[_z]['err'] = np.array(_err)
+        _data[_z]['band'] = np.array(_band)
         break
     
     # Start new datasets
     if _data_raw[0,i+1] != _z:
-        data[_z]['L'] = np.array(_L)
-        data[_z]['phi'] = np.array(_phi)
-        data[_z]['err'] = np.array(_err)
-        data[_z]['band'] = np.array(_band)
+        _data[_z]['L'] = np.array(_L)
+        _data[_z]['phi'] = np.array(_phi)
+        _data[_z]['err'] = np.array(_err)
+        _data[_z]['band'] = np.array(_band)
 
         _L = []
         _phi = []
@@ -57,3 +57,4 @@ for i in range(_data_raw.shape[1]):
         _z = _data_raw[0,i+1]
 
 
+data = {'lf': _data}
