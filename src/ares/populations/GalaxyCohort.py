@@ -3105,9 +3105,7 @@ class GalaxyCohort(GalaxyAggregate):
                 L_sfr = np.array([src.get_lum_per_sfr(x=x,
                     window=window, band=band, units=units, raw=raw,
                     nebular_only=nebular_only, age=_age_,
-                    units_out=units_out) for _age_ in age])
-                
-                print('hey', x, band, window, L_sfr)
+                    units_out=units_out) for _age_ in age])                
             else:
                 # This means we've got uniform age, handled under the hood
                 # in the `src` object.

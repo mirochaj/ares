@@ -514,7 +514,7 @@ class LightCone(object): # pragma: no cover
         Returns
         -------
         An array of fluxes corresponding to the halos in `red` and `Mh`, the
-        units are erg/s/cm^2/Angstrom.
+        units are erg/s/cm^2/Hz.
 
         """
         zlo, zhi = zlim
@@ -577,14 +577,6 @@ class LightCone(object): # pragma: no cover
                 owaves_e = waves_e * (1. + zsub_mid) / 1e4
                 owaves = waves_c * (1. + zsub_mid) / 1e4
 
-                freq_obs = c / (owaves * 1e-4)
-                freq_obs_e = c / (owaves_e * 1e-4)
-                
-                freq_rest_e = c / (waves_e * 1e-8)
-                dfreq = np.abs(np.diff(freq_rest_e))
-                dfreq_obs = np.abs(np.diff(freq_obs_e))
-                freq_rest_c = c / (waves_c * 1e-8)
-
                 _flux_ = np.zeros((okzsub.sum(), len(waves_c)))
 
                 # Note that in this case we keep the fluxes in erg/s/Hz units 
@@ -594,9 +586,9 @@ class LightCone(object): # pragma: no cover
     
                     tmp = self.sim.pops[pid].get_lum(zsub_mid, x=x,
                         Mh=Mh[okzsub==1], units='Ang',
-                        units_out='erg/s/Ang', band=band)
+                        units_out='erg/s/hz', band=band)
                     
-                    _flux_[:,j] = tmp / dfreq_obs[j]
+                    _flux_[:,j] = tmp 
                     
             ##
             # Line emission handled separately
@@ -612,13 +604,10 @@ class LightCone(object): # pragma: no cover
             else: 
                 band = channel[0] * 1e4 / (1. + zsub_mid), \
                        channel[1] * 1e4 / (1. + zsub_mid)
-                
-                dfreq_obs = (c * 1e4 / channel[0]) - (c * 1e4 / channel[1])
-                    
+                                    
                 _flux_ = self.sim.pops[pid].get_lum(zsub_mid, x=None,
                     Mh=Mh[okzsub==1], units='Ang',
-                    units_out='erg/s/Ang', band=tuple(band)) \
-                    / dfreq_obs
+                    units_out='erg/s/hz', band=tuple(band))
                             
             ##
             # Add luminosity scatter here!
@@ -952,8 +941,8 @@ class LightCone(object): # pragma: no cover
 
         Returns
         -------
-        If `buffer` is None, will return a map in our internal erg/s/cm^2/sr. If
-        `buffer` is supplied, will increment that array, same units.
+        If `buffer` is None, will return a map in our internal erg/s/cm^2/Hz/sr. 
+        If `buffer` is supplied, will increment that array, same units.
         Any conversion of units (using `map_units`) takes place *only* in the
         `generate_maps` routine.
         """
@@ -1085,7 +1074,7 @@ class LightCone(object): # pragma: no cover
 
             # Shape of (ra, dec, red) is just (Ngalaxies)
 
-            # Get flux from each object. Units = erg/s/cm^2/Ang.
+            # Get flux from each object. Units = erg/s/cm^2/Hz.
             flux = self._get_flux_catalog((zlo, zhi), logmlim, red, Mh, channel, 
                 pid, seed=seed_kw['seed_lum'])
 
@@ -1775,8 +1764,6 @@ class LightCone(object): # pragma: no cover
             f.create_dataset('rho_0', data=self.sim.cosm.mean_density0)
 
         print(f"* Wrote {fn}.")
-
-        print('zgrids check 2', len(zgrids[3]))
 
         return xgrids, ygrids, zgrids, lc
         
@@ -2748,8 +2735,6 @@ class LightCone(object): # pragma: no cover
 
             # Will need channel width in Hz to recover specific intensities
             # averaged over band.
-            #nu = c * 1e4 / np.mean(chan_mic)
-            #dnu = c * 1e4 * (chan_mic[1] - chan_mic[0]) / np.mean(chan_mic)**2
             dnu = (c * 1e4 / chan_mic[0]) - (c * 1e4 / chan_mic[1])
 
             # What buffer should we increment?
@@ -2793,7 +2778,6 @@ class LightCone(object): # pragma: no cover
 
                 # Generate map -> buffer
                 # Internal flux units are cgs [erg/s/cm^2/Hz/sr]
-                # but get_map returns a channel-integrated flux, erg/s/cm^2/sr
                 self.get_map(fov, pix, chan_mic,
                     logmlim=mlayer, zlim=zlayer, popid=popid,
                     wave_units=wave_units,
