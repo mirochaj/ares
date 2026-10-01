@@ -552,6 +552,12 @@ class LightCone(object): # pragma: no cover
         is_intensity = (not is_photometry)
 
         ##
+        # Check that we're not wasting time generating
+        # line flux catalogs for quiescent populations.
+        if is_line_emission and not self.sim.pops[pid].is_src_neb:
+            raise ValueError(f"Population {pid} is not a source of nebular line emission! Asked for {channel}")
+
+        ##
         # Sub-cycle through redshift slabs
         while zsub_lo < zhi:
 
@@ -2118,7 +2124,6 @@ class LightCone(object): # pragma: no cover
                         # or special quantities like Ly-a EW or luminosity.
                         # Note: if pops[popid] is a GalaxyEnsemble object
                         if type(channel) in [tuple, list, np.ndarray]:               
-                            print('hey', channel)             
                             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
                                 chan_mic, pid, seed=seed_kw['seed_lum'], dlam=dlam)
                             # This gets conversion factor from cgs (internal) to user's 
