@@ -3794,24 +3794,21 @@ class GalaxyCohort(GalaxyAggregate):
         iz = self.get_zindex(z)
         # 
         
-        dlum_nopad = np.diff(lum1)
-        dlum = np.concatenate(([dlum_nopad.min()], dlum_nopad))
-        dmag_nopad = np.diff(M1600)
-        dmag = np.concatenate(([dmag_nopad.min()], dmag_nopad))
+        dmag = np.concatenate(([np.diff(M1600).min()], np.diff(M1600)))
         ok = np.isfinite(M1600)
         
-        _dlum_, _dmag_ = split_by_sign(dlum[ok==1], dmag[ok==1])
         _beta_, _dmag_ = split_by_sign(beta[ok==1], dmag[ok==1])
         _mag_, _yy_ = split_by_sign(M1600[ok==1], dmag[ok==1])
-        
-        _mh_, _yy_ = split_by_sign(self.halos.tab_M[ok==1], dmag[ok==1])
         _dndlnm_, _yy_ = split_by_sign(self.halos.tab_dndlnm[iz][ok==1], dmag[ok==1])
-        nchunks = len(_dmag_)
+        
         dlnmdmag_nopad = np.abs(np.diff(self.halos.tab_lnM[ok==1]) / np.diff(M1600[ok==1]))
         dlnmdmag = np.concatenate(([dlnmdmag_nopad.min()], dlnmdmag_nopad))
         _dlnmdmag_, _yy_ = split_by_sign(dlnmdmag, dmag)
+        
+        nchunks = len(_dmag_)
         num_by_chunk = np.zeros((magbins.size, nchunks))
         beta_by_chunk = -99999 * np.ones((magbins.size, nchunks))
+
         for i in range(nchunks):
             if not np.all(np.isfinite(_mag_[i])):
                 continue
@@ -3824,13 +3821,20 @@ class GalaxyCohort(GalaxyAggregate):
                 x = _mag_[i]
                 y = _dndlnm_[i] * np.abs(_dlnmdmag_[i]) * _beta_[i]
                 yn = _dndlnm_[i] * np.abs(_dlnmdmag_[i])
+            
+            # Don't bother if we've only got a single pt in this chunk
+            if len(x) <= 1:
+                continue
+
             for j, magbin in enumerate(magbins):
                 lo = magbin - 0.5 * dbin
                 hi = magbin + 0.5 * dbin
+
                 if np.all(x < lo):
                     continue
                 if np.all(x > hi):
-                    continue                    
+                    continue
+
                 num_by_chunk[j,i] = integrate_with_subgrid_interp(
                     x, yn, lo, hi, ignore_bounds_issue=1)
                 beta_by_chunk[j,i] = integrate_with_subgrid_interp(
@@ -3846,6 +3850,10 @@ class GalaxyCohort(GalaxyAggregate):
                 beta_out[_i] = np.average(beta_by_chunk[_i,:], 
                     weights=num_by_chunk[_i,:])
                 
+        del x, y, yn, _mag_, _dndlnm_, dlnmdmag, dlnmdmag_nopad, \
+            _dlnmdmag_, _beta_, _yy_, \
+            beta_by_chunk, num_by_chunk, lum1, lum2, M1600, beta
+
         return beta_out
 
     def get_beta_c94(self, z):
