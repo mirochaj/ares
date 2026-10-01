@@ -2137,7 +2137,6 @@ class LightCone(object): # pragma: no cover
                         elif channel in ['parents']:
                             _dat = _parents
                         elif (type(channel) == str) and (channel.lower() in known_lines):
-                            print('hey wtf', channel)
                             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
                                 channel, pid, seed=seed_kw['seed_lum'])
                             # This gets conversion factor from cgs (internal) to user's 
