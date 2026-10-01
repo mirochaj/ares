@@ -63,7 +63,7 @@ known_lines = \
  'hd': 4102,
  'he': 3970,
  'oii': 3727,
- 'pa': 1.87e4,
+ 'paa': 1.87e4,
  'pah': 3.28e4,
 }
 
@@ -2117,7 +2117,8 @@ class LightCone(object): # pragma: no cover
                         # photometric info, e.g., ('roman', 'F087'),
                         # or special quantities like Ly-a EW or luminosity.
                         # Note: if pops[popid] is a GalaxyEnsemble object
-                        if type(channel) in [tuple, list, np.ndarray]:                            
+                        if type(channel) in [tuple, list, np.ndarray]:               
+                            print('hey', channel)             
                             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
                                 chan_mic, pid, seed=seed_kw['seed_lum'], dlam=dlam)
                             # This gets conversion factor from cgs (internal) to user's 
@@ -2135,7 +2136,8 @@ class LightCone(object): # pragma: no cover
                             _dat = self.get_Nsats(_Mh, logmlim=logmlim_sats)
                         elif channel in ['parents']:
                             _dat = _parents
-                        elif (type(channel) == str) and channel.lower() in known_lines:
+                        elif (type(channel) == str) and (channel.lower() in known_lines):
+                            print('hey wtf', channel)
                             _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
                                 channel, pid, seed=seed_kw['seed_lum'])
                             # This gets conversion factor from cgs (internal) to user's 
