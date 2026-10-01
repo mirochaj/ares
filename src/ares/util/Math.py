@@ -30,7 +30,7 @@ except ImportError:
 _numpy_kwargs = {'left': None, 'right': None}
 
 def integrate_with_subgrid_interp(x, y, bound_lo, bound_hi, method='trapz_trapz',
-    brute_force_for_single_pt=False, axis=-1):
+    brute_force_for_single_pt=False, axis=0, ignore_bounds_issue=False):
     """
     Sometimes doing numpy.trapezoid isn't good enough.
 
@@ -82,11 +82,12 @@ def integrate_with_subgrid_interp(x, y, bound_lo, bound_hi, method='trapz_trapz'
 
         assert np.all(np.diff(x) > 0), "Non-monotonic x values!"
         
-    # We don't do extrapolation here    
-    assert bound_lo >= x.min(), \
-            f"Hey! bound_lo={bound_lo:.3e}, must be >= min(x)={x.min()}"
-    assert bound_hi <= x.max(), \
-            f"Hey! bound_hi={bound_hi:.3e}, must be <= max(x)={x.max()}"
+    # We don't do extrapolation here   
+    if not ignore_bounds_issue: 
+        assert bound_lo >= x.min(), \
+                f"Hey! bound_lo={bound_lo:.3e}, must be >= min(x)={x.min()}"
+        assert bound_hi <= x.max(), \
+                f"Hey! bound_hi={bound_hi:.3e}, must be <= max(x)={x.max()}"
 
     ##
     # Otherwise, we're keeping it simpler/faster.
@@ -272,6 +273,9 @@ def smooth(y, width, kernel='boxcar'):
 
     Kernel options: 'boxcar' and 'gaussian'
     """
+
+    if width is None:
+        return y
 
     assert width % 2 == 1
 

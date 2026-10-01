@@ -1153,7 +1153,7 @@ class Simulation(object):
 
         # Galaxy/EBL cross correlation
         elif is_galaxy_ebl_cross:
-
+            
             # Loop over redshift bins
             for i in range(ps3d.shape[4]):
                 zlo, zhi = zbins[i]

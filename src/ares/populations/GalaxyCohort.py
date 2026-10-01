@@ -3756,9 +3756,22 @@ class GalaxyCohort(GalaxyAggregate):
 
         return Sd
 
-    def get_beta_approx(self, z, x1, x2, units='Ang', window=1):
+    def get_beta_approx(self, z, x1, x2, magbins, units='Ang', window=1):
         """
-        Computes a UV slope ("beta") from two points. This is approximate!        
+        Computes a UV slope ("beta") from two points. This is approximate!  
+
+        Parameters
+        ----------
+        z : int, float
+            Redshift
+        x1, x2 : int, float
+            Wavelengths to use to estimate beta
+        magbins : np.ndarray
+            Array of 1600A magnitude bin *centers*.
+
+        Returns
+        -------
+        Array of 
         """
         lam1 = get_ang_from_x(x1, units=units)
         lam2 = get_ang_from_x(x2, units=units)
@@ -3770,7 +3783,70 @@ class GalaxyCohort(GalaxyAggregate):
         
         beta = np.log(lum2 / lum1) / np.log(lam2 / lam1)
 
-        return beta
+        
+        dbin = np.diff(magbins)[0]
+        _x_, M1600 = self.get_mags(z=z, x=1600, units='Ang',
+            window=101, use_tabs=False)
+
+        ##
+        # Need to compute Beta accounting for potential non-monotonic
+        # MUV (ugh)
+        iz = self.get_zindex(z)
+        # 
+        
+        dlum_nopad = np.diff(lum1)
+        dlum = np.concatenate(([dlum_nopad.min()], dlum_nopad))
+        dmag_nopad = np.diff(M1600)
+        dmag = np.concatenate(([dmag_nopad.min()], dmag_nopad))
+        ok = np.isfinite(M1600)
+        
+        _dlum_, _dmag_ = split_by_sign(dlum[ok==1], dmag[ok==1])
+        _beta_, _dmag_ = split_by_sign(beta[ok==1], dmag[ok==1])
+        _mag_, _yy_ = split_by_sign(M1600[ok==1], dmag[ok==1])
+        
+        _mh_, _yy_ = split_by_sign(self.halos.tab_M[ok==1], dmag[ok==1])
+        _dndlnm_, _yy_ = split_by_sign(self.halos.tab_dndlnm[iz][ok==1], dmag[ok==1])
+        nchunks = len(_dmag_)
+        dlnmdmag_nopad = np.abs(np.diff(self.halos.tab_lnM[ok==1]) / np.diff(M1600[ok==1]))
+        dlnmdmag = np.concatenate(([dlnmdmag_nopad.min()], dlnmdmag_nopad))
+        _dlnmdmag_, _yy_ = split_by_sign(dlnmdmag, dmag)
+        num_by_chunk = np.zeros((magbins.size, nchunks))
+        beta_by_chunk = -99999 * np.ones((magbins.size, nchunks))
+        for i in range(nchunks):
+            if not np.all(np.isfinite(_mag_[i])):
+                continue
+            # x-values need to be increasing for integration
+            if np.all(_dmag_[i] < 0):
+                x = _mag_[i][-1::-1]
+                y = _dndlnm_[i][-1::-1] * np.abs(_dlnmdmag_[i][-1::-1]) * _beta_[i][-1::-1]
+                yn = _dndlnm_[i][-1::-1] * np.abs(_dlnmdmag_[i][-1::-1])
+            else:
+                x = _mag_[i]
+                y = _dndlnm_[i] * np.abs(_dlnmdmag_[i]) * _beta_[i]
+                yn = _dndlnm_[i] * np.abs(_dlnmdmag_[i])
+            for j, magbin in enumerate(magbins):
+                lo = magbin - 0.5 * dbin
+                hi = magbin + 0.5 * dbin
+                if np.all(x < lo):
+                    continue
+                if np.all(x > hi):
+                    continue                    
+                num_by_chunk[j,i] = integrate_with_subgrid_interp(
+                    x, yn, lo, hi, ignore_bounds_issue=1)
+                beta_by_chunk[j,i] = integrate_with_subgrid_interp(
+                    x, y, lo, hi, ignore_bounds_issue=1) \
+                         / num_by_chunk[j,i]
+                
+        beta_out = np.nan * np.ones_like(magbins)
+        for _i in range(magbins.size):
+            
+            if np.all(num_by_chunk[_i,:] == 0):
+                continue
+            else:
+                beta_out[_i] = np.average(beta_by_chunk[_i,:], 
+                    weights=num_by_chunk[_i,:])
+                
+        return beta_out
 
     def get_beta_c94(self, z):
         pass

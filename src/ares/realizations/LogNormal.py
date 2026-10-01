@@ -987,8 +987,8 @@ class LogNormal(LightCone): # pragma: no cover
             # Note that some Nexp==0 objects should statistically end up
             # with one or even a few satellites, but this should be a really
             # small effect and at the moment (at least) not SUs well spent.
-            if Nsat_exp == 0:
-                continue
+            #if Nsat_exp == 0:
+            #    continue
 
             # Poisson random draw to determine actual number of subhalos,
             # given expected number.
@@ -1164,6 +1164,7 @@ class LogNormal(LightCone): # pragma: no cover
             focc = r = ok = None
 
         del focc, ok, r
+        # Can cause huge slow-down.
         if self.mem_concious:
             gc.collect()
 

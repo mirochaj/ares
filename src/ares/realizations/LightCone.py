@@ -1829,7 +1829,7 @@ class LightCone(object): # pragma: no cover
         return np.array(p_out, dtype=int), np.array(cen_ok)
 
     def generate_cats(self, fov, channels, logmlim, dlogm=0.5, zlim=None,
-        include_galaxy_sizes=False, dlam=20, path='.', channel_names=None,
+        dlam=20, path='.', channel_names=None,
         suffix=None, fmt='fits', hdr={}, wave_units='um',
         cat_units='uJy', keep_layers=False, logmlim_sats=(11,15),
         include_pops=[0], clobber=False, verbose=False, dryrun=False,
@@ -2486,7 +2486,7 @@ class LightCone(object): # pragma: no cover
         suffix=None, fmt='fits', hdr={}, map_units='MJy/sr', channel_names=None,
         include_pops=[0], clobber=False, wave_units='um',
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
-        keep_chunks=None, use_pbar=False, verbose=False, dryrun=False,
+        keep_chunks=None, use_pbar=True, verbose=False, dryrun=False,
         logmlim_sats=(11,15),
         postage_stamp=5, nthreads=None, **kwargs):
 
