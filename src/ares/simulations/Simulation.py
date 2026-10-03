@@ -532,7 +532,8 @@ class Simulation(object):
 
                 continue
 
-            f_sel[i,:,:,:] = pop.get_galaxy_subsample(selection_criteria, 
+            f_sel[i,:,:,:] = pop.get_galaxy_subsample(
+                selection_criteria=selection_criteria, 
                 return_fraction=return_fraction, logic=logic)
             
             ##
@@ -585,12 +586,14 @@ class Simulation(object):
                 len(self.halos.tab_z), len(self.halos.tab_M), 2))
         else:
             if type(masking_criteria) == dict:
-                fmask = self.get_galaxy_subsample(masking_criteria, pops=pops, 
+                fmask = self.get_galaxy_subsample(selection_criteria=masking_criteria, 
+                    pops=pops, 
                     is_mask=1, logic=mask_logic)
             else:
                 fmask = []
                 for mask in masking_criteria:
-                    fmask.append(self.get_galaxy_subsample(mask, pops=pops, 
+                    fmask.append(self.get_galaxy_subsample(selection_criteria=mask, 
+                        pops=pops, 
                         is_mask=1, logic=mask_logic))
 
         self._fmask = np.array(fmask)
@@ -731,7 +734,8 @@ class Simulation(object):
             raise NotImplementedError('This was causing problems')
             fsel_allz = selection_criteria
         else:
-            fsel_allz = self.get_galaxy_subsample(selection_criteria, pops=pops)
+            fsel_allz = self.get_galaxy_subsample(selection_criteria=selection_criteria, 
+                pops=pops)
         
         # Get full z-dependent number density
         num_pz = np.zeros((len(self.pops), len(waves), len(zarr)))
@@ -953,7 +957,7 @@ class Simulation(object):
 
         # Get full z-dependent number density
         num_pz = np.zeros((len(self.pops), len(zarr)))
-        fsel_allz = self.get_galaxy_subsample(selection_criteria, pops=pops)
+        fsel_allz = self.get_galaxy_subsample(selection_criteria=selection_criteria, pops=pops)
         
         for i, pop in enumerate(self.pops):
             if pops is not None:
@@ -975,7 +979,7 @@ class Simulation(object):
             
             ##
             # Need to determine fraction of halos that are selected 
-            fsel = self.get_galaxy_subsample(galaxy_prop, pops=pops)
+            fsel = self.get_galaxy_subsample(selection_criteria=galaxy_prop, pops=pops)
 
             if np.all(fsel == 0):
                 print(f"No galaxies found satisfying selection!")
@@ -1153,7 +1157,7 @@ class Simulation(object):
 
         # Galaxy/EBL cross correlation
         elif is_galaxy_ebl_cross:
-            
+
             # Loop over redshift bins
             for i in range(ps3d.shape[4]):
                 zlo, zhi = zbins[i]

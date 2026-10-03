@@ -4074,7 +4074,31 @@ class GalaxyCohort(GalaxyAggregate):
             
         return lum_lo, lum_hi
 
-    def get_galaxy_subsample(self, selection_criteria=None, return_fraction=True, 
+    def get_band_rest_from_camfilt(self, z, cam_filt, cut):
+        if type(cut) in numeric_types:
+            mag_lo = -np.inf
+            mag_hi = cut
+        else:
+            mag_lo, mag_hi = cut
+        
+        if type(cam_filt) == str:
+            cam, filt = cam_filt.split('_')   
+            x = None
+            band = None 
+            units = None
+        else:
+            cam = filt = None
+            x, units = cam_filt
+            if type(x) in [tuple, list, np.ndarray]:
+                band = x[0] / (1 + z), x[1] / (1 + z)
+                x = None
+            else:
+                band = None
+                x = x / (1. + z)
+
+        return x, band, units, cam, filt, mag_lo, mag_hi
+
+    def get_galaxy_subsample(self, selection_criteria=None, z=None, return_fraction=True, 
         dlam=20, logic='or'):
         """
         If the relationship between halo mass and galaxy luminosity is not 1:1,
@@ -4139,8 +4163,6 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # Life is simpler if we're just doing redshift and/or magnitude 
         # cuts in a single band.
-        if select_on_color:
-            raise NotImplemented('not there yet')
 
         zlo = max(self.zdead, self.pf['final_redshift'])
         zhi = self.zform * 1.
@@ -4155,117 +4177,187 @@ class GalaxyCohort(GalaxyAggregate):
         # Loop over different masks.
         
         # Synthesize galaxy mags one redshift at a time.
-        tmp_fsel = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size, 
-            len(selection_criteria['mag']), 2))
-        for i, z in enumerate(self.halos.tab_z):    
-            if (z < zlo) or (z >= zhi):
-                continue
-
-            if not select_on_mag:
-                continue
+        if 'mag' in selection_criteria:
+            tmp_fsel = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size, 
+                len(selection_criteria['mag']), 2))
+        else:
+            tmp_fsel = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size, 
+                1, 2))
             
-            single_cut = len(selection_criteria['mag']) == 1
-            for h, selection in enumerate(selection_criteria['mag']):
-                cam_filt, cut = selection
+        if z is not None:
+            iz = self.get_zindex(z)
+        else:
+            iz = None
 
-                if type(cut) in numeric_types:
-                    mag_lo = -np.inf
-                    mag_hi = cut
-                else:
-                    mag_lo, mag_hi = cut
+        for i, _z_ in enumerate(self.halos.tab_z):    
+            if (_z_ < zlo) or (_z_ >= zhi):
+                continue
 
-                if type(cam_filt) == str:
-                    cam, filt = cam_filt.split('_')   
-                    x = None
-                    band = None 
-                    units = None
-                else:
-                    cam = filt = None
-                    x, units = cam_filt
-                    if type(x) in [tuple, list, np.ndarray]:
-                        band = x[0] / (1 + z), x[1] / (1 + z)
-                        x = None
-                    else:
-                        band = None
-                        x = x / (1. + z)
-  
-                ##
-                # Convert the masking depth to luminosity at this redshift.
-                lum_hi = self.magsys.get_lum_from_mag_app(z, mag_lo) \
-                    if np.isfinite(mag_lo) else np.inf
-                lum_lo = self.magsys.get_lum_from_mag_app(z, mag_hi) \
-                    if np.isfinite(mag_hi) else 0
+            if (z is not None) and (i != iz):
+                continue
 
-                ln_lum_hi = np.log(lum_hi)
-                ln_lum_lo = np.log(lum_lo)
-
-                # Lh(Mh|z)
-                Lh = self.get_lum(z, x=x, 
-                    units=units, band=band, cam=cam, filt=filt,
-                    units_out='erg/s/Hz', total_sat=False)
-                
-                # Should move this into get_lum and let units_out 
-                # of /Hz or no per-freq dictate the returned value
-                #if band is not None:
-                #    nu = get_wave_or_equivalent(band, units=units, units_out='hz')
-                #    dnu = np.abs(np.diff(nu))
-                #    Lh /= dnu
-
-                if (sigma == 0):
-                    tmp_fsel[i,np.logical_and(Lh>=lum_lo, Lh<lum_hi),h,:] = 1
-                    continue
-                
-                # Keep the mag cut in layer 1 and put the general
-                # solution in layer 0
-                tmp_fsel[i,:,h,1] = np.logical_and(Lh >= lum_lo,
-                                                   Lh <  lum_hi)
-                
-                mu = np.log(Lh)
-
-                ##
-                # If using simple mag cut, we can do this 
-                # analytically at each z.
-                if single_cut:
-                    tmp_fsel[i,:,h,0] = \
-                        0.5 * erfc((mu - ln_lum_hi) / sigma / root2) \
-                      - 0.5 * erfc((mu - ln_lum_lo) / sigma / root2)
-                    
-                    continue
-
-                ## Construct array of luminosity vs. halo mass (log it)
-                # Could be done analytically I think.
-                
-                for j, M in enumerate(self.halos.tab_M):
-                    if (M < self.get_Mmin(z)) or (M > self.get_Mmax(z)):
-                        tmp_fsel[i,j,h,0] = 0
-                        continue
-
-                    # This just means Lh == 0, which usually just means
-                    # "unmodeled".
-                    if mu[j] < 0:
-                        # Could `continue` but then fmask will be one,
-                        # which is a little confusing when debugging because
-                        # it looks like some chunk of mass space is not masked
-                        # out but really it's that their luminosity is zero.
-                        tmp_fsel[i,j,h,0] = 0
-                        continue
-
+            if 'mag' in selection_criteria:
+                single_cut = len(selection_criteria['mag']) == 1
+                for h, selection in enumerate(selection_criteria['mag']):
+                    cam_filt, cut = selection
+    
+                    #if type(cut) in numeric_types:
+                    #    mag_lo = -np.inf
+                    #    mag_hi = cut
+                    #else:
+                    #    mag_lo, mag_hi = cut
+#    
+                    #if type(cam_filt) == str:
+                    #    cam, filt = cam_filt.split('_')   
+                    #    x = None
+                    #    band = None 
+                    #    units = None
+                    #else:
+                    #    cam = filt = None
+                    #    x, units = cam_filt
+                    #    if type(x) in [tuple, list, np.ndarray]:
+                    #        band = x[0] / (1 + z), x[1] / (1 + z)
+                    #        x = None
+                    #    else:
+                    #        band = None
+                    #        x = x / (1. + z)
+    
+                    x, band, units, cam, filt, mag_lo, mag_hi = \
+                        self.get_band_rest_from_camfilt(_z_, cam_filt, cut)
+      
                     ##
-                    # Can we ignore elements very far away from lum_hi and lum_lo?
-                    if (mu[j] < ln_lum_lo - 5) or (mu[j] > ln_lum_hi + 5):
-                        continue
-
-                    # Just do things via brute-force
-                    # Used to be less careful but if PDF is sufficiently narrow
-                    # a rough trapz can cause problems.
-                    # Note return_dndx=0 since we're integrating over ln(L)
-                    tmp_fsel[i,j,h,0] = \
-                        quad(lambda lnL: lognormal(lnL, mu[j], sigma, return_dndx=0),
-                            ln_lum_lo, ln_lum_hi)[0]
+                    # Convert the masking depth to luminosity at this redshift.
+                    lum_hi = self.magsys.get_lum_from_mag_app(_z_, mag_lo) \
+                        if np.isfinite(mag_lo) else np.inf
+                    lum_lo = self.magsys.get_lum_from_mag_app(_z_, mag_hi) \
+                        if np.isfinite(mag_hi) else 0
+    
+                    ln_lum_hi = np.log(lum_hi)
+                    ln_lum_lo = np.log(lum_lo)
+    
+                    # Lh(Mh|z)
+                    Lh = self.get_lum(_z_, x=x, 
+                        units=units, band=band, cam=cam, filt=filt,
+                        units_out='erg/s/Hz', total_sat=False)
                     
+                    if (sigma == 0):
+                        tmp_fsel[i,np.logical_and(Lh>=lum_lo, Lh<lum_hi),h,:] = 1
+                        continue
+                    
+                    # Keep the mag cut in layer 1 and put the general
+                    # solution in layer 0
+                    tmp_fsel[i,:,h,1] = np.logical_and(Lh >= lum_lo,
+                                                       Lh <  lum_hi)
+                    
+                    mu = np.log(Lh)
+    
+                    ##
+                    # If using simple mag cut, we can do this 
+                    # analytically at each z.
+                    if single_cut:
+                        tmp_fsel[i,:,h,0] = \
+                            0.5 * erfc((mu - ln_lum_hi) / sigma / root2) \
+                          - 0.5 * erfc((mu - ln_lum_lo) / sigma / root2)
+                        
+                        continue
+    
+                    ## Construct array of luminosity vs. halo mass (log it)
+                    # Could be done analytically I think.
+                    
+                    for j, M in enumerate(self.halos.tab_M):
+                        if (M < self.get_Mmin(_z_)) or (M > self.get_Mmax(_z_)):
+                            tmp_fsel[i,j,h,0] = 0
+                            continue
+    
+                        # This just means Lh == 0, which usually just means
+                        # "unmodeled".
+                        if mu[j] < 0:
+                            # Could `continue` but then fmask will be one,
+                            # which is a little confusing when debugging because
+                            # it looks like some chunk of mass space is not masked
+                            # out but really it's that their luminosity is zero.
+                            tmp_fsel[i,j,h,0] = 0
+                            continue
+    
+                        ##
+                        # Can we ignore elements very far away from lum_hi and lum_lo?
+                        if (mu[j] < ln_lum_lo - 5) or (mu[j] > ln_lum_hi + 5):
+                            continue
+    
+                        # Just do things via brute-force
+                        # Used to be less careful but if PDF is sufficiently narrow
+                        # a rough trapz can cause problems.
+                        # Note return_dndx=0 since we're integrating over ln(L)
+                        tmp_fsel[i,j,h,0] = \
+                            quad(lambda lnL: lognormal(lnL, mu[j], sigma, return_dndx=0),
+                                ln_lum_lo, ln_lum_hi)[0]
+                        
+    
+                    ##
+                    # Done with mass loop
+    
+            ##
+            # Named selection criteria, e.g., "desi_lrg"
+            if 'named' in selection_criteria:
 
+                assert len(selection_criteria['named']) == 1
+        
                 ##
-                # Done with mass loop
+                # On to more complicated selections
+                for h, selection in enumerate(selection_criteria['named']):
+                    
+                    ##
+                    # Have hard-coded option for known samples like DESI-LRG/ELG?
+                    if selection.lower() == 'desi_lrg':
+    
+                        _x_, mags = self.get_mags(_z_, 
+                            absolute=False, cam='sdss', filters=['g', 'r', 'z']
+                            )
+                        _x_, mag_W1 = self.get_mags(_z_, 
+                            absolute=False, cam='wise', filters=['W1']
+                            )
+                        
+                        ##
+                        # Adjust mags due to scatter as post-processing step?
+                        sigma = self.pf['pop_scatter_sfh']
+
+                        mag_g, mag_r, mag_z, = mags.T - (2.5 / np.log(10) / 2.) * sigma**2
+                        mag_W1 = mag_W1[:,0] - (2.5 / np.log(10) / 2.) * sigma**2
+
+                                                
+                        ##
+                        # Need g,r,z,W1 mags
+    
+                        # Note: using numbers appropriate for the north
+
+                        # Is a galaxy? z - W1 > 0.8 x (r - z) - 0.6
+                        is_gal = mag_z - mag_W1 > 0.8 * (mag_r - mag_z) - 0.6
+                    
+                        # Higher z and not blue
+                        is_red = np.logical_or((mag_g - mag_W1) > 2.97, (mag_r - mag_W1 > 1.8))
+                    
+                        # Is bright and helps redshift dist?
+                        # (1d) (r - W1 > 1.8 x (W1 - 17.14)) AND
+                        # (1d) (r - W1 > W1 - 16.31) OR (r - W1 > 3.4)
+                        
+                        is_good_z = np.logical_and(mag_r - mag_W1 > 1.83 * (mag_W1 - 17.13),
+                            np.logical_or(mag_r - mag_W1 > mag_W1 - 16.31, mag_r - mag_W1 > 3.4))
+                    
+                        tmp_fsel[i,:,h,1] = is_gal * is_red * is_good_z
+    
+                        # Will we ever do something more sophisticated?
+                        tmp_fsel[i,:,h,0] = tmp_fsel[i,:,h,1]
+
+                    elif selection.lower() == 'desi_elg':
+                        is_elg = np.logical_and(mag_g - mag_r < 0.5 * (mag_r - mag_z) + 0.1,
+                            mag_g - mag_r < -1.2 * (mag_r - mag_z) + 1.3)
+                        is_elg = np.logical_and(is_elg, mag_r - mag_z > 0.15)
+                        is_elg = np.logical_and(is_elg, mag_g < 24)
+
+
+                    else:
+                        raise NotImplemented('help')
+                
 
             ##
             # Done with selection loop
@@ -4293,6 +4385,10 @@ class GalaxyCohort(GalaxyAggregate):
 #
         ## Same goes for the other side of things
         tab_fsel[tab_fsel<0] = 0
+
+        if z is not None:
+            iz = self.get_zindex(z)
+            return tmp_fsel[iz]
 #
         return tab_fsel
     
@@ -4512,6 +4608,42 @@ class GalaxyCohort(GalaxyAggregate):
 
         return mask
 
+    def _get_fsel_winterp(self, z, selection_criteria, Lh, Lh_orig=None):
+        ##
+        # Apply selection function
+        if selection_criteria is None:
+            return 1.
+        
+        _fsel = self.get_galaxy_subsample(
+            selection_criteria=selection_criteria, z=z)
+        
+        if np.all(_fsel == 0):
+            return 0
+        
+        if (Lh_orig is None):
+            assert Lh.size == _fsel.shape[0]
+            return _fsel[:,0,1]
+                
+        fsel = np.zeros_like(Lh)
+        igt0 = np.argwhere(_fsel[:,0,1] > 0) # right now equivalent to == 1 here 
+        
+        ##
+        # Assign fsel=1 chunk by chunk
+        # This is more robust than previous approach just using min/max igt0 values
+        # to identify block of selectable galaxies.
+        _x_, _y_ = split_by_sign(Lh_orig, igt0 - 1)
+
+        for i in range(len(_x_)):
+            if np.all(_y_[i] < 0):
+                continue
+            
+            ok = np.logical_and(Lh >= _x_[i].min(), Lh < _x_[i].max())
+
+            fsel[ok==1] = 1
+
+        # Also, just binary selection now
+        return fsel
+
     def _get_lf_lum(self, z, larr=None, x=1600., window=1, raw=False,
         nebular_only=False, band=None, units='Angstroms', units_out='erg/s/hz',
         cam=None, filters=None, dlam=20, use_tabs=True, mag_cen=None,
@@ -4553,7 +4685,7 @@ class GalaxyCohort(GalaxyAggregate):
             cam=cam, filt=filters,
             raw=raw, nebular_only=nebular_only, band=band, units=units,
             units_out=units_out, total_sat=self.is_central_pop)
-                
+        
         ok = np.logical_and(self.halos.tab_M >= self.get_Mmin(z),
             self.halos.tab_M < self.get_Mmax(z))
         
@@ -4622,6 +4754,10 @@ class GalaxyCohort(GalaxyAggregate):
                 smooth_factor += 4
             
             Lh = smooth(Lh, smooth_factor)
+
+        # May need to interpolate back onto this axis if selection_criteria
+        # provided
+        Lh_orig = Lh.copy()
 
         # Is this necessary? 
         _ok = np.logical_and(ok, Lh>0)
@@ -4748,14 +4884,9 @@ class GalaxyCohort(GalaxyAggregate):
 
                 ##
                 # Apply selection function
-                if selection_criteria is not None:
+                fsel = self._get_fsel_winterp(z, selection_criteria, Lh, Lh_orig)
 
-                    # Right now, just single band cut allowed
-                    lum_lo, lum_hi = \
-                        self.get_lum_cut_from_mag_cut(z, selection_criteria)
-
-                    phi[lum < lum_lo] = 0
-                    phi[lum >= lum_hi] = 0
+                phi *= fsel
 
                 if not np.all(np.diff(lum) > 0):
                     mask = np.ones_like(Lh)
@@ -4766,7 +4897,6 @@ class GalaxyCohort(GalaxyAggregate):
                 # Remember: phi is dn/dlnL
                 return lum, phi
             
-
         ##
         # Extra step if we're dealing with satellites
         else:
@@ -4900,6 +5030,9 @@ class GalaxyCohort(GalaxyAggregate):
                 lum = np.ma.array(Lh, mask=mask)
                 phi = np.ma.array(phi_tot, mask=mask, fill_value=-np.inf)
 
+                fsel = self._get_fsel_winterp(z, selection_criteria, Lh, Lh_orig)
+                phi *= fsel
+
                 #assert np.all(np.diff(lum) > 0), f"problem with `lum` for pop={self.id_num}"
                 if not np.all(np.diff(lum) > 0):
                     print('not all luminosities are ascending (sats)', lum)
@@ -4918,6 +5051,9 @@ class GalaxyCohort(GalaxyAggregate):
         ##
         # If we made it here, there's no scatter. Life is a bit easier.
         # Still could be centrals or satellites but that's encoded in `dndm`.
+
+        fsel = self._get_fsel_winterp(z, selection_criteria, Lh, None)
+        
         
         # Used to assert all dL > 0, but sometimes for very massive (and
         # mega-rare halos) we get negative values. This will get fixed 
@@ -4925,7 +5061,7 @@ class GalaxyCohort(GalaxyAggregate):
         #assert np.all(dL >= 0), \
         #    "Need to revisit double-valued-ness problem in sigma=0 limit!" 
 
-        phi_of_L = dndm * dmdlnL
+        phi_of_L = dndm * dmdlnL * fsel
         
         lum = np.ma.array(Lh, mask=mask)
         phi = np.ma.array(phi_of_L, mask=mask, fill_value=tiny_phi)
