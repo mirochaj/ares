@@ -4321,8 +4321,8 @@ class GalaxyCohort(GalaxyAggregate):
                         # Adjust mags due to scatter as post-processing step?
                         sigma = self.pf['pop_scatter_sfh']
 
-                        mag_g, mag_r, mag_z, = mags.T - (2.5 / np.log(10) / 2.) * sigma**2
-                        mag_W1 = mag_W1[:,0] - (2.5 / np.log(10) / 2.) * sigma**2
+                        mag_g, mag_r, mag_z, = mags.T #- (2.5 / np.log(10) / 2.) * sigma**2
+                        mag_W1 = mag_W1[:,0] #- (2.5 / np.log(10) / 2.) * sigma**2
 
                                                 
                         ##
@@ -4349,11 +4349,25 @@ class GalaxyCohort(GalaxyAggregate):
                         tmp_fsel[i,:,h,0] = tmp_fsel[i,:,h,1]
 
                     elif selection.lower() == 'desi_elg':
+                        _x_, mags = self.get_mags(_z_, 
+                            absolute=False, cam='sdss', filters=['g', 'r', 'z']
+                            )
+                        
+                        mag_g, mag_r, mag_z, = mags.T #- (2.5 / np.log(10) / 2.) * sigma**2
+                        
+                        ##
+                        # Adjust mags due to scatter as post-processing step?
+                        sigma = self.pf['pop_scatter_sfh']
+
                         is_elg = np.logical_and(mag_g - mag_r < 0.5 * (mag_r - mag_z) + 0.1,
                             mag_g - mag_r < -1.2 * (mag_r - mag_z) + 1.3)
                         is_elg = np.logical_and(is_elg, mag_r - mag_z > 0.15)
                         is_elg = np.logical_and(is_elg, mag_g < 24)
 
+                        tmp_fsel[i,:,h,1] = is_elg
+    
+                        # Will we ever do something more sophisticated?
+                        tmp_fsel[i,:,h,0] = is_elg
 
                     else:
                         raise NotImplemented('help')
