@@ -1868,43 +1868,6 @@ class GalaxyCohort(GalaxyAggregate):
 
         return self.get_smhm(z=z, Mh=Mh) * Mh * np.exp(0.5 * sigma**2)
     
-    #def get_galaxy_subsample(self, selections):
-    #    """
-    #    Perform some redshift, magnitude, and/or color cuts on the galaxy 
-    #    population.
-#
-    #    Returns
-    #    -------
-    #    Linear bias and target density (dn/dz) for given galaxy sub-sample.
-#
-    #    """
-#
-    #    zok = np.ones_like(self.halos.tab_z)
-    #    for selection in selections:
-#
-    #        sel_type, sel_oper = selection
-#
-    #        if sel_type == 'mag':
-    #            
-#
-#
-    #    if 'mag' in galaxy_prop:
-    #        cut_cam, cut_filt, cut_mag = galaxy_prop['mag']
-    #        _z_, cts_vs_z, cts_tot = self.get_number_counts(magbins,
-    #            xobs=8500, cam=cut_cam, filters=(cut_filt))
-    #    if 'z' in galaxy_prop:
-    #        _zok = np.logical_and(zarr >= galaxy_prop['z'][0], zarr < galaxy_prop['z'][1])
-    #        zok = zok * _zok 
-#
-    #    b_g = self.get_bias(z, cut_mag, cam=cut_cam, filters=(cut_filt))
-#
-    #    iz = np.argmin(np.abs(z - _z_))
-    #    dNdz = np.trapz(cts_vs_z[iz,magbins <= cut_mag],
-    #        x=magbins[magbins <= cut_mag])
-    #    
-    #    return b_g, dNdz
-                
-
     def get_number_counts(self, bins, zmin=0, zmax=10, x=1600., band=None,
         units='Angstroms', window=1, absolute=False, cam=None, filters=None,
         dlam=20, zbin=0.1, volume_density=False, selection_criteria=None):
@@ -4321,14 +4284,15 @@ class GalaxyCohort(GalaxyAggregate):
                         # Adjust mags due to scatter as post-processing step?
                         sigma = self.pf['pop_scatter_sfh']
 
-                        mag_g, mag_r, mag_z, = mags.T #- (2.5 / np.log(10) / 2.) * sigma**2
-                        mag_W1 = mag_W1[:,0] #- (2.5 / np.log(10) / 2.) * sigma**2
-
+                        mag_g, mag_r, mag_z, = mags.T - (2.5 / np.log(10) / 2.) * sigma**2
+                        mag_W1 = mag_W1[:,0] - (2.5 / np.log(10) / 2.) * sigma**2
                                                 
                         ##
                         # Need g,r,z,W1 mags
     
                         # Note: using numbers appropriate for the north
+
+                        # Should we add g fib mag here?? or handle in post?
 
                         # Is a galaxy? z - W1 > 0.8 x (r - z) - 0.6
                         is_gal = mag_z - mag_W1 > 0.8 * (mag_r - mag_z) - 0.6
@@ -4353,7 +4317,7 @@ class GalaxyCohort(GalaxyAggregate):
                             absolute=False, cam='sdss', filters=['g', 'r', 'z']
                             )
                         
-                        mag_g, mag_r, mag_z, = mags.T #- (2.5 / np.log(10) / 2.) * sigma**2
+                        mag_g, mag_r, mag_z, = mags.T - (2.5 / np.log(10) / 2.) * sigma**2
                         
                         ##
                         # Adjust mags due to scatter as post-processing step?
@@ -4623,6 +4587,13 @@ class GalaxyCohort(GalaxyAggregate):
         return mask
 
     def _get_fsel_winterp(self, z, selection_criteria, Lh, Lh_orig=None):
+        """
+        All this routine is doing is doing the usual call to 
+        get_galaxy_subsample but then optionally using a different 
+        luminosity axis `Lh` (instead of `Lh_orig`) to make the cuts.
+
+        This is only used when getting LFs.
+        """
         ##
         # Apply selection function
         if selection_criteria is None:
@@ -4636,16 +4607,17 @@ class GalaxyCohort(GalaxyAggregate):
         
         if (Lh_orig is None):
             assert Lh.size == _fsel.shape[0]
-            return _fsel[:,0,1]
+            return _fsel[:,0,0]
                 
         fsel = np.zeros_like(Lh)
-        igt0 = np.argwhere(_fsel[:,0,1] > 0) # right now equivalent to == 1 here 
+        igt0 = np.argwhere(_fsel[:,0,0] > 0)[:,0] # right now equivalent to == 1 here 
         
         ##
         # Assign fsel=1 chunk by chunk
         # This is more robust than previous approach just using min/max igt0 values
         # to identify block of selectable galaxies.
         _x_, _y_ = split_by_sign(Lh_orig, igt0 - 1)
+        _x_, _fsel_ = split_by_sign(Lh_orig, _fsel[:,0,0])
 
         for i in range(len(_x_)):
             if np.all(_y_[i] < 0):
@@ -4653,7 +4625,9 @@ class GalaxyCohort(GalaxyAggregate):
             
             ok = np.logical_and(Lh >= _x_[i].min(), Lh < _x_[i].max())
 
-            fsel[ok==1] = 1
+            ##
+            # Interpolate?
+            fsel[ok==1] = np.interp(Lh[ok==1], _x_[i], _fsel_[i])
 
         # Also, just binary selection now
         return fsel
@@ -4796,7 +4770,7 @@ class GalaxyCohort(GalaxyAggregate):
         # Central pops first
         if self.is_central_pop:
             if (self.pf['pop_scatter_sfh'] > 0) or (self.pf['pop_scatter_sfr'] > 0):
-
+                
                 dndlnL = np.abs(dndm * dmdlnL)
 
                 if (self.pf['pop_scatter_sfh'] > 0):
@@ -4821,6 +4795,9 @@ class GalaxyCohort(GalaxyAggregate):
                 # monotonicity here and the more careful integration-in-pieces
                 # below if non-monotonic behavior is detected.
                 if np.all(dL > 0):
+                    # This is the selection function on (maybe) new `Lh` grid 
+                    fsel = self._get_fsel_winterp(z, selection_criteria, Lh, None)
+#
                     xx = mu = np.log(Lh)
                     xx[Lh==0] = 0
                     mu[Lh==0] = 0
@@ -4830,7 +4807,7 @@ class GalaxyCohort(GalaxyAggregate):
                     # Arguments are just: x, mu, sigma
                     pdf = lognormal(xx[None,:], mu[:,None], sigma)
 
-                    phi_tot = np.trapezoid(dndlnL[_ok==1,None] * pdf[_ok==1,:], 
+                    phi_tot = np.trapezoid(dndlnL[_ok==1,None] * pdf[_ok==1,:] * fsel[_ok==1,None], 
                         x=lnL[_ok==1], axis=0)
                 else:
                     ##
@@ -4873,18 +4850,26 @@ class GalaxyCohort(GalaxyAggregate):
                     _ok_, _dL_ = split_by_sign(_ok, dL_wpad)
                     _pdf_, _dL_ = split_by_sign(pdf, dL_wpad)
 
+                    # This is the selection function on (maybe) new `Lh` grid 
+                    fsel = self._get_fsel_winterp(z, selection_criteria, Lh, None)
+
+                    if type(fsel) != np.ndarray:
+                        fsel = fsel * np.ones(Lh.size)
+
+                    _fsel_, _dL_ = split_by_sign(fsel, dL_wpad)
+
                     nchunks = len(_dL_)
 
                     phi_tot = np.zeros_like(larr)
                     for i in range(nchunks):
                         if not np.any(_ok_[i]==1):
                             continue
-
+                        
                         if np.all(_dL_[i] > 0):
-                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1,None] * _pdf_[i][_ok_[i]==1,:], 
+                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1,None] * _pdf_[i][_ok_[i]==1,:] * _fsel_[i][_ok_[i]==1,None], 
                                     x=_lnL_[i][_ok_[i]==1], axis=0)
                         else:    
-                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1][-1::-1,None] * _pdf_[i][_ok_[i]==1,:][-1::-1,:], 
+                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1][-1::-1,None] * _pdf_[i][_ok_[i]==1,:][-1::-1,:] * _fsel_[i][_ok_[i]==1][-1::-1,None], 
                                     x=_lnL_[i][_ok_[i]==1][-1::-1], axis=0)
                                                                             
                     # Override `Lh`, refashion mask
@@ -4895,12 +4880,6 @@ class GalaxyCohort(GalaxyAggregate):
                 # Convert to masked arrays
                 lum = np.ma.array(Lh, mask=mask)
                 phi = np.ma.array(phi_tot, mask=mask, fill_value=-np.inf)
-
-                ##
-                # Apply selection function
-                fsel = self._get_fsel_winterp(z, selection_criteria, Lh, Lh_orig)
-
-                phi *= fsel
 
                 if not np.all(np.diff(lum) > 0):
                     mask = np.ones_like(Lh)
@@ -4971,6 +4950,10 @@ class GalaxyCohort(GalaxyAggregate):
 
                 if np.all(dL > 0):
                     xx = mu = np.log(Lh)
+
+                    # This is the selection function on (maybe) new `Lh` grid 
+                    fsel = self._get_fsel_winterp(z, selection_criteria, Lh, None)
+
     
                     # Log-normal distribution of luminosity at given
                     # halo mass, need to integrate over.
@@ -4982,7 +4965,7 @@ class GalaxyCohort(GalaxyAggregate):
                     # function of subhalo mass
                     
                     # Integrate over halo mass axis
-                    phi_tot = np.trapezoid(dndlnL_sat[_ok==1,None] * pdf[_ok==1],
+                    phi_tot = np.trapezoid(dndlnL_sat[_ok==1,None] * pdf[_ok==1] * fsel[_ok==1,None],
                         x=np.log(Lh[_ok==1]), axis=0)
     
                     mask = np.logical_not(ok)
@@ -5021,6 +5004,14 @@ class GalaxyCohort(GalaxyAggregate):
                     _ok_, _dL_ = split_by_sign(_ok, dL_wpad)
                     _pdf_, _dL_ = split_by_sign(pdf, dL_wpad)
 
+                    # This is the selection function on (maybe) new `Lh` grid 
+                    fsel = self._get_fsel_winterp(z, selection_criteria, Lh, None)
+
+                    if type(fsel) != np.ndarray:
+                        fsel = fsel * np.ones(Lh.size)
+
+                    _fsel_, _dL_ = split_by_sign(fsel, dL_wpad)
+
                     nchunks = len(_dL_)
 
                     phi_tot = np.zeros_like(larr)
@@ -5030,10 +5021,10 @@ class GalaxyCohort(GalaxyAggregate):
                             continue
                         
                         if np.all(_dL_[i] > 0):
-                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1,None] * _pdf_[i][_ok_[i]==1,:],
+                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1,None] * _pdf_[i][_ok_[i]==1,:] * _fsel_[i][_ok_[i]==1,None],
                                 x=_lnL_[i][_ok_[i]==1], axis=0)
                         else:
-                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1][-1::-1,None] * _pdf_[i][_ok_[i]==1][-1::-1,:],
+                            phi_tot += np.trapezoid(_phi_[i][_ok_[i]==1][-1::-1,None] * _pdf_[i][_ok_[i]==1][-1::-1,:]* _fsel_[i][_ok_[i]==1][-1::-1,None],
                                 x=_lnL_[i][_ok_[i]==1], axis=0)
                             
                     # Override `Lh`
@@ -5044,8 +5035,8 @@ class GalaxyCohort(GalaxyAggregate):
                 lum = np.ma.array(Lh, mask=mask)
                 phi = np.ma.array(phi_tot, mask=mask, fill_value=-np.inf)
 
-                fsel = self._get_fsel_winterp(z, selection_criteria, Lh, Lh_orig)
-                phi *= fsel
+                #fsel = self._get_fsel_winterp(z, selection_criteria, Lh, Lh_orig)
+                #phi *= fsel
 
                 #assert np.all(np.diff(lum) > 0), f"problem with `lum` for pop={self.id_num}"
                 if not np.all(np.diff(lum) > 0):
