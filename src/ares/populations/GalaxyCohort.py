@@ -4220,7 +4220,7 @@ class GalaxyCohort(GalaxyAggregate):
                 for h, selection in enumerate(selection_criteria['mag']):
 
                     tmp_fsel[i,:,h_tot,:] = \
-                            self._get_fsel_single_cut(z, selection)
+                            self._get_fsel_single_cut(_z_, selection)
                                         
                     h_tot += 1
                     #cam_filt, cut = selection
@@ -4320,7 +4320,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                         #tmp_fsel[i,:,h,0] = tmp_fsel[i,:,h,1]
                         tmp_fsel[i,:,h_tot,:] = \
-                            self._get_fsel_single_cut(z, ('sdss_r', (-np.inf, 19.5)))
+                            self._get_fsel_single_cut(_z_, ('sdss_r', (-np.inf, 19.5)))
                         
                         #tmp_fsel[i,:,h,0] = res[:,0]
                         #tmp_fsel[i,:,h,1] = res[:,1]
