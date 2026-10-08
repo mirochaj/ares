@@ -478,7 +478,7 @@ class Simulation(object):
         return ps
     
     def get_galaxy_subsample(self, selection_criteria, pops=None,
-        return_fraction=True, is_mask=0, logic='or'):
+        return_fraction=True, is_mask=0, logic='and'):
         """
         Subject model galaxies to cuts in redshift, magnitude, and/or color.
 
