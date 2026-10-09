@@ -1935,7 +1935,8 @@ class LightCone(object): # pragma: no cover
             chan_mic = self.convert_chan_to_micron(channel, wave_units)
 
             # Just used for file naming
-            field_names = ['ra', 'dec', 'z', channel]
+            field_names = ['ra', 'dec', 'z', 
+                channel.lower() if isinstance(channel, str) else channel]
             field_units = ['deg', 'deg', '', cat_units]
 
             # Retrieve info about population:
