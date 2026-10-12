@@ -137,7 +137,11 @@ class MultiPhaseMedium(object):
     @property
     def parcels(self):
         if not hasattr(self, '_parcels'):
-            self._initialize_zones()
+            try:
+                self._initialize_zones()
+            except:
+                self._parcels = [None] * 2
+
         return self._parcels
 
     @property

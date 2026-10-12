@@ -7316,7 +7316,7 @@ class GalaxyCohort(GalaxyAggregate):
         # analytic integrals.
         if np.all(fsel == 0):
             return np.zeros_like(self.halos.tab_M)
-        elif np.all(fsel) == 1:
+        elif np.all(fsel == 1):
             return lum
 
         is_tophat_cut = np.unique(fsel).size <= 2

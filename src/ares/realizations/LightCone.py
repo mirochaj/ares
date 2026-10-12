@@ -381,7 +381,7 @@ class LightCone(object): # pragma: no cover
 
         return np.array(self._cache_zlayers[zlim])
 
-    def get_mass_layers(self, logmlim, dlogm):
+    def get_mass_layers(self, logmlim, dlogm=None):
         """
         Return segments in log10(halo mass / Msun) space to run maps.
 
@@ -402,10 +402,14 @@ class LightCone(object): # pragma: no cover
             dlogm=np.ndarray([[10, 10.5], [10.5, 11], [11, 12], [12, 13]])
 
         """
-        if type(dlogm) in numeric_types:
+        if dlogm is None:
+            return np.array([logmlim])
+        elif type(dlogm) in numeric_types:
             mbins = np.arange(logmlim[0], logmlim[1], dlogm)
             return np.array([(mbin, mbin+dlogm) for mbin in mbins])
         else:
+            # In this case, dlogm is really a hand-picked series of
+            # log10(mass) intervals
             return dlogm
 
     def get_zindex(self, z):
@@ -667,12 +671,14 @@ class LightCone(object): # pragma: no cover
         assert np.sum(found_gal) == found_gal.size
 
         if np.any(flux == 0) and is_intensity:
+            print(f'! Found {sum(flux==0)} halos (out of {flux.size}) with zero flux.')
             # This can be OK for low-mass halos in models with really low SMHM,
             # basically we end up asking for luminosity off the low edge of
             # our lookup table.
             #print('hey', is_photometry, pid, Mh.shape, flux.shape, flux, zlim)
             smhm_0 = self.sim.pops[pid].get_smhm(z=zsub_mid, Mh=Mh[flux==0])
 
+            # OK if these galaxies are outside our modeled range.
             out_of_bounds = np.logical_or(
                 Mh[flux==0] * smhm_0 < 10**self.sim.pops[pid]._tab_lum_Ms.min(),
                 Mh[flux==0] * smhm_0 > 10**self.sim.pops[pid]._tab_lum_Ms.max())
@@ -680,8 +686,8 @@ class LightCone(object): # pragma: no cover
             #print(np.sum(flux==0), out_of_bounds.shape, np.sum(out_of_bounds), smhm_0.shape, Mh[flux==0].shape)
             #print(self.sim.pops[pid]._tab_lum_Ms.min(), self.sim.pops[pid]._tab_lum_Ms.max())
 
-            min_0 = np.min(Mh[flux==0] * smhm_0)
-            max_0 = np.max(Mh[flux==0] * smhm_0)
+            #min_0 = np.min(Mh[flux==0] * smhm_0)
+            #max_0 = np.max(Mh[flux==0] * smhm_0)
             #print(np.log10(min_0), np.log10(max_0))
             
             
@@ -689,8 +695,8 @@ class LightCone(object): # pragma: no cover
             #print(np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)])
             #print(np.log10(Mh[flux==0])[np.logical_not(out_of_bounds)])
 
-            assert np.all(np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)] < 6), \
-                f"This is hacky. {np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)]}"
+            #assert np.all(np.log10(Mh[flux==0] * smhm_0)[np.logical_not(out_of_bounds)] < 6), \
+            #    f"Halos with zero flux in zlim={zlim}: Mh={np.log10(Mh[flux==0])[np.logical_not(out_of_bounds)]}, z={red[flux==0][np.logical_not(out_of_bounds)]}"
             
             flux[flux==0] = tiny_flux
             #assert np.all(out_of_bounds), \

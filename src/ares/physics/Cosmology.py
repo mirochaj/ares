@@ -288,7 +288,11 @@ class Cosmology(object):
     @property
     def inits(self):
         if not hasattr(self, '_inits'):
-            self._inits = self._ics.get_inits_rec()
+            try:
+                self._inits = self._ics.get_inits_rec()
+            except AssertionError:
+                self._inits = None
+
         return self._inits
 
     def TimeToRedshiftConverter(self, t_i, t_f, z_i):

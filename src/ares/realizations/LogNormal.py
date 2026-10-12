@@ -20,6 +20,7 @@ from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
 from scipy.integrate import cumulative_trapezoid
+from ..util.Math import integrate_with_subgrid_interp
 
 try:
     import powerbox as pbox
@@ -256,9 +257,16 @@ class LogNormal(LightCone): # pragma: no cover
 
         Parameters
         ----------
+        z : int, float
+            Central redshift in co-eval cube of interest.
+        ze : tuple, list, np.ndarray
+            Edges of a given co-eval cube along the redshift axis.
+        mmin, mmax : float
+            Bounds in halo mass to assume when generating halo population (Msun).
 
         Returns
         -------    
+        Expected number density and mass density of halos in this co-eval cube.
     
         """
 
@@ -273,21 +281,28 @@ class LogNormal(LightCone): # pragma: no cover
             Lpix = self.Lbox / float(self.dims)
             zpix_e, zpix_c, zpix_Re = \
                 self.sim.cosm.get_lightcone_boundaries(ze, Lpix)
-
+             
             # Each co-eval chunk is just self.dims long
             # Need corresponding redshift in each 
             m = self.halos.tab_M
+            ok = np.logical_and(self.halos.tab_M >= mmin,
+                                self.halos.tab_M < mmax)
+            
             nb1d = np.zeros(self.dims)
             mb1d = np.zeros(self.dims)
             for i, _z_ in enumerate(zpix_c):
                 iz = np.argmin(np.abs(self.halos.tab_z - _z_))
-                ok = np.logical_and(self.halos.tab_M >= mmin,
-                                    self.halos.tab_M < mmax)
-    
-                dndlnm = self.halos.tab_dndlnm[iz,:]
-                nb1d[i] = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
-                mb1d[i] = np.trapezoid(dndlnm[ok==1] * m[ok==1], x=np.log(m[ok==1]))
                 
+                dndlnm = self.halos.tab_dndlnm[iz,:]
+                #nb1d[i] = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
+                #mb1d[i] = np.trapezoid(dndlnm[ok==1] * m[ok==1], x=np.log(m[ok==1]))
+                nb1d[i] = integrate_with_subgrid_interp(np.log(m), dndlnm,
+                    np.log(mmin), np.log(mmax))
+                mb1d[i] = integrate_with_subgrid_interp(np.log(m), dndlnm * m,
+                    np.log(mmin), np.log(mmax))
+                
+
+
             ##
             # Make nbar and mbar 3-D just because they are likely to be multiplied
             # by a 3-D array (like density field) outside this routine.
@@ -468,6 +483,7 @@ class LogNormal(LightCone): # pragma: no cover
         # sequence for other options here.
         if _bias_model_ == 0:
 
+            # Expected number of halos converted to expected number per cMpc^3
             n = N / (self.Lbox / self.sim.cosm.h70)**3
 
             # Expected number of halos in each cell, just scaling mean number
@@ -607,51 +623,55 @@ class LogNormal(LightCone): # pragma: no cover
                 iM = None
 
         if subhalos:
-            key_id = (iz, iM, logmlim, subhalos)
-        else:
             key_id = (iM, logmlim, subhalos)
+        else:
+            key_id = (iz, iM, logmlim, subhalos)
 
         if key_id in self._cache_subhalo_cdf.keys():
-            m, cdf = self._cache_subhalo_cdf[key_id]
+            logm, cdf = self._cache_subhalo_cdf[key_id]
         else:
 
-            # Don't bother with m << mmin halos
+            assert logmlim[1] - logmlim[0] > 0.01
+
             mmin = 10**logmlim[0]
             mmax = 10**logmlim[1]
 
+            lnmlim = np.log([mmin, mmax])
+
             # Compute CDF
             if key_id in self._cache_mgtm:
-                m, dndm, ngtm, ntot = self._cache_mgtm[key_id]
+                m, dndm, ntot = self._cache_mgtm[key_id]
+                lnm = np.log(m)
             else:
-                ok = np.logical_and(self.halos.tab_M >= mmin,
-                                    self.halos.tab_M <  mmax)
-
-                m = self.halos.tab_M[ok==1]
+                m = self.halos.tab_M
+                lnm = np.log(m)
 
                 if subhalos:
                     assert Mc is not None, "Must provide `Mc` if subhalos=True!"
 
                     # We only keep dn/dlnM for some reason, convert to dn/dm
-                    dndm = self.halos.tab_dndlnm_sub[iM,ok==1] / m
-
-                    #ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
-                    #    initial=0)[-1::-1]
-
-                    ngtm = self.halos.tab_ngtm_sub[iM,ok==1] #\
-                         #- self.sim.pops[0].halos.tab_ngtm_sub[iM,immax]
-                    #nltm = ngtm[0]
+                    dndlnm = self.halos.tab_dndlnm_sub[iM] #/ m
 
                 else:
-                    dndm = self.halos.tab_dndm[iz,ok==1]
-                    ngtm = self.halos.tab_ngtm[iz,ok==1]
+                    dndlnm = self.halos.tab_dndlnm[iz]
 
-                ntot = np.trapezoid(dndm * m, x=np.log(m))
-                self._cache_mgtm[key_id] = m, dndm, ngtm, ntot
+                ntot = integrate_with_subgrid_interp(lnm, dndlnm, lnmlim[0], lnmlim[1])
+                
+                self._cache_mgtm[key_id] = m, dndlnm, ntot
 
-            nltm = ntot - ngtm
-            cdf = nltm / ntot
+            ##
+            # Rough ok==1 and trapezoidal integration isn't good enough
+            logm = np.arange(lnmlim[0], lnmlim[1]+0.01, 0.01)
+            cdf = np.array([integrate_with_subgrid_interp(lnm, dndlnm, logm[0], logm[j]) \
+                for j in range(logm.size)]) / ntot
+            
+            # First element often some tiny negative number but zero
+            # to within machine precision. Just override.
+            # Actually we'll just skip the first element and assign
+            # smallest halo mass to any r<cdf[1]
+            cdf[0] = 0
 
-            self._cache_subhalo_cdf[key_id] = m, cdf
+            self._cache_subhalo_cdf[key_id] = logm, cdf
 
         # Assign halo masses according to HMF.
         if seed is not None:
@@ -659,8 +679,8 @@ class LogNormal(LightCone): # pragma: no cover
 
         r = np.random.rand(N)
 
-        mass = np.exp(np.interp(r, cdf, np.log(m)))
-        #mass = np.exp(_interp_linear(r, cdf, np.log(m)))
+        mass = np.exp(np.interp(np.log(r), np.log(cdf), logm, 
+            left=logm[0], right=logm[-1]))
 
         return mass
 
@@ -1202,6 +1222,11 @@ class LogNormal(LightCone): # pragma: no cover
         if zsub is None:
             zsub = z
 
+        logmlim = tuple(np.log10([mmin, mmax]))
+        #lnmlim = tuple(np.log([mmin, mmax]))
+        #dlogm = np.diff(logmlim)
+        #dlnm = np.diff(lnmlim)
+
         # Unpack popid more [as of March 2025]
         # (id number in ARES, parent ID number [if satellite], name as str)
         pid, pid_par, pid_str = get_pop_info(popid)
@@ -1210,6 +1235,8 @@ class LogNormal(LightCone): # pragma: no cover
 
         # Get mean halo abundance in #/cMpc^3 [note: this is *not* (cMpc/h)^-3]
         nbar = self.get_nbar(zsub, ze, mmin=mmin, mmax=mmax)
+        # Note this is a 3-D array already (dims, dims, dims)
+        # Only variations along redshift axis.
 
         # Compute expected number of halos in volume
         h = self.sim.cosm.h70
@@ -1224,7 +1251,8 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Draw halo masses from HMF
 
-            mass = self.get_halo_masses(zsub, Nact, logmlim=tuple(np.log10([mmin, mmax])),
+            mass = self.get_halo_masses(zsub, Nact, 
+                logmlim=logmlim,
                 seed=seed)
 
         # In this case, we need to know the masses of halos before we generate
@@ -1240,7 +1268,8 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Draw halo masses from HMF
 
-            mass = self.get_halo_masses(zsub, Nact, logmlim=tuple(np.log10([mmin, mmax])),
+            mass = self.get_halo_masses(zsub, Nact, 
+                logmlim=tuple(np.log10([mmin, mmax])),
                 seed=seed)
 
             pos = self.get_halo_positions(zsub, Nact, rho, m=mass,

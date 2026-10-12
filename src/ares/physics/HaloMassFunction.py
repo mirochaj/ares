@@ -450,7 +450,7 @@ class HaloMassFunction(object):
                     self.tab_ngtm,
                     self._tab_MAR,
                     self.tab_Mmin_floor,
-                    self._tab_bias,
+                    self.tab_bias,
                     self._tab_dndlnm_sub
                 ) = self.pf['halo_mf_cache']
             elif len(self.pf['halo_mf_cache']) == 14:
@@ -463,7 +463,7 @@ class HaloMassFunction(object):
                     self.tab_ngtm,
                     self._tab_MAR,
                     self.tab_Mmin_floor,
-                    self._tab_bias,
+                    self.tab_bias,
                     self._tab_dndlnm_sub,
                     self.tab_k_lin,
                     self.tab_ps_lin,
@@ -764,14 +764,24 @@ class HaloMassFunction(object):
     def tab_fcoll(self):
         return self.tab_mgtm / self.cosm.mean_density0
 
-    @cached_property
+    @property
     def tab_bias(self):
-        self._tab_bias = np.zeros((self.tab_z.size, self.tab_M.size))
-
-        for i, z in enumerate(self.tab_z):
-            self._tab_bias[i] = self.get_bias(z)
+        if not hasattr(self, '_tab_bias'):
+            self._tab_bias = np.zeros((self.tab_z.size, self.tab_M.size))
+    
+            for i, z in enumerate(self.tab_z):
+                self._tab_bias[i] = self.get_bias(z)
 
         return self._tab_bias
+
+    @tab_bias.setter
+    def tab_bias(self, value):
+        self._tab_bias = value
+
+        if np.any(value != 1) and (not self.pf['halo_bias']):
+            print(f"! Overriding loaded halo bias and setting b=1")
+            print(f"! Since halo_bias=False.")
+            self._tab_bias = np.ones((self.tab_z.size, self.tab_M.size))
 
     @property
     def tab_t(self):
@@ -879,6 +889,33 @@ class HaloMassFunction(object):
     def info(self):
         if rank == 0:
             print_hmf(self)
+
+    def get_halo_number_counts(self, zlim, logmlim):
+        """
+        Analogous to get_galaxy_number_counts in ares.populations instances,
+        except we're integrating over some mass range rather than below
+        some mag cut.
+
+        .. note :: This is for sanity checks, not actually used anywhere
+            in the code.
+
+
+        """
+
+        m = self.tab_M
+        ok = np.logical_and(m >= 10**logmlim[0], m < 10**logmlim[1])
+
+        num = 0.0
+        for i, z in enumerate(self.tab_z):
+            if z < zlim[0] or z >= zlim[1]:
+                continue
+
+            vol = self.cosm.ProjectedVolume(z, 1., dz=self.tab_dz[i])
+
+            num += vol * np.trapezoid(self.tab_dndlnm[i,ok==1], 
+                x=np.log(m[ok==1]))
+            
+        return num
 
     def generate_hmf(self, save_MAR=True):
         """
@@ -1241,6 +1278,9 @@ class HaloMassFunction(object):
         """
         Compute the halo bias for all halos (over self.tab_M) at redshift `z`.
         """
+
+        if not self.pf['halo_bias']:
+            return 1
 
         g = np.interp(z, self.tab_z, self.tab_growth)
 
