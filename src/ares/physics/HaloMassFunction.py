@@ -890,7 +890,7 @@ class HaloMassFunction(object):
         if rank == 0:
             print_hmf(self)
 
-    def get_halo_number_counts(self, zlim, logmlim):
+    def get_halo_number_counts(self, zlim, logmlim, focc=None):
         """
         Analogous to get_galaxy_number_counts in ares.populations instances,
         except we're integrating over some mass range rather than below
@@ -899,8 +899,31 @@ class HaloMassFunction(object):
         .. note :: This is for sanity checks, not actually used anywhere
             in the code.
 
+        Parameters
+        ----------
+        zlim : tuple
+            Redshift interval over which to compute counts, e.g., 
+            `zlim=(0.05, 0.1)`.
+        logmlimg : tuple
+            log10(Halo Mass / Msun) rangel over which to compute counts, e.g,
+            `logmlim=(10, 12)`.
+        focc : np.ndarray, optional
+            Can provide occupation fraction for some galaxy population. This
+            is really a work-around -- rather than using the method 
+            get_galaxy_number_counts in some ares.populations instance, which
+            needs a flux or mag cut, here we just use DM halos.
+
+        Returns
+        -------
+        Number of halos per deg^2.
 
         """
+
+        if focc is None:
+            _focc_ = np.ones_like(self.tab_dndm)
+        else:
+            assert np.all(focc.shape == self.tab_dndm.shape)
+            _focc_ = focc
 
         m = self.tab_M
         ok = np.logical_and(m >= 10**logmlim[0], m < 10**logmlim[1])
@@ -912,7 +935,7 @@ class HaloMassFunction(object):
 
             vol = self.cosm.ProjectedVolume(z, 1., dz=self.tab_dz[i])
 
-            num += vol * np.trapezoid(self.tab_dndlnm[i,ok==1], 
+            num += vol * np.trapezoid(self.tab_dndlnm[i,ok==1] * _focc_[i,ok==1], 
                 x=np.log(m[ok==1]))
             
         return num

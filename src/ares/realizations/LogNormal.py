@@ -313,13 +313,17 @@ class LogNormal(LightCone): # pragma: no cover
         # Otherwise, just use midpoint of co-eval cube
         else:
             iz = np.argmin(np.abs(self.halos.tab_z - z))
-            ok = np.logical_and(self.halos.tab_M >= mmin,
-                                self.halos.tab_M < mmax)
+            #ok = np.logical_and(self.halos.tab_M >= mmin,
+            #                    self.halos.tab_M < mmax)
     
             m = self.halos.tab_M
             dndlnm = self.halos.tab_dndlnm[iz,:]
-            nbar = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
-            mbar = np.trapezoid(dndlnm[ok==1] * m[ok==1], x=np.log(m[ok==1]))
+            #nbar = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
+            #mbar = np.trapezoid(dndlnm[ok==1] * m[ok==1], x=np.log(m[ok==1]))
+            nbar = integrate_with_subgrid_interp(np.log(m), dndlnm,
+                    np.log(mmin), np.log(mmax))
+            mbar = integrate_with_subgrid_interp(np.log(m), dndlnm * m,
+                np.log(mmin), np.log(mmax))
 
         # Done
         return nbar, mbar
@@ -565,6 +569,7 @@ class LogNormal(LightCone): # pragma: no cover
         if self.randomise_in_cell:
             shape = N, self.dims
             # Shift relative to bin centers
+            # (positions are cMpc/h not cMpc)
             pos += np.random.uniform(size=(np.sum(n_act), 3),
                 low=-0.5*self.dx, high=0.5*self.dx)
 

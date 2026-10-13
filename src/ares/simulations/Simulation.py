@@ -468,6 +468,9 @@ class Simulation(object):
         ps *= to_ps_units * to_ps_units2
         ps_by_pop *= to_ps_units * to_ps_units2
         
+        ##
+        # Add shot by hand
+
         if pops is None:
             hist = self.history # poke
             self._history['ps_ebl'] = ps
@@ -506,6 +509,9 @@ class Simulation(object):
         else:    
             f_sel = np.ones((len(self.pops), self.halos.tab_z.size, 
                 self.halos.tab_M.size, 2))
+            
+        if selection_criteria is None:
+            return f_sel
 
         for i, pop in enumerate(self.pops):
             if pops is not None:
@@ -710,7 +716,7 @@ class Simulation(object):
         # [optonal] Save redshift chunks
         zarr = self.halos.tab_z
         ps_z = np.zeros((len(self.pops), len(self.pops),
-            len(scales), len(waves), len(zbins), zarr.size))
+            len(scales), len(waves), len(zbins), zarr.size, 3))
 
         # Read-in or generate selection function and mask from scratch.
         
@@ -718,14 +724,26 @@ class Simulation(object):
             raise NotImplementedError('This was causing problems')
             fmask = masking_criteria
         else:
-            if type(masking_criteria) != dict:
+            
+            if type(masking_criteria) not in [dict, NoneType]:
                 common_mask = False
                 assert len(masking_criteria) == len(waves), \
                     "If providing list of masks must be one per channel!"
+                
+                fmask = self.get_masks(masking_criteria, pops)
             else:
                 common_mask = True
 
-            fmask = self.get_masks(masking_criteria, pops)
+            if masking_criteria is None:
+                if common_mask:
+                    fmask = np.zeros((len(pops), 
+                        len(self.halos.tab_z), len(self.halos.tab_M), 2))
+                else:
+                    fmask = np.zeros((len(waves), len(pops),
+                        len(self.halos.tab_z), len(self.halos.tab_M), 2))
+
+            else:
+                fmask = self.get_masks(masking_criteria, pops)
 
         if type(selection_criteria) == np.ndarray:
             raise NotImplementedError('This was causing problems')
@@ -759,7 +777,7 @@ class Simulation(object):
 
         ##
         # Now get Limber integrand for each zbin/channel pair.
-        num_p = np.zeros((len(self.pops), len(waves), len(zbins)))
+        num_p = np.zeros((len(self.pops), len(waves), len(zbins), 2))
         for h, zbin in enumerate(zbins):
 
             zlo, zhi = zbin
@@ -825,9 +843,12 @@ class Simulation(object):
                             fsel2  = 1 - fmask[k][j]
 
                         if j == 0:
-                            num_p[i,k,h] = self.pops[i].get_num_from_fsel(
+                            num_p[i,k,h,0] = self.pops[i].get_num_from_fsel(
                                 fsel1 * fsel1b if masking_symmetric else fsel1, 
                                 zbin=zbin)
+                            num_p[i,k,h,1] = self.pops[i].get_num_from_fsel(
+                                fsel1 * fsel1b if masking_symmetric else fsel1, 
+                                zbin=zbin, volume_density=False)
 
                         # Try to load from cache [optional]
                         if (cache_ipop_mtx is not None):
@@ -857,25 +878,37 @@ class Simulation(object):
 
                                 continue
 
-                        # (scales, waves, zbin, zall)
-                        ps_z[i,j,:,k,h,:] = pop.get_xs_3d(scales,
+                        # (pops, pops, scales, waves, zbin, zall, terms)
+                        ps_z[i,j,:,k,h,:,:] = pop.get_xs_3d(scales,
                             wave_obs=wave, zg=zbin, 
                             isnum1=1, isnum2=0,
                             fsel1=fsel1, fsel2=fsel2,
                             pop2=popx, 
                             selection_symmetric=selection_symmetric,
                             masking_symmetric=masking_symmetric,
+                            separate_terms=1,
                             **kwargs)
                         
         ##
         # Final step: integrate along redshift axis.
-        ps, ps_by_pop = self.get_limber_integral(ps_z,
+        # Leave shot term out of this.
+        ps, ps_by_pop = self.get_limber_integral(ps_z[:,:,:,:,:,:,1:].sum(axis=-1),
+            waves=waves, zbins=zbins, num=num_pz)
+        
+        # Just cross-shot here
+        ps_sh_I, ps_by_pop_sh_I = self.get_limber_integral(ps_z[:,:,:,:,:,:,0],
             waves=waves, zbins=zbins, num=num_pz)
 
         # Modify units
         ps_z *= to_ps_units
         ps *= to_ps_units
         ps_by_pop *= to_ps_units
+
+        print('hey!', ps_sh_I)
+
+        # Need dummy slice for ell axis
+        ps += ps_sh_I \
+            * (1.  / num_p[:,:,:,1].sum(axis=0)[None,:,:] / sqdeg_per_std)
         
         self.num_by_pop = num_p
         self.num_by_pop_z = num_pz
@@ -952,18 +985,23 @@ class Simulation(object):
         #    len(scales), len(waves), self.pops[0].halos.tab_z.size))
 
         # Get full z-dependent number density
-        num_pz = np.zeros((len(self.pops), len(zarr)))
+        num_pz = np.zeros((len(self.pops), len(zarr), 2))
+
         fsel_allz = self.get_galaxy_subsample(selection_criteria, pops=pops)
         
         for i, pop in enumerate(self.pops):
             if pops is not None:
                 if i not in pops:
                     continue
-            num_pz[i,:] = self.pops[i].get_num_from_fsel(fsel_allz[i])
 
+            # This is a volume density
+            num_pz[i,:,0] = self.pops[i].get_num_from_fsel(fsel_allz[i])
+
+            # This is per deg^2 / dz
+            num_pz[i,:,1] = self.pops[i].get_num_from_fsel(fsel_allz[i], volume_density=0)
         
-        # Loop over source populations and compute cross spectrum.
-        num_p = np.zeros((len(self.pops), len(zbins)))
+        # Loop over source populations and compute auto spectrum.
+        num_p = np.zeros((len(self.pops), len(zbins), 2))
         for h, zbin in enumerate(zbins):
 
             zlo, zhi = zbin
@@ -971,7 +1009,8 @@ class Simulation(object):
             zhi = min(zhi, self.pf['initial_redshift'])
 
             galaxy_prop = {'z': (zlo, zhi)}
-            galaxy_prop.update(selection_criteria)
+            if selection_criteria is not None:
+                galaxy_prop.update(selection_criteria)
             
             ##
             # Need to determine fraction of halos that are selected 
@@ -989,7 +1028,9 @@ class Simulation(object):
                     if i not in pops:
                         continue
                     
-                num_p[i,h] = self.pops[i].get_num_from_fsel(fsel[i], zbin=zbin)
+                num_p[i,h,0] = self.pops[i].get_num_from_fsel(fsel[i], zbin=zbin)
+                num_p[i,h,1] = self.pops[i].get_num_from_fsel(fsel[i], zbin=zbin,
+                    volume_density=0)
     
                 for j, popx in enumerate(self.pops):
                     # Avoid double counting.
@@ -1009,13 +1050,21 @@ class Simulation(object):
             
         ##
         #
-        ps, ps_by_pop = self.get_limber_integral(ps_z, zbins=zbins, num=num_pz)
+        ps, ps_by_pop = self.get_limber_integral(ps_z, zbins=zbins, num=num_pz[:,:,0])
         
+        ps += (1.  / num_p[:,:,1].sum(axis=0) / sqdeg_per_std)
+
+        for k in range(len(pops)):
+            ps_by_pop[k,k,:,:] += (1. / num_p[k,:,1] / sqdeg_per_std)
+
         self.gg_by_pop = ps_by_pop
 
         #if pops is None:
         #    hist = self.history # poke
         #    self._history['ps_nirb_x_gal'] = scales, scales_inv, waves, ps
+
+        self.num_by_pop = num_p
+        self.num_by_pop_z = num_pz
 
         return ps#.sum(axis=0).sum(axis=0)
     
@@ -1030,17 +1079,27 @@ class Simulation(object):
         Parameters
         ----------
         ps3d : np.ndarray
+            3-D power spectrum
+        num : np.ndarray
+            Galaxy number densities in cMpc^-3. This has shape (number of pops, 
+            number of native redshift bins [like halos.tab_z])
+
         """
 
         zarr = self.halos.tab_z
+        dz = self.halos.tab_dz
         dzarr = self.halos.tab_dz
         
         d = np.array([self.cosm.get_dist_los_comoving(0., z) \
             for z in zarr]) / cm_per_mpc
         Hofz = np.array([self.cosm.HubbleParameter(z) \
             for z in zarr])
+        
+        vol = np.array([self.cosm.ProjectedVolume(z, 1., dz=dz[i]) \
+                for i, z in enumerate(zarr)])
 
-        dchi_dz_dsq = (c / cm_per_mpc / Hofz) / d**2 
+        dchi_dz = (c / cm_per_mpc / Hofz)
+        dchi_dz_dsq = dchi_dz / d**2 
 
         is_galaxy_auto = waves is None
         is_ebl_auto = (waves is not None) and (zbins is None)
@@ -1108,6 +1167,7 @@ class Simulation(object):
                                     limber_integ_bypop, zlo, zhi)
 
         elif is_galaxy_auto:
+            
             # Loop over redshift bins
             for i in range(ps3d.shape[3]):
                 zlo, zhi = zbins[i]
@@ -1116,20 +1176,33 @@ class Simulation(object):
         
                 # N(z), though integral will be truncated to 
                 # (zlo, zhi) interval below (don't worry)
+                # Note: this is in units of cMpc^-3
                 n_vs_zall = num[:,:].sum(axis=0)
-                
+
                 # Total number of galaxies in this particular redshift bin,
                 # summed over source populations.
                 n_in_zbin = integrate_with_subgrid_interp(zarr, 
                         num[:,:].sum(axis=0), zlo, zhi)
                 
+                # The n_in_zbin factor here will completely cancel with
+                # ps3d (below) in the shot limit.
+                # The (c/H) factor will get cancelled by dchi_dz_dsq,
+                # which will leave only a factor of d**2.
                 W_g = n_vs_zall / n_in_zbin / ((c / cm_per_mpc) / Hofz)
+
+                #print('hi', n_tot, W_g, dchi_dz, zlo, zhi)
+                check_Wg = integrate_with_subgrid_interp(zarr, 
+                    W_g * dchi_dz, zlo, zhi)
+
+                print('checking W_g', check_Wg, n_in_zbin)
 
                 # The None slicing here is to match the first axis of
                 # `ps3d` which is ell.
+                # Note: remaining unsliced dimensions of `ps3d` are
+                # (ell modes, num redshifts [like halos.tab_z])
+                print(dchi_dz_dsq.shape, W_g.shape, ps3d.shape)
                 limber_integ = dchi_dz_dsq[None,:] * W_g[None,:]**2 \
-                    * ps3d.sum(axis=0).sum(axis=0)[:,i,:] \
-                    / n_vs_zall[None,:]**2
+                    * ps3d.sum(axis=0).sum(axis=0)[:,i,:] / dz[None,:]
             
                 for k in range(ps3d.shape[2]):
                     ps_2d[k,i] = integrate_with_subgrid_interp(zarr, 
@@ -1137,19 +1210,18 @@ class Simulation(object):
                     
                     ##
                     # Save by population too
-                    for p1 in range(len(self.pops)):
-                        for p2 in range(len(self.pops)):
-                            limber_integ_bypop = dchi_dz_dsq \
-                                    * W_g**2 \
-                                    * ps3d[p1,p2,k,i,:] \
-                                    / n_vs_zall**2
-                            
-                            if np.all(limber_integ_bypop == 0):
-                                continue
+                    #for p1 in range(len(self.pops)):
+                    #    for p2 in range(len(self.pops)):
+                    #        limber_integ_bypop = dchi_dz_dsq \
+                    #                * W_g**2 \
+                    #                * ps3d[p1,p2,k,i,:] / dz[None,:]
+                    #        
+                    #        if np.all(limber_integ_bypop == 0):
+                    #            continue
 
-                            ps_2d_by_pop[p1,p2,k,i] = \
-                                integrate_with_subgrid_interp(zarr,
-                                    limber_integ_bypop, zlo, zhi)  
+                    #        ps_2d_by_pop[p1,p2,k,i] = \
+                    #            integrate_with_subgrid_interp(zarr,
+                    #                limber_integ_bypop, zlo, zhi)  
 
         # Galaxy/EBL cross correlation
         elif is_galaxy_ebl_cross:
@@ -1172,13 +1244,12 @@ class Simulation(object):
                             num[:,j,:].sum(axis=0), zlo, zhi)
                     
                     W_g = n_vs_zall / n_in_zbin / ((c / cm_per_mpc) / Hofz)
-                    W_I = freqs[j] / (4. * np.pi) / (1 + zarr)**2 
-
+                    W_I = freqs[j] / (4. * np.pi) / (1 + zarr)**2
+                    
                     # The None slicing here is to match the first axis of
                     # `ps3d` which is ell.
                     limber_integ = dchi_dz_dsq[None,:] * W_g[None,:] * W_I[None,:] \
-                        * ps3d.sum(axis=0).sum(axis=0)[:,j,i,:] \
-                        / n_vs_zall[None,:]
+                        * ps3d.sum(axis=0).sum(axis=0)[:,j,i,:]
                     
                     # This loop is over ell
                     for k in range(ps3d.shape[2]):

@@ -4152,16 +4152,22 @@ class GalaxyCohort(GalaxyAggregate):
         # Short-hand for log-normal scatter.
         sigma = self.pf['pop_scatter_sfh']
 
+        if select_on_mag:
+            nselect = len(selection_criteria['mag'])
+        else:
+            nselect = 1
+
         # Loop over different masks.
         
         # Synthesize galaxy mags one redshift at a time.
         tmp_fsel = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size, 
-            len(selection_criteria['mag']), 2))
+            nselect, 2))
         for i, z in enumerate(self.halos.tab_z):    
             if (z < zlo) or (z >= zhi):
                 continue
 
             if not select_on_mag:
+                tmp_fsel[i,:,0,:] = 1
                 continue
             
             single_cut = len(selection_criteria['mag']) == 1
@@ -7546,8 +7552,10 @@ class GalaxyCohort(GalaxyAggregate):
 
         # galaxy autos
         if isnum1 and isnum2:
-            f = self.get_ps_kernel(z, k, term=0, 
-                isnum=isnum1, fsel=fsel1)
+            # Adding shot noise in post for autos at the moment
+            return 0
+            #f = self.get_ps_kernel(z, k, term=0, 
+            #    isnum=isnum1, fsel=np.minimum(fsel1, fsel2))
         # intensity autos or intensity cross
         elif isnum1 + isnum2 == 0:
             # Note: can still have two relevant masks.
@@ -7889,6 +7897,8 @@ class GalaxyCohort(GalaxyAggregate):
             #_fmask_union = 1
             _fmask_union = fsel1 #* fsel2 if is_inter_pop else fsel2
 
+            fsel_union = np.minimum(fsel1, fsel2)
+
         #
         f1 = self.get_ps_kernel(z, k, term=2, wave=wave1, 
             isnum=isnum1, fsel=fsel_union)
@@ -7924,7 +7934,7 @@ class GalaxyCohort(GalaxyAggregate):
 
     def get_ps_3d(self, scale, wave_obs1, wave_obs2=None, fsel1=1, fsel2=1,
         include_shot=True, include_1h=True, include_2h=True, use_pb=True,
-        raw=False, nebular_only=False, pop2=None):
+        raw=False, nebular_only=False, pop2=None, separate_terms=False):
         """
         Compute the angular power spectrum of this galaxy population.
 
@@ -7985,20 +7995,36 @@ class GalaxyCohort(GalaxyAggregate):
             name=f'p(k,{name}; pop #{self.id_num} x pop#{id2})')
         pb.start()
         self._ps_obs_integrand = np.zeros((scale.size, zarr.size))
+        if separate_terms:
+            self._ps_obs_integrand_by_term = np.zeros((scale.size, zarr.size, 3))
+
         for h, _scale_ in enumerate(scale):
             integrand = np.zeros_like(zarr)
+            if separate_terms:
+                integrand_by_term = np.zeros((zarr.size, 3))
+
             for i, z in enumerate(zarr):
                 if not zok[i]:
                     continue
-                integrand[i] = self._get_ps_3d(z, _scale_,
+ 
+                result = self._get_ps_3d(z, _scale_,
                     wave_obs1, wave_obs2, fsel1=fsel1, fsel2=fsel2,
                     include_shot=include_shot,
                     include_1h=include_1h, include_2h=include_2h,
                     raw=raw,
                     nebular_only=nebular_only, 
-                    pop2=pop2)
+                    pop2=pop2, separate_terms=separate_terms)
+                
+                if separate_terms:
+                    integrand_by_term[i,:] = result
+                    integrand[i] = np.sum(result)
+                else:
+                    integrand[i] = result
                                     
             self._ps_obs_integrand[h,:] = integrand.copy()
+
+            if separate_terms:
+                self._ps_obs_integrand_by_term[h,:,:] = integrand_by_term
 
             #ps[h] = np.trapezoid(integrand[zok] * zarr[zok],
             #        x=np.log(zarr[zok]))
@@ -8015,7 +8041,8 @@ class GalaxyCohort(GalaxyAggregate):
         include_shot=True, include_1h=True, include_2h=True, raw=False,
         isnum1=0, isnum2=0, fsel1=1, fsel2=1,
         selection_symmetric=False, masking_symmetric=True,
-        nebular_only=False, pop2=None, selection_criteria=None):
+        nebular_only=False, pop2=None, selection_criteria=None, 
+        separate_terms=False):
         """
         Compute integrand of angular power spectrum integral.
         """
@@ -8075,6 +8102,8 @@ class GalaxyCohort(GalaxyAggregate):
                 masking_symmetric=masking_symmetric,
                 pop2=pop2)
             ps3d += ps_2h
+        else:
+            ps_2h = np.zeros_like(k)
         
         if include_shot:
             ps_shot = self.get_ps_sh(z, k, wave1=wave1, wave2=wave2,
@@ -8086,6 +8115,8 @@ class GalaxyCohort(GalaxyAggregate):
                 pop2=pop2)
             
             ps3d += ps_shot
+        else:
+            ps_shot = np.zeros_like(k)
 
         if include_1h:
             ps_1h = self.get_ps_1h(z, k, wave1=wave1, wave2=wave2,
@@ -8098,16 +8129,20 @@ class GalaxyCohort(GalaxyAggregate):
                 pop2=pop2)
             
             ps3d += ps_1h
+        else:
+            ps_1h = np.zeros_like(k)
 
         ## 
         # Done
+        if separate_terms:
+            return np.array([ps_shot, ps_1h, ps_2h])
         return ps3d
     
     def get_xs_3d(self, scale, wave_obs, zg, scale_units='ell',
         isnum1=0, isnum2=1, 
         pop2=None, fsel1=None, fsel2=None, 
         selection_symmetric=False, masking_symmetric=True, 
-        use_pb=True, **kwargs):
+        use_pb=True, separate_terms=False, **kwargs):
         """
         Compute the cross-spectrum between EBL and target galaxy population.
         """
@@ -8138,6 +8173,9 @@ class GalaxyCohort(GalaxyAggregate):
 
         xs_obs_integrand = np.zeros((scale.size, zarr.size))
 
+        if separate_terms:
+            xs_obs_integrand_by_term = np.zeros((scale.size, zarr.size, 3))
+
         pb = ProgressBar(scale.shape[0],
             use=use_pb and self.pf['progress_bar'],
             name=f'p(k,{name})')
@@ -8146,28 +8184,43 @@ class GalaxyCohort(GalaxyAggregate):
         for h, _scale_ in enumerate(scales):
 
             integrand = np.zeros_like(zarr)
+            if separate_terms:
+                integrand_by_term = np.zeros((zarr.size, 3))
+
             for i, z in enumerate(zarr):
 
                 if zok[i] == 0:
                     continue
                                 
-                integrand[i] = self._get_ps_3d(z, _scale_,
+                result = self._get_ps_3d(z, _scale_,
                     wave_obs, wave_obs2=wave_obs, 
                     isnum1=isnum1, isnum2=isnum2,
                     fsel1=fsel1, fsel2=fsel2, pop2=pop2,
                     selection_symmetric=selection_symmetric,
                     masking_symmetric=masking_symmetric,
+                    separate_terms=separate_terms,
                     **kwargs)#, #raw=raw,
                     #nebular_only=nebular_only, #prof=prof)
 
+                if separate_terms:
+                    integrand_by_term[i,:] = result
+                    integrand[i] = np.sum(result) # always one mode at a time
+                else:
+                    integrand[i] = result
+
                 if np.isnan(integrand[i]):
+                    print('does this ever happen?')
                     integrand[i] = 0
 
             xs_obs_integrand[h,:] = integrand.copy()
+            if separate_terms:
+                xs_obs_integrand_by_term[h,:] = result
                             
             pb.update(h)
         pb.finish()
 
+        if separate_terms:
+            return xs_obs_integrand_by_term
         return xs_obs_integrand
                 
     def _guess_Mmin(self):
