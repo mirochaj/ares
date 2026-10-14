@@ -2139,7 +2139,7 @@ class LightCone(object): # pragma: no cover
 
                             assert np.all(_dat > 0), f"Have {sum(_dat == 0)} fluxes == 0!"
                             
-                        elif channel in ['Mh']:
+                        elif channel.lower() in ['mh']:
                             _dat = _Mh
                         elif channel in ['rvir']:
                             # in kpc internally for some reason, convert to cMpc

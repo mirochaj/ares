@@ -904,10 +904,8 @@ class Simulation(object):
         ps *= to_ps_units
         ps_by_pop *= to_ps_units
 
-        print('hey!', ps_sh_I)
-
         # Need dummy slice for ell axis
-        ps += ps_sh_I \
+        ps += ps_sh_I * to_ps_units \
             * (1.  / num_p[:,:,:,1].sum(axis=0)[None,:,:] / sqdeg_per_std)
         
         self.num_by_pop = num_p
