@@ -292,7 +292,7 @@ class Population(object):
 
     @cached_property
     def is_satellite_pop(self):
-        return not self.is_central_pop
+        return (not self.is_central_pop) and (not self.is_diffuse)
 
     @cached_property
     def is_star_forming(self):
