@@ -920,7 +920,7 @@ class LightCone(object): # pragma: no cover
         include_galaxy_sizes=False, null_beyond_size=np.inf, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False, wave_units='um',
         logmlim_sats=(11,15), buffer=None, nthreads=None, batch_size=10,
-        postage_stamp=5, **kwargs):
+        postage_stamp=5):
         """
         Get a map for a single channel, redshift layer, mass layer, and
         source population.
@@ -1839,7 +1839,7 @@ class LightCone(object): # pragma: no cover
         suffix=None, fmt='fits', hdr={}, wave_units='um',
         cat_units='uJy', keep_layers=False, logmlim_sats=(11,15),
         include_pops=[0], clobber=False, verbose=False, dryrun=False,
-        use_pbar=True, **kwargs):
+        use_pbar=True):
         """
         Generate galaxy catalogs.
 
@@ -2495,7 +2495,7 @@ class LightCone(object): # pragma: no cover
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
         keep_chunks=None, use_pbar=True, verbose=False, dryrun=False,
         logmlim_sats=(11,15),
-        postage_stamp=5, nthreads=None, **kwargs):
+        postage_stamp=5, nthreads=None):
 
         """
         Write maps in one or more spectral channels to disk.
@@ -2794,8 +2794,7 @@ class LightCone(object): # pragma: no cover
                     dlam=dlam, use_pbar=False,
                     logmlim_sats=logmlim_sats,
                     buffer=buffer, nthreads=nthreads, verbose=verbose,
-                    postage_stamp=postage_stamp,
-                    **kwargs)
+                    postage_stamp=postage_stamp)
 
                 status_done_now[ip,ichan,iz,im] = 1
 

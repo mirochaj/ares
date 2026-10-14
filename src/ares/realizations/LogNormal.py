@@ -978,11 +978,8 @@ class LogNormal(LightCone): # pragma: no cover
         par_id = []
         for i in range(Nc):
 
-            # Remaining dimension: halos.tab_R_nfw
-            Sigma = self.halos.tab_Sigma_nfw[iz[i],iM[i],:]
-
             # Integer-ify expected number of satellites
-            Nsat_exp = int(Nexp[i])
+            Nsat_exp = Nexp[i]#int(Nexp[i])
 
             # Note that some Nexp==0 objects should statistically end up
             # with one or even a few satellites, but this should be a really
@@ -1014,6 +1011,14 @@ class LogNormal(LightCone): # pragma: no cover
 
             Nsat_act = len(_m)
 
+            if mass_c[i] < 1e11:
+                if (Nsat_exp < 1) and (Nsat_act_tot > 3 or Nsat_act > 3):
+                    print(popid, np.log10(mass_c[i]), Nsat_exp, Nsat_act_tot, Nsat_act)
+    
+                if (Nsat_act > 10):
+                    print(popid, np.log10(mass_c[i]), Nsat_exp, Nsat_act_tot, Nsat_act)
+                    input('<enter>')
+
             mass.extend(list(_m))
 
             ##
@@ -1033,7 +1038,6 @@ class LogNormal(LightCone): # pragma: no cover
 
                 # Need to turn into RA and DEC
                 # Randomly choose an angle
-                #np.random.seed(seeds_pos[i] * 2)
                 theta = np.random.rand(Nsat_act) * 2 * np.pi
 
                 # Then convert to x and y displacements

@@ -629,7 +629,7 @@ class HaloModel(HaloMassFunction):
 
         if lum1 is None:
             lum1 = self.tab_M / rho if weight_by_mass else 1
-        elif lum2 is None:
+        if lum2 is None:
             lum2 = self.tab_M / rho if weight_by_mass else 1
 
         dndlnm = self.tab_dndlnm[iz]
