@@ -299,8 +299,7 @@ class LogNormal(LightCone): # pragma: no cover
                 nb1d[i] = integrate_with_subgrid_interp(np.log(m), dndlnm,
                     np.log(mmin), np.log(mmax))
                 mb1d[i] = integrate_with_subgrid_interp(np.log(m), dndlnm * m,
-                    np.log(mmin), np.log(mmax))
-                
+                    np.log(mmin), np.log(mmax))                
 
 
             ##
@@ -641,21 +640,25 @@ class LogNormal(LightCone): # pragma: no cover
             mmin = 10**logmlim[0]
             mmax = 10**logmlim[1]
 
-            lnmlim = np.log([mmin, mmax])
+            if subhalos:
+                lnmlim = np.log([mmin, min(mmax, Mc)])
+                assert Mc >= mmin
+
+            else:
+                lnmlim = np.log([mmin, mmax])
 
             # Compute CDF
             if key_id in self._cache_mgtm:
-                m, dndm, ntot = self._cache_mgtm[key_id]
+                m, dndlnm, ntot = self._cache_mgtm[key_id]
                 lnm = np.log(m)
             else:
                 m = self.halos.tab_M
-                lnm = np.log(m)
+                lnm = self.halos.tab_lnM
 
                 if subhalos:
                     assert Mc is not None, "Must provide `Mc` if subhalos=True!"
 
-                    # We only keep dn/dlnM for some reason, convert to dn/dm
-                    dndlnm = self.halos.tab_dndlnm_sub[iM] #/ m
+                    dndlnm = self.halos.tab_dndlnm_sub[iM]
 
                 else:
                     dndlnm = self.halos.tab_dndlnm[iz]
@@ -666,15 +669,18 @@ class LogNormal(LightCone): # pragma: no cover
 
             ##
             # Rough ok==1 and trapezoidal integration isn't good enough
-            logm = np.arange(lnmlim[0], lnmlim[1]+0.01, 0.01)
+            logm = np.arange(lnmlim[0], lnmlim[1], 0.01)
+            if logm.size < 100:
+                logm = np.linspace(lnmlim[0], lnmlim[1], 100)
             cdf = np.array([integrate_with_subgrid_interp(lnm, dndlnm, logm[0], logm[j]) \
                 for j in range(logm.size)]) / ntot
             
             # First element often some tiny negative number but zero
             # to within machine precision. Just override.
-            # Actually we'll just skip the first element and assign
-            # smallest halo mass to any r<cdf[1]
             cdf[0] = 0
+
+            if np.any(cdf < 0):
+                raise ValueError(f'negative cdf values ({len(cdf[cdf < 0])})')
 
             self._cache_subhalo_cdf[key_id] = logm, cdf
 
@@ -718,8 +724,8 @@ class LogNormal(LightCone): # pragma: no cover
 
         return nsers, pa, ellip
 
-    def get_catalog_halos(self, zlim=None, logmlim=(11,12), popid=0, verbose=True,
-        satellites=False, logmlim_sats=None, max_sources=None):
+    def get_catalog_halos(self, zlim=None, logmlim=(11,15), popid=0, verbose=True,
+        satellites=False, logmlim_sats=None):
         """
         Get a halo catalog in (RA, DEC, redshift) coordinates.
 
@@ -745,6 +751,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
+        # ARES ID, parent ID [if applicable], ID str (user supplied; just -> str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
         if logmlim_sats is None:
@@ -754,7 +761,7 @@ class LogNormal(LightCone): # pragma: no cover
             zlim = self.zlim
 
         zmin, zmax = zlim
-        mmin, mmax = 10**np.array(logmlim)
+        mmin, mmax = 10**np.array(logmlim, dtype=float)
 
         # Version of Lbox in actual cMpc
         L = self.Lbox / self.sim.cosm.h70
@@ -904,7 +911,7 @@ class LogNormal(LightCone): # pragma: no cover
         #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
         return ra, dec, red, mass, parents
     
-    def get_Nsats(self, Mh, logmlim=None):
+    def get_Nsats(self, Mh, logmlim_sats=None):
         """
         Figure out the expected number of satellites for halos given Mh.
         """
@@ -912,11 +919,11 @@ class LogNormal(LightCone): # pragma: no cover
         # First, grab a few things we need. This is 2-D (Mc, Msat)
         hmf_sub = self.halos.tab_dndlnm_sub
 
-        if logmlim is None:
+        if logmlim_sats is None:
             ok_sub = np.ones_like(self.halos.tab_M)
         else:
-            ok_sub = np.logical_and(self.halos.tab_M >= 10**logmlim[0],
-                                    self.halos.tab_M <  10**logmlim[1])
+            ok_sub = np.logical_and(self.halos.tab_M >= 10**logmlim_sats[0],
+                                    self.halos.tab_M <  10**logmlim_sats[1])
 
         # Expected number of subhalos vs. central halo mass.
         # Just need to do this once per `logmlim`.
@@ -926,7 +933,7 @@ class LogNormal(LightCone): # pragma: no cover
         return np.interp(Mh, self.halos.tab_M, Nexp)
 
     def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, popid,
-        logmlim=(11,15), seed=None, distribute_in_space=True):
+        logmlim=(10,15), seed=None, distribute_in_space=True):
         """
         Get a catalog of satellite galaxies for input central catalog.
 
@@ -950,7 +957,10 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
+        # ARES ID, parent ID [if applicable], ID str (user supplied; just -> str)
         pid, pid_par, pid_str = get_pop_info(popid)
+
+        mlim = 10**np.array(logmlim, dtype=float)
 
         ##
         # All we're going to do is randomly distribute satellites in
@@ -959,7 +969,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         # Expected number of subhalos vs. central halo mass.
         # Just need to do this once per `logmlim`.
-        Nexp = self.get_Nsats(mass_c, logmlim=logmlim)
+        Nexp = self.get_Nsats(mass_c, logmlim_sats=logmlim)
 
         # Array of radial separations [cMpc]
         d = self.sim.halos.tab_R_nfw
@@ -1003,17 +1013,13 @@ class LogNormal(LightCone): # pragma: no cover
         par_id = []
         for i in range(Nc):
 
-            # Remaining dimension: halos.tab_R_nfw
-            Sigma = self.halos.tab_Sigma_nfw[iz[i],iM[i],:]
+            # Skip case where central halo mass is less than 
+            # the subhalo mass range being considered
+            if mass_c[i] < mlim[0]:
+                continue
 
-            # Integer-ify expected number of satellites
-            Nsat_exp = int(Nexp[i])
-
-            # Note that some Nexp==0 objects should statistically end up
-            # with one or even a few satellites, but this should be a really
-            # small effect and at the moment (at least) not SUs well spent.
-            #if Nsat_exp == 0:
-            #    continue
+            # Can be a float, for small halos this number is < 1 and that's OK.
+            Nsat_exp = Nexp[i]
 
             # Poisson random draw to determine actual number of subhalos,
             # given expected number.
@@ -1158,7 +1164,11 @@ class LogNormal(LightCone): # pragma: no cover
 
         ##
         # Apply occupation fraction here?
-        if self.sim.pops[pid].pf['pop_focc'] != 1:
+        if self.sim.pops[pid].pf['pop_focc'] == 0:
+            return None, None, None, None
+        elif self.sim.pops[pid].pf['pop_focc'] == 1:
+            focc = r = ok = None
+        else:
 
             np.random.seed(seed_occ)
 
@@ -1167,6 +1177,10 @@ class LogNormal(LightCone): # pragma: no cover
 
             ok = np.ones(N)
             ok[r > focc] = 0
+
+            if ok.sum() == 0:
+                del focc, ok, r
+                return None, None, None, None
 
             # For satellites, positions are determined after this step
             if _x is None:
@@ -1183,10 +1197,6 @@ class LogNormal(LightCone): # pragma: no cover
             #    print(f"# Applied occupation fraction cut for pop #{popid} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
             #    print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
 
-            if ok.sum() == 0:
-                return None, None, None, None
-        else:
-            focc = r = ok = None
 
         del focc, ok, r
         # Can cause huge slow-down.
@@ -1197,7 +1207,7 @@ class LogNormal(LightCone): # pragma: no cover
 
     def get_halo_population(self, z, ze=None, seed=None, seed_box=None, seed_pos=None,
         seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, popid=0,
-        verbose=True, call_gc=False, apply_focc=True, zsub=None, **_kw_):
+        verbose=True, apply_focc=True, zsub=None, **_kw_):
         """
         Get a realization of a halo population.
 
@@ -1304,7 +1314,7 @@ class LogNormal(LightCone): # pragma: no cover
         #    print("# Might be small box issue, but could be OK for massive halos.")
 
         if np.any(mass < mmin):
-            raise ValueError("help")
+            raise ValueError(f"{np.sum(mass < mmin)}/{mass.size} masses < mmin! {mass} {mmin:.3e}")
 
         ##
         # Apply occupation fraction cut

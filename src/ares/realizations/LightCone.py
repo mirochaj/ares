@@ -446,12 +446,11 @@ class LightCone(object): # pragma: no cover
 
         """
 
-
         if not hasattr(self, '_seeds'):
             # ARES ID, ARES parent ID, str representation of popid (e.g., '2a')
             pid, pid_par, pid_str = get_pop_info(popid)
 
-            fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
+            fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.05)
 
             ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
 
@@ -463,7 +462,9 @@ class LightCone(object): # pragma: no cover
                 * np.arange(1, len(zmid)+1) * fmh
             seed_focc = self.seed_halo_occ \
                 * np.arange(1, len(zmid)+1) * fmh
-            
+
+            seeds_all = np.vstack((seed_rho, seed_mh, seed_xyz, seed_focc))
+
             # These seeds uniquely determine the locations and masses
             # of star-forming and quiescent centrals.
             self._seeds = {'seed_box': seed_rho,
@@ -683,6 +684,9 @@ class LightCone(object): # pragma: no cover
                 Mh[flux==0] * smhm_0 < 10**self.sim.pops[pid]._tab_lum_Ms.min(),
                 Mh[flux==0] * smhm_0 > 10**self.sim.pops[pid]._tab_lum_Ms.max())
 
+            print(f"! {sum(out_of_bounds==1)}/{sum(flux==0)} lie outside SED table bounds (pop={pid})")
+            print(f"! In halo mass range: {Mh[flux==0].min():.2e}, {Mh[flux==0].max():.2e}")
+            print(f"! In redshfit range: {red[flux==0].min():.4}, {red[flux==0].max():.4}")
             #print(np.sum(flux==0), out_of_bounds.shape, np.sum(out_of_bounds), smhm_0.shape, Mh[flux==0].shape)
             #print(self.sim.pops[pid]._tab_lum_Ms.min(), self.sim.pops[pid]._tab_lum_Ms.max())
 
@@ -2038,9 +2042,11 @@ class LightCone(object): # pragma: no cover
                         if ok.sum():
                             _parents = _parents[ok==1]
 
+                            # Retrieve centrals for these satellites
                             _ra_c, _dec_c, _red_c, _Mh_c, _parents_c = \
                                 self.get_catalog_halos(zlim=zlayer,
-                                logmlim=mlayer, popid=popid, verbose=verbose)
+                                logmlim=mlayer, popid=popid, verbose=verbose,
+                                satellites=0)
 
                             # Problem: `_parents` are indices generated within
                             # each layer, need to be incremented so that
@@ -2145,7 +2151,7 @@ class LightCone(object): # pragma: no cover
                             # in kpc internally for some reason, convert to cMpc
                             _dat = self.sim.pops[pid].halos.get_Rvir(_red, _Mh) / 1e3    
                         elif channel in ['nsats']:
-                            _dat = self.get_Nsats(_Mh, logmlim=logmlim_sats)
+                            _dat = self.get_Nsats(_Mh, logmlim_sats=logmlim_sats)
                         elif channel in ['parents']:
                             _dat = _parents
                         elif (type(channel) == str) and (channel.lower() in known_lines):
