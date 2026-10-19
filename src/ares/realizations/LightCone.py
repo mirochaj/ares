@@ -507,81 +507,6 @@ class LightCone(object): # pragma: no cover
 
         return seed_kw
 
-    def get_seed_kwargs_OLD(self, zlayer, logmlim, popid):
-        """
-        Deterministically adjust the random seeds for the given redshift layer,
-        mass range, and population.
-
-        Parameters
-        ----------
-        layer : int
-            ID number for given co-eval redshift `layer`.
-        logmlim : tuple
-            Min/mass log10(halo mass / Msun) range of interest.
-        popid : int
-            Population ID number.
-
-        Returns
-        -------
-        Dictionary of random seeds to use for halo masses, positions,
-        occupation, orientation, Sersic index....
-
-        """
-
-        if not hasattr(self, '_seeds'):
-            # ARES ID, ARES parent ID, str representation of popid (e.g., '2a')
-            pid, pid_par, pid_str = get_pop_info(popid)
-
-            #fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.05)
-
-            ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
-
-            #seed_rho = self.seed_rho \
-            #    * np.arange(1, len(zmid)+1)
-            #seed_mh  = self.seed_halo_mass \
-            #    * np.arange(1, len(zmid)+1) * fmh
-            #seed_xyz = self.seed_halo_pos \
-            #    * np.arange(1, len(zmid)+1) * fmh
-            #seed_focc = self.seed_halo_occ \
-            #    * np.arange(1, len(zmid)+1) * fmh
-
-
-            # These seeds uniquely determine the locations and masses
-            # of star-forming and quiescent centrals.
-            #self._seeds = {'seed_box': seed_rho,
-            #    'seed': seed_mh, 'seed_pos': seed_xyz,
-            #    'seed_occ': seed_focc}
-
-            ss_rho, rng_rho = self._get_rng_for_chunk(self.seed_rho, 
-                zlim=zlayer, logmlim=logmlim)
-
-            ##
-            # [optional] resolved galaxies
-            # Need `popid` here to ensure we use different seeds for the
-            # surface brightness profiles of quiescent galaxies.
-            if self.seed_profile is not None:
-                seed_prof = (self.seed_profile + popid) \
-                    * np.arange(1, len(zmid)+1) * fmh
-                self._seeds['seed_profile'] = seed_prof
-
-            ##
-            # [optional] seeds for satellites
-            #if self.seed_sats is not None:
-            #    seed_sats = self.seed_sats \
-            #        * np.arange(1, len(zmid)+1) * fmh
-            #    self._seeds['seed_sats'] = seed_sats
-
-            if self.sim.pops[pid].pf['pop_scatter_sfh'] > 0:
-                seed_lum = self.seed_lum \
-                    * np.arange(1, len(zmid)+1) * fmh
-                self._seeds['seed_lum'] = seed_lum
-            else:
-                self._seeds['seed_lum'] = [None] * len(zmid)
-
-        i = layer
-        # Done
-        return {key:self._seeds[key][i] for key in self._seeds.keys()}
-
     def _get_flux_catalog(self, zlim, logmlim, red, Mh, channel, pid, seed=None, dlam=10):
         """
         Compute flux from catalog of sources in given redshift range.
@@ -2136,6 +2061,7 @@ class LightCone(object): # pragma: no cover
 
                     # Handle satellites
                     if self.sim.pops[pid].is_satellite_pop:
+                        
                         if ok.sum():
                             _parents = _parents[ok==1]
 
@@ -2154,6 +2080,8 @@ class LightCone(object): # pragma: no cover
 
                             ok_c = np.logical_and(np.abs(_ra_c)  < fov / 2.,
                                                   np.abs(_dec_c) < fov / 2.)
+                            
+                            ok_c = np.logical_and(ok_c, _red_c < self.zlim[1])
 
                             tracker[pid_par][iz,im] = ok_c.sum()
 
@@ -2172,6 +2100,10 @@ class LightCone(object): # pragma: no cover
                             # Will need to edit indices based on the fact that some 
                             # halos are filtered out for being just outside the FoV.
                             if ok_c.sum():
+                                # Gives a mapping between indices in the 'full array'
+                                # and the 'final array', where the difference between
+                                # full and final is just removing halos outside the
+                                # FoV
                                 ids_in, ids_out = self._filter_by_fov(ok_c).T
 
                                 # Need to worry about satellites being ok

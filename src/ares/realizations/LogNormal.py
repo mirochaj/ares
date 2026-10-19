@@ -432,7 +432,7 @@ class LogNormal(LightCone): # pragma: no cover
             boxlength=self.Lbox / self.sim.cosm.h70, seed=seed)
 
         # Only keep one box in memory at a time.
-        if len(self._cache_box.keys()) > 0:
+        if (len(self._cache_box.keys()) > 0) and (self.mem_concious):
             del self._cache_box
             gc.collect()
 
@@ -674,8 +674,10 @@ class LogNormal(LightCone): # pragma: no cover
                     # Now compute for all masses up to _Mc_
                     for j, _m_ in enumerate(self.halos.tab_M):
                         if np.log10(_m_) < logmlim[0]:
+                            cdf_v_Mc[i,j] = 0
                             continue
                         if _m_ >= _Mc_:
+                            cdf_v_Mc[i,j] = 1
                             continue
 
                         cdf_v_Mc[i,j] = integrate_with_subgrid_interp(
@@ -735,6 +737,9 @@ class LogNormal(LightCone): # pragma: no cover
 
         if np.any(cdf < 0):
             raise ValueError(f'negative cdf values ({len(cdf[cdf < 0])})')
+        
+        if np.any(np.diff(cdf) < 0):
+            raise ValueError('Halo mass CDF should be strictly rising with M!')
 
         # Assign halo masses according to HMF.
         if seed is not None:
@@ -744,7 +749,10 @@ class LogNormal(LightCone): # pragma: no cover
 
         mass = np.exp(np.interp(np.log(r), np.log(cdf), logm, 
             left=logm[0], right=logm[-1]))
-
+        
+        if np.any(mass > 10**logmlim[1]):
+            raise ValueError("Sampled mass outside range!")
+        
         return mass
 
     def get_prof_params(self, num, seed):
@@ -966,7 +974,8 @@ class LogNormal(LightCone): # pragma: no cover
     
     def get_Nsats(self, Mh, logmmin_sats=10):
         """
-        Figure out the expected number of satellites for halos given Mh.
+        Figure out the expected number of satellites for central 
+        halos of given Mh.
         """
 
         # First, grab a few things we need. This is 2-D (Mc, Msat)
@@ -989,11 +998,12 @@ class LogNormal(LightCone): # pragma: no cover
         for i, _Mh_ in enumerate(self.halos.tab_M):
 
             # Shouldn't happen but worth a check
-            if _Mh_ < mmin_sats:
+            if _Mh_ <= mmin_sats:
                 continue
             
-            iM = np.argmin(np.abs(_Mh_ - self.halos.tab_M))
-            Nsats[i] = integrate_with_subgrid_interp(self.halos.tab_lnM, hmf_sub[iM],
+            # Integrate from minimum satellite halo mass up to
+            # given _Mh_
+            Nsats[i] = integrate_with_subgrid_interp(self.halos.tab_lnM, hmf_sub[i,:],
                 np.log(mmin_sats), np.log(_Mh_))
             
         self._cache_Nsats[logmmin_sats] = Nsats
@@ -1026,8 +1036,6 @@ class LogNormal(LightCone): # pragma: no cover
 
         # ARES ID, parent ID [if applicable], ID str (user supplied; just -> str)
         pid, pid_par, pid_str = get_pop_info(popid)
-
-        #mlim = 10**np.array(logmlim, dtype=float)
 
         ##
         # All we're going to do is randomly distribute satellites in
@@ -1143,7 +1151,7 @@ class LogNormal(LightCone): # pragma: no cover
 
                 # Need to turn into RA and DEC
                 # Randomly choose an angle
-                np.random.seed(seeds_pos[i] * 2)
+                #np.random.seed(seeds_pos[i])
                 theta = np.random.rand(Nsat_act) * 2 * np.pi
 
                 # Then convert to x and y displacements
@@ -1262,6 +1270,7 @@ class LogNormal(LightCone): # pragma: no cover
                 return None, None, None, None
 
             # For satellites, positions are determined after this step
+            # (_x, _y_, and _z will be None for satellites)
             if _x is None:
                 pass
             else:
