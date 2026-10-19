@@ -424,8 +424,90 @@ class LightCone(object): # pragma: no cover
             iz -= 1
 
         return iz
+    
+    def _get_rng_for_chunk(self, seed, zlim=None, logmlim=None):
+        """
+        Docstring for _get_rng_for_chunk
+        
+        :param self: Description
+        :param zlim: Description
+        :param logmlim: Description
+        :param iz: Description
+        :param iM: Description
+        :return: Description
+        :rtype: Any
+        """
 
-    def get_seed_kwargs(self, layer, logmlim, popid):
+        zall = self.get_redshift_layers(zlim=self.zlim)
+        
+        # If user provided integers instead of ranges, roll with it.
+        if isinstance(zlim, (int, np.integer)):
+            iz = zlim
+            zlim = zall[iz]
+        else:
+            iz = None
+        
+        if isinstance(logmlim, (int, np.integer)):
+            iM = logmlim
+        else:
+            iM = None
+
+        if iz is None: 
+
+            ##
+            # Make sure `zlim` is in provided redshift layers.
+            # This is mostly to prevent users from doing something they shouldn't.
+            zchunk = np.argmin(np.abs(zlim[0] - zall[:,0]))
+
+            assert (zall[zchunk][0] == zlim[0]) and (zall[zchunk][1] == zlim[1])
+        else:
+            zchunk = iz
+
+        ##
+        # Mass chunk is usually -- but not always -- needed.
+        # For example, density field only needs redshift chunk.
+        if (iM is None) and (logmlim is not None):
+            mall = self.get_mass_layers(self._logmlim_run, self._dlogm_run)
+
+            ##
+            # Make sure `zlim` is in provided redshift layers.
+            # This is mostly to prevent users from doing something they shouldn't.
+            Mchunk = np.argmin(np.abs(logmlim[0] - mall[:,0]))
+
+            assert (mall[Mchunk][0] == logmlim[0]) and (mall[Mchunk][1] == logmlim[1])
+
+        else:
+            Mchunk = iM
+
+        if Mchunk is None:
+            ss = np.random.SeedSequence(entropy=seed, spawn_key=(zchunk,))
+        else:
+            ss = np.random.SeedSequence(entropy=seed, spawn_key=(zchunk, Mchunk))
+
+        return ss, np.random.default_rng(ss)
+    
+    def get_seed_kwargs(self, zlayer, logmlim, popid=None):
+        """
+        Get a dictionary of random seeds determined deterministically
+        for a given redshift and mass chunk.
+        """
+
+        seed_kw = {}
+        seed_names = 'rho', 'pos', 'occ', 'mass', 'lum', 'sats', 'profile'
+        seeds = [self.seed_rho, self.seed_halo_pos, self.seed_halo_occ, 
+                 self.seed_halo_mass, self.seed_lum, self.seed_sats, 
+                 self.seed_profile]
+        for i, master_seed in enumerate(seeds):
+            ss, rng = self._get_rng_for_chunk(master_seed, 
+                zlim=zlayer, logmlim=logmlim if i > 0 else None)
+            
+            seed = int(ss.generate_state(1)[0])
+
+            seed_kw[f"seed_{seed_names[i]}"] = seed
+
+        return seed_kw
+
+    def get_seed_kwargs_OLD(self, zlayer, logmlim, popid):
         """
         Deterministically adjust the random seeds for the given redshift layer,
         mass range, and population.
@@ -450,26 +532,28 @@ class LightCone(object): # pragma: no cover
             # ARES ID, ARES parent ID, str representation of popid (e.g., '2a')
             pid, pid_par, pid_str = get_pop_info(popid)
 
-            fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.05)
+            #fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.05)
 
             ze, zmid, Re = self.get_domain_info(zlim=self.zlim, Lbox=self.Lbox)
 
-            seed_rho = self.seed_rho \
-                * np.arange(1, len(zmid)+1)
-            seed_mh  = self.seed_halo_mass \
-                * np.arange(1, len(zmid)+1) * fmh
-            seed_xyz = self.seed_halo_pos \
-                * np.arange(1, len(zmid)+1) * fmh
-            seed_focc = self.seed_halo_occ \
-                * np.arange(1, len(zmid)+1) * fmh
+            #seed_rho = self.seed_rho \
+            #    * np.arange(1, len(zmid)+1)
+            #seed_mh  = self.seed_halo_mass \
+            #    * np.arange(1, len(zmid)+1) * fmh
+            #seed_xyz = self.seed_halo_pos \
+            #    * np.arange(1, len(zmid)+1) * fmh
+            #seed_focc = self.seed_halo_occ \
+            #    * np.arange(1, len(zmid)+1) * fmh
 
-            seeds_all = np.vstack((seed_rho, seed_mh, seed_xyz, seed_focc))
 
             # These seeds uniquely determine the locations and masses
             # of star-forming and quiescent centrals.
-            self._seeds = {'seed_box': seed_rho,
-                'seed': seed_mh, 'seed_pos': seed_xyz,
-                'seed_occ': seed_focc}
+            #self._seeds = {'seed_box': seed_rho,
+            #    'seed': seed_mh, 'seed_pos': seed_xyz,
+            #    'seed_occ': seed_focc}
+
+            ss_rho, rng_rho = self._get_rng_for_chunk(self.seed_rho, 
+                zlim=zlayer, logmlim=logmlim)
 
             ##
             # [optional] resolved galaxies
@@ -482,10 +566,10 @@ class LightCone(object): # pragma: no cover
 
             ##
             # [optional] seeds for satellites
-            if self.seed_sats is not None:
-                seed_sats = self.seed_sats \
-                    * np.arange(1, len(zmid)+1) * fmh
-                self._seeds['seed_sats'] = seed_sats
+            #if self.seed_sats is not None:
+            #    seed_sats = self.seed_sats \
+            #        * np.arange(1, len(zmid)+1) * fmh
+            #    self._seeds['seed_sats'] = seed_sats
 
             if self.sim.pops[pid].pf['pop_scatter_sfh'] > 0:
                 seed_lum = self.seed_lum \
@@ -929,7 +1013,7 @@ class LightCone(object): # pragma: no cover
     def get_map(self, fov, pix, channel, logmlim, zlim, popid=0,
         include_galaxy_sizes=False, null_beyond_size=np.inf, size_cut=0.5, dlam=20.,
         use_pbar=True, verbose=False, wave_units='um',
-        logmlim_sats=(11,15), buffer=None, nthreads=None, batch_size=10,
+        logmmin_sats=10, buffer=None, nthreads=None, batch_size=10,
         postage_stamp=5, **kwargs):
         """
         Get a map for a single channel, redshift layer, mass layer, and
@@ -1034,7 +1118,7 @@ class LightCone(object): # pragma: no cover
             ra, dec, red, Mh, parents = self.get_catalog_halos(
                 zlim=(zlo, zhi), logmlim=logmlim, popid=popid, verbose=verbose,
                 satellites=self.sim.pops[pid].is_satellite_pop,
-                logmlim_sats=logmlim_sats)
+                logmmin_sats=logmmin_sats)
 
             # Could be empty layers for very massive halos and/or early times.
             if ra is None:
@@ -1614,9 +1698,14 @@ class LightCone(object): # pragma: no cover
             # Note that the random seed for the density box only 
             # depends on `i` but we pass logmlim (10, 15) and popid here 
             # just to avoid breaking stuff.
-            seed_kwargs = self.get_seed_kwargs(i, (10, 15), 0)
-            delta = self.get_density_field(z=zmid[i],  
-                    seed=seed_kwargs['seed_box'])
+            #seed_kwargs = self.get_seed_kwargs(i, (10, 15), 0)
+
+            ss_rng = self._get_rng_for_chunk(self.seed_rho, zlim=i)
+            ss_rho, rng_rho = ss_rng
+
+            int_seed = int(ss_rho.generate_state(1)[0])
+
+            delta = self.get_density_field(z=zmid[i], ssrng=ss_rng)
             
             if field == 'density':
                 rho = delta
@@ -1844,10 +1933,10 @@ class LightCone(object): # pragma: no cover
 
         return np.array(p_out, dtype=int), np.array(cen_ok)
 
-    def generate_cats(self, fov, channels, logmlim, dlogm=0.5, zlim=None,
+    def generate_cats(self, fov, channels, logmlim, dlogm=1, zlim=None,
         dlam=20, path='.', channel_names=None,
         suffix=None, fmt='fits', hdr={}, wave_units='um',
-        cat_units='uJy', keep_layers=False, logmlim_sats=(11,15),
+        cat_units='uJy', keep_layers=False, logmmin_sats=10,
         include_pops=[0], clobber=False, verbose=False, dryrun=False,
         use_pbar=True, **kwargs):
         """
@@ -1861,6 +1950,11 @@ class LightCone(object): # pragma: no cover
         
 
         """
+
+        # This attribute is only used internally during a run
+        # to figure out an appropriate random number sequence.
+        self._logmlim_run = logmlim
+        self._dlogm_run = dlogm
 
         # Create root directory if it doesn't already exist.
         self.build_directory_structure(fov, dryrun=False)
@@ -1962,7 +2056,7 @@ class LightCone(object): # pragma: no cover
             # Get number of M layer
             im = np.argmin(np.abs(mlayer[0] - mlayers[:,0]))
 
-            seed_kw = self.get_seed_kwargs(iz, mlayer, pid)
+            seed_kw = self.get_seed_kwargs(zlayer=iz, logmlim=im, popid=pid)
         
             izm = iz * len(mlayers) + im
 
@@ -1990,11 +2084,14 @@ class LightCone(object): # pragma: no cover
             else:
 
                 # Get basic halo properties
+                # Note that, if this is a satellite population,
+                # the central population will be created under the hood
+                # (since satellite positions are generated wrt their parents)
                 _ra, _dec, _red, _Mh, _parents = \
                     self.get_catalog_halos(zlim=zlayer,
                     logmlim=mlayer, popid=popid, verbose=verbose,
                     satellites=self.sim.pops[pid].is_satellite_pop,
-                    logmlim_sats=logmlim_sats)
+                    logmmin_sats=logmmin_sats)
 
                 # Should be able to cache this, no? Just until we get
                 # to the next redshift and/or mass bin?
@@ -2081,6 +2178,8 @@ class LightCone(object): # pragma: no cover
                                 # but their centrals being not OK.
                                 _parents, cen_ok = \
                                     self._refresh_sat_ids(ids_in, ids_out, _parents)
+                                #print("turned off FoV filtering for sats based on parents.")
+                                #cen_ok = np.ones_like(_parents)
 
                                 if not np.all(cen_ok):
                                     _ra = _ra[cen_ok==1]
@@ -2151,7 +2250,7 @@ class LightCone(object): # pragma: no cover
                             # in kpc internally for some reason, convert to cMpc
                             _dat = self.sim.pops[pid].halos.get_Rvir(_red, _Mh) / 1e3    
                         elif channel in ['nsats']:
-                            _dat = self.get_Nsats(_Mh, logmlim_sats=logmlim_sats)
+                            _dat = self.get_Nsats(_Mh, logmmin_sats=logmmin_sats)
                         elif channel in ['parents']:
                             _dat = _parents
                         elif (type(channel) == str) and (channel.lower() in known_lines):
@@ -2506,7 +2605,7 @@ class LightCone(object): # pragma: no cover
         include_pops=[0], clobber=False, wave_units='um',
         load_if_found=True, keep_layers_custom_z=None, keep_layers=False,
         keep_chunks=None, use_pbar=True, verbose=False, dryrun=False,
-        logmlim_sats=(11,15),
+        logmmin_sats=10,
         postage_stamp=5, nthreads=None, **kwargs):
 
         """
@@ -2564,6 +2663,11 @@ class LightCone(object): # pragma: no cover
         Right now, nothing. Just saves files to disk.
 
         """
+
+        # This attribute is only used internally during a run
+        # to figure out an appropriate random number sequence.
+        self._logmlim_run = logmlim
+        self._dlogm_run = dlogm
 
         pix_deg = pix / 3600.
 
@@ -2804,7 +2908,7 @@ class LightCone(object): # pragma: no cover
                     null_beyond_size=null_beyond_size,
                     size_cut=size_cut,
                     dlam=dlam, use_pbar=False,
-                    logmlim_sats=logmlim_sats,
+                    logmmin_sats=logmmin_sats,
                     buffer=buffer, nthreads=nthreads, verbose=verbose,
                     postage_stamp=postage_stamp,
                     **kwargs)
