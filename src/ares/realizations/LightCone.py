@@ -425,6 +425,18 @@ class LightCone(object): # pragma: no cover
 
         return iz
     
+    def _get_chunk_id(self, zlim, logmlim):
+        zall = self.get_redshift_layers(zlim=self.zlim)
+        mall = self.get_mass_layers(self._logmlim_run, self._dlogm_run)
+
+        zchunk = np.argmin(np.abs(zlim[0] - zall[:,0]))
+        assert (zall[zchunk][0] == zlim[0]) and (zall[zchunk][1] == zlim[1])
+
+        Mchunk = np.argmin(np.abs(logmlim[0] - mall[:,0]))
+        assert (mall[Mchunk][0] == logmlim[0]) and (mall[Mchunk][1] == logmlim[1])
+
+        return zchunk, Mchunk
+    
     def _get_rng_for_chunk(self, seed, zlim=None, logmlim=None):
         """
         Docstring for _get_rng_for_chunk
@@ -850,7 +862,7 @@ class LightCone(object): # pragma: no cover
             return self._cache_pstamp_pix_[_r_]
 
         # Pixel coordinates
-        xy = np.arange(-_r_, _r_ + 1, 1, dtype=int)
+        xy = np.arange(-_r_, _r_ + 1, 1, dtype=np.int64)
         xx, yy = np.meshgrid(xy, xy, indexing='ij')
 
         self._cache_pstamp_pix_[_r_] = xx, yy, _r_
@@ -990,9 +1002,11 @@ class LightCone(object): # pragma: no cover
         ##
         # Make sure `zlim` is in provided redshift layers.
         # This is mostly to prevent users from doing something they shouldn't.
-        ilayer = np.argmin(np.abs(zlim[0] - zall[:,0]))
+        #ilayer = np.argmin(np.abs(zlim[0] - zall[:,0]))
 
-        assert np.allclose(zlim, zall[ilayer])
+        #assert np.allclose(zlim, zall[ilayer])
+
+        ilayer, mlayer = self._get_chunk_id(zlim, logmlim)
 
         # Figure out the edges of the domain in RA and DEC (degrees)
         # Pixel coordinates
@@ -1043,7 +1057,7 @@ class LightCone(object): # pragma: no cover
             ra, dec, red, Mh, parents = self.get_catalog_halos(
                 zlim=(zlo, zhi), logmlim=logmlim, popid=popid, verbose=verbose,
                 satellites=self.sim.pops[pid].is_satellite_pop,
-                logmmin_sats=logmmin_sats)
+                logmmin_sats=logmmin_sats, layer_id=(ilayer, mlayer))
 
             # Could be empty layers for very massive halos and/or early times.
             if ra is None:
@@ -1802,7 +1816,7 @@ class LightCone(object): # pragma: no cover
 
         """
 
-        ids_in = np.arange(ok.size, dtype=int)
+        ids_in = np.arange(ok.size, dtype=np.int64)
         ids_out = []
 
         ct = 0
@@ -1814,7 +1828,7 @@ class LightCone(object): # pragma: no cover
 
             ct += 1
 
-        ids_out = np.array(ids_out, dtype=int)
+        ids_out = np.array(ids_out, dtype=np.int64)
 
         return ids_out
 
@@ -1856,7 +1870,7 @@ class LightCone(object): # pragma: no cover
             p_out.append(new_id)
             cen_ok.append(1)
 
-        return np.array(p_out, dtype=int), np.array(cen_ok)
+        return np.array(p_out, dtype=np.int64), np.array(cen_ok)
 
     def generate_cats(self, fov, channels, logmlim, dlogm=1, zlim=None,
         dlam=20, path='.', channel_names=None,
@@ -1935,11 +1949,11 @@ class LightCone(object): # pragma: no cover
         for popid in include_pops:
             pid, pid_par, pid_str = get_pop_info(popid)
             if pid not in tracker:
-                tracker[pid] = np.zeros((len(zlayers), len(mlayers)), dtype=int)
+                tracker[pid] = np.zeros((len(zlayers), len(mlayers)), dtype=np.int64)
                 tracker_flat[pid] = [None] * Nlayers
                 tracker_flat[pid][0] = 0
             if pid_par not in tracker:
-                tracker[pid_par] = np.zeros((len(zlayers), len(mlayers)), dtype=int)
+                tracker[pid_par] = np.zeros((len(zlayers), len(mlayers)), dtype=np.int64)
                 tracker_flat[pid_par] = [None] * Nlayers
                 tracker_flat[pid_par][0] = 0
 
@@ -1976,10 +1990,12 @@ class LightCone(object): # pragma: no cover
             zlo, zhi = zlayer
 
             # Get number of z layer
-            iz = np.digitize(zlayer.mean(), bins=zlayers[:,0]) - 1
+            #iz = np.digitize(zlayer.mean(), bins=zlayers[:,0]) - 1
 
             # Get number of M layer
-            im = np.argmin(np.abs(mlayer[0] - mlayers[:,0]))
+            #im = np.argmin(np.abs(mlayer[0] - mlayers[:,0]))
+
+            iz, im = self._get_chunk_id(zlayer, mlayer)
 
             seed_kw = self.get_seed_kwargs(zlayer=iz, logmlim=im, popid=pid)
         
@@ -2016,7 +2032,7 @@ class LightCone(object): # pragma: no cover
                     self.get_catalog_halos(zlim=zlayer,
                     logmlim=mlayer, popid=popid, verbose=verbose,
                     satellites=self.sim.pops[pid].is_satellite_pop,
-                    logmmin_sats=logmmin_sats)
+                    logmmin_sats=logmmin_sats, layer_id=(iz, im))
 
                 # Should be able to cache this, no? Just until we get
                 # to the next redshift and/or mass bin?
@@ -2069,7 +2085,7 @@ class LightCone(object): # pragma: no cover
                             _ra_c, _dec_c, _red_c, _Mh_c, _parents_c = \
                                 self.get_catalog_halos(zlim=zlayer,
                                 logmlim=mlayer, popid=popid, verbose=verbose,
-                                satellites=0)
+                                satellites=0, layer_id=(iz, im))
 
                             # Problem: `_parents` are indices generated within
                             # each layer, need to be incremented so that
