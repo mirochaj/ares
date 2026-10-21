@@ -498,7 +498,7 @@ class LightCone(object): # pragma: no cover
 
         return ss, np.random.default_rng(ss)
     
-    def get_seed_kwargs(self, zlayer, logmlim, popid=None):
+    def get_seed_kwargs(self, zlayer, logmlim):
         """
         Get a dictionary of random seeds determined deterministically
         for a given redshift and mass chunk.
@@ -773,7 +773,7 @@ class LightCone(object): # pragma: no cover
         # This is mostly to prevent users from doing something they shouldn't.
         ilayer = np.argmin(np.abs(zlim[0] - zall[:,0]))
 
-        seed_kw = self.get_seed_kwargs(ilayer, logmlim, pid)
+        seed_kw = self.get_seed_kwargs(ilayer, logmlim)
 
         # `R_sec` is the angular size of each galaxy in the model in arcsec.
         # Note: the size is defined as the stellar half-light radius.
@@ -1021,7 +1021,7 @@ class LightCone(object): # pragma: no cover
         zlo, zhi = zlim
         zmid = np.mean([zlo, zhi])
 
-        seed_kw = self.get_seed_kwargs(ilayer, logmlim, pid)
+        seed_kw = self.get_seed_kwargs(ilayer, logmlim)
 
         # Initialize empty map
         img = buffer
@@ -1940,29 +1940,22 @@ class LightCone(object): # pragma: no cover
 
         Nlayers = len(zlayers) * len(mlayers)
 
-        # The `tracker` keeps track of central halos. This is because we 
-        # use indices to keep track of the parents of satellites, so from
-        # one iteration to the next we need a running tally to get our 
-        # indices right.
+        # The `tracker` keeps track of the number of central halos per
+        # layer of work. This is because we use indices to keep track of 
+        # the parents of satellites, so from one iteration to the next we 
+        # need a running tally to get our indices right.
+        # For example, tracker[0,1,2] contains the number of star-forming
+        # centrals (0) in the second redshift chunk (1) and third mass 
+        # chunk (3).
         tracker = {}
         tracker_flat = {}
         for popid in include_pops:
             pid, pid_par, pid_str = get_pop_info(popid)
-            if pid not in tracker:
-                tracker[pid] = np.zeros((len(zlayers), len(mlayers)), dtype=np.int64)
-                tracker_flat[pid] = [None] * Nlayers
-                tracker_flat[pid][0] = 0
-            if pid_par not in tracker:
-                tracker[pid_par] = np.zeros((len(zlayers), len(mlayers)), dtype=np.int64)
-                tracker_flat[pid_par] = [None] * Nlayers
-                tracker_flat[pid_par][0] = 0
+            if pid_str not in tracker:
+                tracker[pid_str] = np.zeros((len(zlayers), len(mlayers)), dtype=np.int64)
+                tracker_flat[pid_str] = [None] * Nlayers
+                tracker_flat[pid_str][0] = 0
 
-        #tracker = {str(pid): np.zeros((len(zlayers), len(mlayers)), dtype=int) \
-        #    for pid in include_pops}
-
-        #tracker_flat = {str(pid): [None] * Nlayers for pid in include_pops}
-        #for pid in include_pops:
-        #    tracker_flat[str(pid)][0] = 0
 
         ra = []
         dec = []
@@ -1997,7 +1990,7 @@ class LightCone(object): # pragma: no cover
 
             iz, im = self._get_chunk_id(zlayer, mlayer)
 
-            seed_kw = self.get_seed_kwargs(zlayer=iz, logmlim=im, popid=pid)
+            seed_kw = self.get_seed_kwargs(zlayer=iz, logmlim=im)
         
             izm = iz * len(mlayers) + im
 
@@ -2045,9 +2038,9 @@ class LightCone(object): # pragma: no cover
                     # happens on the last layer of work for a given channel,
                     # then no checkpoint will be written below :/
                     if (izm < Nlayers - 1):
-                        tracker_flat[pid_par][izm+1] = tracker_flat[pid_par][izm]
+                        tracker_flat[pid_str][izm+1] = tracker_flat[pid_str][izm]
 
-                    tracker[pid_par][iz,im] = 0
+                    tracker[pid_str][iz,im] = 0
 
                     _parents = []
                 else:
@@ -2099,19 +2092,19 @@ class LightCone(object): # pragma: no cover
                             
                             ok_c = np.logical_and(ok_c, _red_c < self.zlim[1])
 
-                            tracker[pid_par][iz,im] = ok_c.sum()
+                            tracker[pid_str][iz,im] = ok_c.sum()
 
                             # Figure out how many centrals there are up to,
                             # but not including, this layer of work.
                             if izm == 0:
                                 Ncen = 0
                             else:
-                                Ncen = tracker_flat[pid_par][izm]
+                                Ncen = tracker_flat[pid_str][izm]
 
                             # Prep for next iteration
-                            if (izm < Nlayers - 1) and (tracker_flat[pid_par][izm+1] is None):
-                                tracker_flat[pid_par][izm+1] = ok_c.sum() \
-                                    + tracker_flat[pid_par][izm]
+                            if (izm < Nlayers - 1) and (tracker_flat[pid_str][izm+1] is None):
+                                tracker_flat[pid_str][izm+1] = ok_c.sum() \
+                                    + tracker_flat[pid_str][izm]
 
                             # Will need to edit indices based on the fact that some 
                             # halos are filtered out for being just outside the FoV.
@@ -2147,9 +2140,9 @@ class LightCone(object): # pragma: no cover
                             # in the FoV.
                             _parents = _ra = _dec = _red = _Mh = []
                             if (izm < Nlayers - 1):
-                                tracker_flat[pid_par][izm+1] = \
-                                    tracker_flat[pid_par][izm]
-                            tracker[pid_par][iz,im] = 0
+                                tracker_flat[pid_str][izm+1] = \
+                                    tracker_flat[pid_str][izm]
+                            tracker[pid_str][iz,im] = 0
 
                         ##
                         # Done with satellites
@@ -2331,6 +2324,9 @@ class LightCone(object): # pragma: no cover
 
         pb.finish()
 
+        self.tracker = tracker
+        self.tracker_flat = tracker_flat
+
         ##
         # Done
         return
@@ -2372,10 +2368,6 @@ class LightCone(object): # pragma: no cover
         for h, popid in enumerate(players):
             for i, channel in enumerate(channels):
                 for j, zlayer in enumerate(zlayers):
-
-                    # Option to limit redshift range.
-                    zlo, zhi = zlayer
-
                     for k, mlayer in enumerate(mlayers):
                         all_layers.append((popid, channel, channel_names[i],
                             zlayer, mlayer))

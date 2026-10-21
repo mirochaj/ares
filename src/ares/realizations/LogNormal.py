@@ -749,12 +749,24 @@ class LogNormal(LightCone): # pragma: no cover
 
         r = np.random.rand(N)
 
-        mass = np.exp(np.interp(np.log(r), np.log(cdf), logm, 
+        # Should we shrink the range to remove (potentially) 
+        # many zeros (on the left) and ones (on the right)?
+        if np.any(cdf == 0):
+            lo = np.argwhere(cdf == 0).max()
+        else:
+            lo = 0
+        
+        if np.any(cdf == 1):
+            hi = np.argwhere(cdf == 1).min()
+        else:
+            hi = cdf.size - 1
+        
+        # We cap at `hi` rather than `hi+1` to avoid small numerical 
+        # errors resulting in masses > lnmlim[1]
+        mass = np.exp(np.interp(np.log(r), np.log(cdf[lo:hi]), logm[lo:hi], 
             left=lnmlim[0], right=lnmlim[1]))
         
-        if np.any(mass > 10**logmlim[1]):
-            print(np.all(cdf == 0), len(r))
-            print(np.log10(Mc), np.log10(mass.max()), logmlim[1])
+        if np.any(np.log(mass) > lnmlim[1]):
             raise ValueError("Sampled mass outside range!")
         
         return mass
@@ -897,7 +909,7 @@ class LogNormal(LightCone): # pragma: no cover
             if _hit_max_sources:
                 break
 
-            seed_kwargs = self.get_seed_kwargs(i, logmlim, pid)
+            seed_kwargs = self.get_seed_kwargs(i, logmlim)
 
             # Call rng by hand to generate new seed on each slice?
 
@@ -905,6 +917,7 @@ class LogNormal(LightCone): # pragma: no cover
             # Note that x, y, z are in cMpc / h units, not actual cMpc.
             # The values thus run from 0 to Lbox.
             # Note: at this stage, always centrals.
+            print(f"Generating halo (satellites={satellites}) population for popid={popid} between z={zlo:.3f},{zhi:.3f}")
             halos = self.get_halo_population(z=zmid[i], ze=(zlo, zhi),
                 logmlim=logmlim, verbose=verbose, popid=popid,
                 seed_mass=seed_kwargs['seed_mass'], 
@@ -912,6 +925,7 @@ class LogNormal(LightCone): # pragma: no cover
                 seed_pos=seed_kwargs['seed_pos'],
                 seed_occ=seed_kwargs['seed_occ'])
             
+        
             if (type(halos[0]) != np.ndarray) and (halos[0] is None):
                 ra = dec = red = mass = None
                 continue
@@ -1045,6 +1059,8 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
+        
+
         # ARES ID, parent ID [if applicable], ID str (user supplied; just -> str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
@@ -1082,9 +1098,11 @@ class LogNormal(LightCone): # pragma: no cover
             np.array_split(seeds_all, 4)
         
         # Further split each array by the potential subhalo populations
-        # we allow. Note that subhalos that share parents should draw
+        # we allow. 
+        # Note that subhalos that share parents should draw
         # from the same seeds to make sure that occupation is 100% in total.
         seed_index = 0 if popid[1] == 'a' else 1
+
         seeds_num = np.array_split(_seeds_num, 2)[seed_index]
         seeds_pos = np.array_split(_seeds_pos, 2)[seed_index]
         seeds_mass = np.array_split(_seeds_mass, 2)[seed_index]
@@ -1269,12 +1287,19 @@ class LogNormal(LightCone): # pragma: no cover
         else:
 
             np.random.seed(seed_occ)
-
+            
             r = np.random.rand(N)
             focc = self.sim.pops[pid].get_focc(z=z, Mh=mass)
-
-            ok = np.ones(N)
-            ok[r > focc] = 0
+            
+            ok = np.zeros(N, dtype=bool)
+            if pid % 2 == 0:
+                fsf = focc
+                fq = 1 - fsf
+                ok[r < fsf] = 1
+            else:
+                fq = focc
+                fsf = 1 - fq
+                ok[r >= fsf] = 1
 
             if ok.sum() == 0:
                 del focc, ok, r
@@ -1419,8 +1444,11 @@ class LogNormal(LightCone): # pragma: no cover
         ##
         # Apply occupation fraction cut
         if apply_focc:
+            # Notice: always use parent ID here! If we used popid
+            # we'd get the satellite occupation, which can be
+            # different than centrals!
             _x, _y, _z, mass = self._filter_by_focc((_x, _y, _z, mass),
-                z, seed_occ, popid)
+                z, seed_occ, pid_par)
 
         ##
         # Sort by mass? Otherwise will essentially be in order of pixels as
