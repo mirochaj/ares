@@ -1259,6 +1259,9 @@ def HaloMassFunctionParameters():
         "halo_mf_analytic": False,
         "halo_mf_params": None,
 
+        # Bias? Usually set by `halo_mf` but can override 
+        "halo_bias": True,
+
         # Table resolution
         "halo_logMmin": 4,
         "halo_logMmax": 18,

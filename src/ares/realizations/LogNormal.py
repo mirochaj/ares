@@ -20,6 +20,7 @@ from scipy.interpolate import interp1d
 from ..util.Stats import bin_c2e, bin_e2c
 from ..physics.Constants import cm_per_mpc
 from scipy.integrate import cumulative_trapezoid
+from ..util.Math import integrate_with_subgrid_interp
 
 try:
     import powerbox as pbox
@@ -50,7 +51,7 @@ class LogNormal(LightCone): # pragma: no cover
         randomise_in_cell=True, base_dir='ares_mock', mem_concious=0,
         distribute_sats_spatially=True, profile_info=None,
         dz_max=0.01, lightcone_max_evol=np.inf, lightcone_corr=True, 
-        logmlim_sats=(8, 12), **kwargs):
+        logmmin_sats=10, **kwargs):
         """
         Initialize a galaxy population from log-normal density fields generated
         from the matter power spectrum.
@@ -256,9 +257,16 @@ class LogNormal(LightCone): # pragma: no cover
 
         Parameters
         ----------
+        z : int, float
+            Central redshift in co-eval cube of interest.
+        ze : tuple, list, np.ndarray
+            Edges of a given co-eval cube along the redshift axis.
+        mmin, mmax : float
+            Bounds in halo mass to assume when generating halo population (Msun).
 
         Returns
         -------    
+        Expected number density and mass density of halos in this co-eval cube.
     
         """
 
@@ -273,21 +281,27 @@ class LogNormal(LightCone): # pragma: no cover
             Lpix = self.Lbox / float(self.dims)
             zpix_e, zpix_c, zpix_Re = \
                 self.sim.cosm.get_lightcone_boundaries(ze, Lpix)
-
+             
             # Each co-eval chunk is just self.dims long
             # Need corresponding redshift in each 
             m = self.halos.tab_M
+            ok = np.logical_and(self.halos.tab_M >= mmin,
+                                self.halos.tab_M < mmax)
+            
             nb1d = np.zeros(self.dims)
             mb1d = np.zeros(self.dims)
             for i, _z_ in enumerate(zpix_c):
                 iz = np.argmin(np.abs(self.halos.tab_z - _z_))
-                ok = np.logical_and(self.halos.tab_M >= mmin,
-                                    self.halos.tab_M < mmax)
-    
-                dndlnm = self.halos.tab_dndlnm[iz,:]
-                nb1d[i] = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
-                mb1d[i] = np.trapezoid(dndlnm[ok==1] * m[ok==1], x=np.log(m[ok==1]))
                 
+                dndlnm = self.halos.tab_dndlnm[iz,:]
+                #nb1d[i] = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
+                #mb1d[i] = np.trapezoid(dndlnm[ok==1] * m[ok==1], x=np.log(m[ok==1]))
+                nb1d[i] = integrate_with_subgrid_interp(np.log(m), dndlnm,
+                    np.log(mmin), np.log(mmax))
+                mb1d[i] = integrate_with_subgrid_interp(np.log(m), dndlnm * m,
+                    np.log(mmin), np.log(mmax))                
+
+
             ##
             # Make nbar and mbar 3-D just because they are likely to be multiplied
             # by a 3-D array (like density field) outside this routine.
@@ -298,13 +312,17 @@ class LogNormal(LightCone): # pragma: no cover
         # Otherwise, just use midpoint of co-eval cube
         else:
             iz = np.argmin(np.abs(self.halos.tab_z - z))
-            ok = np.logical_and(self.halos.tab_M >= mmin,
-                                self.halos.tab_M < mmax)
+            #ok = np.logical_and(self.halos.tab_M >= mmin,
+            #                    self.halos.tab_M < mmax)
     
             m = self.halos.tab_M
             dndlnm = self.halos.tab_dndlnm[iz,:]
-            nbar = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
-            mbar = np.trapezoid(dndlnm[ok==1] * m[ok==1], x=np.log(m[ok==1]))
+            #nbar = np.trapezoid(dndlnm[ok==1], x=np.log(m[ok==1]))
+            #mbar = np.trapezoid(dndlnm[ok==1] * m[ok==1], x=np.log(m[ok==1]))
+            nbar = integrate_with_subgrid_interp(np.log(m), dndlnm,
+                    np.log(mmin), np.log(mmax))
+            mbar = integrate_with_subgrid_interp(np.log(m), dndlnm * m,
+                np.log(mmin), np.log(mmax))
 
         # Done
         return nbar, mbar
@@ -336,12 +354,16 @@ class LogNormal(LightCone): # pragma: no cover
 
         return power(k)
 
-    def get_density_field(self, z, seed=None):
+    def get_density_field(self, z, seed=None, ssrng=None):
         """
         This is a wrapper around `get_box` that will optionally perform a
         lightcone correction, i.e., account for the fact that for sufficiently
         large boxes there will be evolution in P(k) along the line of sight.
         """
+
+        if (seed is None) and (ssrng is not None):
+            ss, rng = ssrng
+            seed = int(ss.generate_state(1)[0])
 
         if not self.lightcone_corr:
             return self.get_box(z=z, seed=seed).delta_x()
@@ -410,7 +432,7 @@ class LogNormal(LightCone): # pragma: no cover
             boxlength=self.Lbox / self.sim.cosm.h70, seed=seed)
 
         # Only keep one box in memory at a time.
-        if len(self._cache_box.keys()) > 0:
+        if (len(self._cache_box.keys()) > 0) and (self.mem_concious):
             del self._cache_box
             gc.collect()
 
@@ -468,6 +490,7 @@ class LogNormal(LightCone): # pragma: no cover
         # sequence for other options here.
         if _bias_model_ == 0:
 
+            # Expected number of halos converted to expected number per cMpc^3
             n = N / (self.Lbox / self.sim.cosm.h70)**3
 
             # Expected number of halos in each cell, just scaling mean number
@@ -549,6 +572,8 @@ class LogNormal(LightCone): # pragma: no cover
         if self.randomise_in_cell:
             shape = N, self.dims
             # Shift relative to bin centers
+            # (positions are cMpc/h not cMpc)
+            np.random.seed(seed + 1000)
             pos += np.random.uniform(size=(np.sum(n_act), 3),
                 low=-0.5*self.dx, high=0.5*self.dx)
 
@@ -597,6 +622,7 @@ class LogNormal(LightCone): # pragma: no cover
             Index in halo mass array.
 
         """
+
         # Grab dn/dm and construct CDF to randomly sampled HMF.
         if (iz is None) and (iM is None):
             if subhalos:
@@ -606,52 +632,116 @@ class LogNormal(LightCone): # pragma: no cover
                 iz = np.argmin(np.abs(self.halos.tab_z - z))
                 iM = None
 
+        # We do some integrals over lnm below
+        lnmlim = np.log(10**np.array(logmlim))
+
+        ##
+        # Different procedure for computing CDF for subhalos and centrals,
+        # mostly due to need for more care with caching for subhalos.
         if subhalos:
-            key_id = (iz, iM, logmlim, subhalos)
-        else:
-            key_id = (iM, logmlim, subhalos)
+            ##
+            # In this case, the exact interval depends on the central
+            # halo mass(es). So, we cache a lookup table first over
+            # a grid of central masses and interpolate thereafter.
+            # Otherwise, setting up a new CDF for every exact central
+            # halo mass is needlessly slow and caching each one 
+            # becomes heavy quickly.
 
-        if key_id in self._cache_subhalo_cdf.keys():
-            m, cdf = self._cache_subhalo_cdf[key_id]
-        else:
+            if 'subhalos' in self._cache_subhalo_cdf:
+                logm, cdf_v_Mc = self._cache_subhalo_cdf['subhalos']
 
-            # Don't bother with m << mmin halos
-            mmin = 10**logmlim[0]
-            mmax = 10**logmlim[1]
-
-            # Compute CDF
-            if key_id in self._cache_mgtm:
-                m, dndm, ngtm, ntot = self._cache_mgtm[key_id]
+                # Figure out cdf for Mc
+                # Going with nearest-neighbor for now -- should be plenty
+                # good.
+                cdf = cdf_v_Mc[iM]
             else:
-                ok = np.logical_and(self.halos.tab_M >= mmin,
-                                    self.halos.tab_M <  mmax)
+                logm = self.halos.tab_lnM
+                cdf_v_Mc = np.zeros((self.halos.tab_M.size, self.halos.tab_M.size))
 
-                m = self.halos.tab_M[ok==1]
+                # Note that for subhalos, logmlim[0] will always
+                # be equal to logmmin_sats, hence the if statement
+                # first in the following loop.
 
-                if subhalos:
-                    assert Mc is not None, "Must provide `Mc` if subhalos=True!"
+                for i, _Mc_ in enumerate(self.halos.tab_M):
+                    if _Mc_ < 10**logmlim[0]:
+                        continue
+                    #if _Mc_ > 10**logmlim[1]:
+                    #    continue
+                    
+                    # Total number of subhalos from logmlim[0] up to 10**_Mc_
+                    ntot = integrate_with_subgrid_interp(
+                        logm, self.halos.tab_dndlnm_sub[i,:], 
+                        lnmlim[0], logm[i]
+                        )
 
-                    # We only keep dn/dlnM for some reason, convert to dn/dm
-                    dndm = self.halos.tab_dndlnm_sub[iM,ok==1] / m
+                    # Now compute for all masses up to _Mc_
+                    for j, _m_ in enumerate(self.halos.tab_M):
+                        if np.log10(_m_) < logmlim[0]:
+                            cdf_v_Mc[i,j] = 0
+                            continue
+                        if _m_ >= _Mc_:
+                            cdf_v_Mc[i,j:] = 1
+                            break
 
-                    #ngtm = cumulative_trapezoid(dndm[-1::-1] * m[-1::-1], x=-np.log(m[-1::-1]),
-                    #    initial=0)[-1::-1]
+                        cdf_v_Mc[i,j] = integrate_with_subgrid_interp(
+                            logm, self.halos.tab_dndlnm_sub[i,:], 
+                            lnmlim[0], logm[j]) / ntot
 
-                    ngtm = self.halos.tab_ngtm_sub[iM,ok==1] #\
-                         #- self.sim.pops[0].halos.tab_ngtm_sub[iM,immax]
-                    #nltm = ngtm[0]
+                self._cache_subhalo_cdf['subhalos'] = logm, cdf_v_Mc
+                cdf = cdf_v_Mc[iM]
 
+        else:
+            key_id = (iz, iM, tuple(logmlim), subhalos)
+
+            if key_id in self._cache_subhalo_cdf:
+                logm, cdf = self._cache_subhalo_cdf[key_id]
+            else:
+                ##
+                # OK, now we can proceed to actually sampling.
+                
+                # Compute CDF
+                if key_id in self._cache_mgtm:
+                    m, dndlnm, ntot = self._cache_mgtm[key_id]
+                    lnm = np.log(m)
                 else:
-                    dndm = self.halos.tab_dndm[iz,ok==1]
-                    ngtm = self.halos.tab_ngtm[iz,ok==1]
+                    m = self.halos.tab_M
+                    lnm = self.halos.tab_lnM
+        
+                    if subhalos:
+                        assert Mc is not None, "Must provide `Mc` if subhalos=True!"
+        
+                        dndlnm = self.halos.tab_dndlnm_sub[iM]
+        
+                    else:
+                        dndlnm = self.halos.tab_dndlnm[iz]
+        
+                    ntot = integrate_with_subgrid_interp(lnm, dndlnm, lnmlim[0], lnmlim[1])
+                        
+                    self._cache_mgtm[key_id] = m, dndlnm, ntot
 
-                ntot = np.trapezoid(dndm * m, x=np.log(m))
-                self._cache_mgtm[key_id] = m, dndm, ngtm, ntot
+                ##
+                # Rough ok==1 and trapezoidal integration isn't good enough
+                assert logmlim[1] - logmlim[0] > 0.01
+                logm = np.arange(lnmlim[0], lnmlim[1], 0.01)
+                if logm.size < 100:
+                    logm = np.linspace(lnmlim[0], lnmlim[1], 100)
+                cdf = np.array([integrate_with_subgrid_interp(lnm, dndlnm, logm[0], logm[j]) \
+                    for j in range(logm.size)]) / ntot
+                
+                # First element often some tiny negative number but zero
+                # to within machine precision. Just override.
+                cdf[0] = 0
+    
+                self._cache_subhalo_cdf[key_id] = logm, cdf
 
-            nltm = ntot - ngtm
-            cdf = nltm / ntot
+        if np.any(cdf < 0):
+            raise ValueError(f'negative cdf values ({len(cdf[cdf < 0])})')
+        
+        if np.any(np.diff(cdf) < 0):
+            raise ValueError('Halo mass CDF should be strictly rising with M!')
 
-            self._cache_subhalo_cdf[key_id] = m, cdf
+        #if np.all(cdf == 0):
+
 
         # Assign halo masses according to HMF.
         if seed is not None:
@@ -659,9 +749,26 @@ class LogNormal(LightCone): # pragma: no cover
 
         r = np.random.rand(N)
 
-        mass = np.exp(np.interp(r, cdf, np.log(m)))
-        #mass = np.exp(_interp_linear(r, cdf, np.log(m)))
-
+        # Should we shrink the range to remove (potentially) 
+        # many zeros (on the left) and ones (on the right)?
+        if np.any(cdf == 0):
+            lo = np.argwhere(cdf == 0).max()
+        else:
+            lo = 0
+        
+        if np.any(cdf == 1):
+            hi = np.argwhere(cdf == 1).min()
+        else:
+            hi = cdf.size - 1
+        
+        # We cap at `hi` rather than `hi+1` to avoid small numerical 
+        # errors resulting in masses > lnmlim[1]
+        mass = np.exp(np.interp(np.log(r), np.log(cdf[lo:hi]), logm[lo:hi], 
+            left=lnmlim[0], right=lnmlim[1]))
+        
+        if np.any(np.log(mass) > lnmlim[1]):
+            raise ValueError("Sampled mass outside range!")
+        
         return mass
 
     def get_prof_params(self, num, seed):
@@ -693,8 +800,8 @@ class LogNormal(LightCone): # pragma: no cover
 
         return nsers, pa, ellip
 
-    def get_catalog_halos(self, zlim=None, logmlim=(11,12), popid=0, verbose=True,
-        satellites=False, logmlim_sats=None, max_sources=None):
+    def get_catalog_halos(self, zlim=None, logmlim=(11,15), popid=0, verbose=True,
+        satellites=False, logmmin_sats=10, layer_id=None):
         """
         Get a halo catalog in (RA, DEC, redshift) coordinates.
 
@@ -720,16 +827,17 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
+        # ARES ID, parent ID [if applicable], ID str (user supplied; just -> str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
-        if logmlim_sats is None:
-            logmlim_sats = logmlim
+        #if logmlim_sats is None:
+        #    logmlim_sats = logmlim
 
         if zlim is None:
             zlim = self.zlim
 
         zmin, zmax = zlim
-        mmin, mmax = 10**np.array(logmlim)
+        mmin, mmax = 10**np.array(logmlim, dtype=float)
 
         # Version of Lbox in actual cMpc
         L = self.Lbox / self.sim.cosm.h70
@@ -744,13 +852,16 @@ class LogNormal(LightCone): # pragma: no cover
         #fmh = int(logmlim[0] + (logmlim[1] - logmlim[0]) / 0.1)
 
         # Figure out if we're getting the catalog of a single layer
-        layer_id = None
-        for i, Rlo in enumerate(zmid):
-            zlo, zhi = ze[i:i+2]
+        #layer_id = None
+        #for i, Rlo in enumerate(zmid):
+        #    zlo, zhi = ze[i:i+2]
+#
+        #    if (zlo == zlim[0]) and (zhi == zlim[1]):
+        #        layer_id = i
+        #        break
 
-            if (zlo == zlim[0]) and (zhi == zlim[1]):
-                layer_id = i
-                break
+        if isinstance(layer_id, int):
+            layer_id = (layer_id, )
 
         ##
         # Setup random seeds for random rotations and translations
@@ -780,14 +891,16 @@ class LogNormal(LightCone): # pragma: no cover
         # Track parent halos of satellites
         parents = None
 
-        zlo = zmin * 1.
+        #zlo = zmin * 1.
         for i, Rlo in enumerate(Re[0:-1]):
             pbar.update(i)
 
             zlo, zhi = ze[i:i+2]
 
             if layer_id is not None:
-                if i != layer_id:
+                iz = layer_id[0]
+
+                if i != iz:
                     continue
 
             if (zhi <= zlim[0]) or (zlo >= zlim[1]):
@@ -796,16 +909,22 @@ class LogNormal(LightCone): # pragma: no cover
             if _hit_max_sources:
                 break
 
-            seed_kwargs = self.get_seed_kwargs(i, logmlim, pid)
+            seed_kwargs = self.get_seed_kwargs(i, logmlim)
+
+            # Call rng by hand to generate new seed on each slice?
 
             # Contains (x, y, z, mass)
             # Note that x, y, z are in cMpc / h units, not actual cMpc.
             # The values thus run from 0 to Lbox.
-            #if not need_corr:
+            # Note: at this stage, always centrals.
             halos = self.get_halo_population(z=zmid[i], ze=(zlo, zhi),
-                mmin=mmin, mmax=mmax, verbose=verbose, popid=popid,
-                **seed_kwargs)
+                logmlim=logmlim, verbose=verbose, popid=popid,
+                seed_mass=seed_kwargs['seed_mass'], 
+                seed_rho=seed_kwargs['seed_rho'], 
+                seed_pos=seed_kwargs['seed_pos'],
+                seed_occ=seed_kwargs['seed_occ'])
             
+        
             if (type(halos[0]) != np.ndarray) and (halos[0] is None):
                 ra = dec = red = mass = None
                 continue
@@ -827,18 +946,16 @@ class LogNormal(LightCone): # pragma: no cover
             ##
             # For satellites: one more step before moving to next layer.
             if satellites:
-
                 ra_s, dec_s, red_s, mass_s, par_id = \
                     self.get_catalog_subhalos(_ra, _de, _red, _m,
-                        popid=popid, logmlim=logmlim_sats,
-                        seed=seed_kwargs['seed_sats'] + pid_par,
+                        popid=popid, logmmin_sats=logmmin_sats,
+                        # Modify the seed for sats by parent
+                        seed=seed_kwargs['seed_sats'] // (pid_par + 1), 
+                        layer_id=layer_id,
                         distribute_in_space=self.distribute_sats_spatially)
-
+                
                 # Replace info about central with satellite info
                 _ra, _de, _red, _m = ra_s, dec_s, red_s, mass_s
-
-                # Need to hack off satellites that end up outside the FoV
-
 
             # Save results
             if ct == 0:
@@ -879,29 +996,45 @@ class LogNormal(LightCone): # pragma: no cover
         #self._cache_cats[(zmin, zmax, mmin)] = ra, dec, red, mass
         return ra, dec, red, mass, parents
     
-    def get_Nsats(self, Mh, logmlim=None):
+    def get_Nsats(self, Mh, logmmin_sats=10):
         """
-        Figure out the expected number of satellites for halos given Mh.
+        Figure out the expected number of satellites for central 
+        halos of given Mh.
         """
 
         # First, grab a few things we need. This is 2-D (Mc, Msat)
         hmf_sub = self.halos.tab_dndlnm_sub
 
-        if logmlim is None:
-            ok_sub = np.ones_like(self.halos.tab_M)
-        else:
-            ok_sub = np.logical_and(self.halos.tab_M >= 10**logmlim[0],
-                                    self.halos.tab_M <  10**logmlim[1])
+        assert logmmin_sats is not None, \
+            "Must provide `logmmin_sats`!"
 
-        # Expected number of subhalos vs. central halo mass.
-        # Just need to do this once per `logmlim`.
-        Nexp = np.trapezoid(hmf_sub[:,ok_sub==1],
-            x=np.log(self.halos.tab_M[ok_sub==1]), axis=1)
+        if not hasattr(self, '_cache_Nsats'):
+            self._cache_Nsats = {}
+
+        # Interpolate using cache if one exists
+        if logmmin_sats in self._cache_Nsats:
+            return np.interp(np.log10(Mh), np.log10(self.halos.tab_M), 
+                self._cache_Nsats[logmmin_sats])
         
-        return np.interp(Mh, self.halos.tab_M, Nexp)
+        Nsats = np.zeros(self.halos.tab_M.size, dtype=float)
+        mmin_sats = 10**logmmin_sats
+
+        for i, _Mh_ in enumerate(self.halos.tab_M):
+
+            # Shouldn't happen but worth a check
+            if _Mh_ <= mmin_sats:
+                continue
+            
+            # Integrate from minimum satellite halo mass up to
+            # given _Mh_
+            Nsats[i] = integrate_with_subgrid_interp(self.halos.tab_lnM, hmf_sub[i,:],
+                np.log(mmin_sats), np.log(_Mh_))
+            
+        self._cache_Nsats[logmmin_sats] = Nsats
+        return np.interp(np.log10(Mh), np.log10(self.halos.tab_M), Nsats) 
 
     def get_catalog_subhalos(self, ra_c, dec_c, red_c, mass_c, popid,
-        logmlim=(11,15), seed=None, distribute_in_space=True):
+        logmmin_sats=10, seed=None, distribute_in_space=True, layer_id=None):
         """
         Get a catalog of satellite galaxies for input central catalog.
 
@@ -925,6 +1058,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
+        # ARES ID, parent ID [if applicable], ID str (user supplied; just -> str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
         ##
@@ -934,7 +1068,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         # Expected number of subhalos vs. central halo mass.
         # Just need to do this once per `logmlim`.
-        Nexp = self.get_Nsats(mass_c, logmlim=logmlim)
+        Nexp = self.get_Nsats(mass_c, logmmin_sats=logmmin_sats)
 
         # Array of radial separations [cMpc]
         d = self.sim.halos.tab_R_nfw
@@ -943,6 +1077,7 @@ class LogNormal(LightCone): # pragma: no cover
         # Just loop to start. Could truncate based on where expected
         # number of satellites is effectively zero.
         Nc = len(mass_c)
+        log10Mc = np.log10(mass_c)
 
         ##
         # Reproducibility is important.
@@ -951,14 +1086,29 @@ class LogNormal(LightCone): # pragma: no cover
         # Instead of providing seeds for everything by hand, we use one seed
         # to deterministically create seeds for the masses and positions
         # of all subhalos for each central.
-        np.random.seed(seed)
-        # Recall that max allowed seed value is 2**32 - 1
-        # Providing some margin here since we scale below.
-        seeds_num = np.random.randint(0, high=2**30, size=Nc)
-        seeds_pos = np.random.randint(0, high=2**30, size=Nc)
-        seeds_mass = np.random.randint(0, high=2**30, size=Nc)
-        seeds_occ = np.random.randint(0, high=2**30, size=Nc)
+        if layer_id is not None:
+            ss_num = np.random.SeedSequence(entropy=seed, spawn_key=layer_id)
+            # Generate the random seeds we need in one shot and then split
+            # into pieces
+            seeds_all = ss_num.generate_state(Nc*4*2)
+        else:
+            np.random.seed(seed)
+            seeds_all = np.random.randint(0, 2**32, size=Nc*4*2)
+        
+        _seeds_num, _seeds_pos, _seeds_mass, _seeds_occ = \
+            np.array_split(seeds_all, 4)
+        
+        # Further split each array by the potential subhalo populations
+        # we allow. 
+        # Note that subhalos that share parents should draw
+        # from the same seeds to make sure that occupation is 100% in total.
+        seed_index = 0 if popid[1] == 'a' else 1
 
+        seeds_num = np.array_split(_seeds_num, 2)[seed_index]
+        seeds_pos = np.array_split(_seeds_pos, 2)[seed_index]
+        seeds_mass = np.array_split(_seeds_mass, 2)[seed_index]
+        seeds_occ = np.array_split(_seeds_occ, 2)[seed_index]
+        
         # Do we really need a new seed for each central?
         # It is surprisingly expensive to call np.seed on each iteration
 
@@ -971,6 +1121,8 @@ class LogNormal(LightCone): # pragma: no cover
         mpc_per_deg = \
             self.sim.cosm.get_length_comoving_from_angle(red_c, 60.)
 
+        mmin_sats = 10**logmmin_sats
+
         ra = []
         dec = []
         red = []
@@ -978,14 +1130,13 @@ class LogNormal(LightCone): # pragma: no cover
         par_id = []
         for i in range(Nc):
 
-            # Integer-ify expected number of satellites
-            Nsat_exp = Nexp[i]#int(Nexp[i])
+            # Skip case where central halo mass is less than 
+            # the subhalo mass range being considered
+            if mass_c[i] < mmin_sats:
+                continue
 
-            # Note that some Nexp==0 objects should statistically end up
-            # with one or even a few satellites, but this should be a really
-            # small effect and at the moment (at least) not SUs well spent.
-            #if Nsat_exp == 0:
-            #    continue
+            # Can be a float, for small halos this number is < 1 and that's OK.
+            Nsat_exp = Nexp[i]
 
             # Poisson random draw to determine actual number of subhalos,
             # given expected number.
@@ -998,7 +1149,7 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Outsources sampling over sub-halo MF
             _m = self.get_halo_masses(red_c[i], Nsat_act_tot,
-                logmlim=logmlim, seed=seeds_mass[i],
+                logmlim=(logmmin_sats, log10Mc[i]), seed=seeds_mass[i],
                 subhalos=True, Mc=mass_c[i], iz=iz[i], iM=iM[i])
 
             ##
@@ -1063,7 +1214,7 @@ class LogNormal(LightCone): # pragma: no cover
         #pbar.finish()
 
         return np.array(ra), np.array(dec), np.array(red), np.array(mass), \
-            np.array(par_id, dtype=int)
+            np.array(par_id, dtype=np.int64)
 
     def _get_catalog_from_coeval(self, halos, zlo, zhi):
         """
@@ -1137,17 +1288,33 @@ class LogNormal(LightCone): # pragma: no cover
 
         ##
         # Apply occupation fraction here?
-        if self.sim.pops[pid].pf['pop_focc'] != 1:
+        if self.sim.pops[pid].pf['pop_focc'] == 0:
+            return None, None, None, None
+        elif self.sim.pops[pid].pf['pop_focc'] == 1:
+            focc = r = ok = None
+        else:
 
             np.random.seed(seed_occ)
-
+            
             r = np.random.rand(N)
             focc = self.sim.pops[pid].get_focc(z=z, Mh=mass)
+            
+            ok = np.zeros(N, dtype=bool)
+            if pid % 2 == 0:
+                fsf = focc
+                fq = 1 - fsf
+                ok[r < fsf] = 1
+            else:
+                fq = focc
+                fsf = 1 - fq
+                ok[r >= fsf] = 1
 
-            ok = np.ones(N)
-            ok[r > focc] = 0
+            if ok.sum() == 0:
+                del focc, ok, r
+                return None, None, None, None
 
             # For satellites, positions are determined after this step
+            # (_x, _y_, and _z will be None for satellites)
             if _x is None:
                 pass
             else:
@@ -1162,21 +1329,17 @@ class LogNormal(LightCone): # pragma: no cover
             #    print(f"# Applied occupation fraction cut for pop #{popid} at z={z:.2f} in {np.log10(mmin):.1f}-{np.log10(mmax):.1f} mass range.")
             #    print(f"# [reduced number of halos by {100*(1-ok.sum()/float(ok.size)):.2f}%]")
 
-            if ok.sum() == 0:
-                return None, None, None, None
-        else:
-            focc = r = ok = None
 
         del focc, ok, r
         # Can cause huge slow-down.
-        if self.mem_concious:
-            gc.collect()
+        #if self.mem_concious:
+        #    gc.collect()
 
         return _x, _y, _z, mass
 
-    def get_halo_population(self, z, ze=None, seed=None, seed_box=None, seed_pos=None,
-        seed_occ=None, mmin=1e11, mmax=np.inf, randomise_in_cell=True, popid=0,
-        verbose=True, call_gc=False, apply_focc=True, zsub=None, **_kw_):
+    def get_halo_population(self, z, ze=None, seed_mass=None, seed_rho=None, 
+        seed_pos=None, seed_occ=None, logmlim=(11, 15), randomise_in_cell=True, 
+        popid=0, verbose=True, apply_focc=True, zsub=None):
         """
         Get a realization of a halo population.
 
@@ -1186,9 +1349,9 @@ class LogNormal(LightCone): # pragma: no cover
             Redshift, will be used to identify co-eval cube.
         ze : tuple
             Contains edges of co-eval cube in redshift (front, back).
-        seed : int
+        seed_mass : int
             Random seed for halo masses.
-        seed_box : int
+        seed_rho : int
             Random seed for density field.
         seed_pos : int
             Random seed for halo positions.
@@ -1206,14 +1369,22 @@ class LogNormal(LightCone): # pragma: no cover
         if zsub is None:
             zsub = z
 
+        mmin = 10**logmlim[0]
+        mmax = 10**logmlim[1]
+        #lnmlim = tuple(np.log([mmin, mmax]))
+        #dlogm = np.diff(logmlim)
+        #dlnm = np.diff(lnmlim)
+
         # Unpack popid more [as of March 2025]
         # (id number in ARES, parent ID number [if satellite], name as str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
-        rho = self.get_density_field(z=z, seed=seed_box)
+        rho = self.get_density_field(z=z, seed=seed_rho)
 
         # Get mean halo abundance in #/cMpc^3 [note: this is *not* (cMpc/h)^-3]
         nbar = self.get_nbar(zsub, ze, mmin=mmin, mmax=mmax)
+        # Note this is a 3-D array already (dims, dims, dims)
+        # Only variations along redshift axis.
 
         # Compute expected number of halos in volume
         h = self.sim.cosm.h70
@@ -1228,8 +1399,9 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Draw halo masses from HMF
 
-            mass = self.get_halo_masses(zsub, Nact, logmlim=tuple(np.log10([mmin, mmax])),
-                seed=seed)
+            mass = self.get_halo_masses(zsub, Nact, 
+                logmlim=logmlim,
+                seed=seed_mass)
 
         # In this case, we need to know the masses of halos before we generate
         # their positions. So, take a Poisson draw to obtain the *total*
@@ -1244,8 +1416,9 @@ class LogNormal(LightCone): # pragma: no cover
 
             # Draw halo masses from HMF
 
-            mass = self.get_halo_masses(zsub, Nact, logmlim=tuple(np.log10([mmin, mmax])),
-                seed=seed)
+            mass = self.get_halo_masses(zsub, Nact, 
+                logmlim=tuple(np.log10([mmin, mmax])),
+                seed=seed_mass)
 
             pos = self.get_halo_positions(zsub, Nact, rho, m=mass,
                 seed=seed_pos)
@@ -1274,13 +1447,17 @@ class LogNormal(LightCone): # pragma: no cover
         #    print("# Might be small box issue, but could be OK for massive halos.")
 
         if np.any(mass < mmin):
-            raise ValueError("help")
+            raise ValueError(f"{np.sum(mass < mmin)}/{mass.size} masses < mmin! {mass} {mmin:.3e}")
 
         ##
         # Apply occupation fraction cut
         if apply_focc:
+            # Notice: always use parent ID here! If we used popid
+            # we'd get the satellite occupation, which can be
+            # different than centrals! The satellite occupation is 
+            # handled in get_catalog_subhalos
             _x, _y, _z, mass = self._filter_by_focc((_x, _y, _z, mass),
-                z, seed_occ, popid)
+                z, seed_occ, pid_par)
 
         ##
         # Sort by mass? Otherwise will essentially be in order of pixels as
