@@ -486,7 +486,8 @@ class LightCone(object): # pragma: no cover
             # This is mostly to prevent users from doing something they shouldn't.
             Mchunk = np.argmin(np.abs(logmlim[0] - mall[:,0]))
 
-            assert (mall[Mchunk][0] == logmlim[0]) and (mall[Mchunk][1] == logmlim[1])
+            assert (mall[Mchunk][0] == logmlim[0]) and (mall[Mchunk][1] == logmlim[1]), \
+                f"Issue with mass chunk {mall[Mchunk]} vs. {logmlim}"
 
         else:
             Mchunk = iM
@@ -1962,7 +1963,7 @@ class LightCone(object): # pragma: no cover
         red = []
         dat = []
         parh = []
-        for h, layer in enumerate(all_layers):
+        for h, layer in enumerate(all_layers):  
 
             # Unpack info about this layer
             popid, channel, chname, zlayer, mlayer = layer
@@ -2177,7 +2178,7 @@ class LightCone(object): # pragma: no cover
                         # or special quantities like Ly-a EW or luminosity.
                         # Note: if pops[popid] is a GalaxyEnsemble object
                         if type(channel) in [tuple, list, np.ndarray]:               
-                            _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
+                            _dat = self._get_flux_catalog(zlayer, mlayer, _red, _Mh,
                                 chan_mic, pid, seed=seed_kw['seed_lum'], dlam=dlam)
                             # This gets conversion factor from cgs (internal) to user's 
                             # preferred `cat_units`
@@ -2195,7 +2196,7 @@ class LightCone(object): # pragma: no cover
                         elif channel in ['parents']:
                             _dat = _parents
                         elif (type(channel) == str) and (channel.lower() in known_lines):
-                            _dat = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
+                            _dat = self._get_flux_catalog(zlayer, mlayer, _red, _Mh,
                                 channel, pid, seed=seed_kw['seed_lum'])
                             # This gets conversion factor from cgs (internal) to user's 
                             # preferred `cat_units`.
@@ -2209,7 +2210,7 @@ class LightCone(object): # pragma: no cover
                             raise NotImplemented('help')
                         elif channel.lower() in ['ellip', 'nsers', 'pa', 'r50']:
                             R_sec, nsers, ellip, pa = self._get_size_catalog(zlayer,
-                                logmlim, _red, _Mh, pid)
+                                mlayer, _red, _Mh, pid)
 
                             _dat_dict = {'r50': R_sec, 'nsers': nsers,
                                 'ellip': ellip, 'pa': pa}
@@ -2219,7 +2220,7 @@ class LightCone(object): # pragma: no cover
                             # If `channel` is a string, this routine will first generate
                             # spectra at `dlam` resolution before convolving with the
                             # relevant filter transmission curve.
-                            mags = self._get_flux_catalog(zlayer, logmlim, _red, _Mh,
+                            mags = self._get_flux_catalog(zlayer, mlayer, _red, _Mh,
                                 channel, pid, seed=seed_kw['seed_lum'], dlam=dlam)
 
                             if cat_units == 'mags':
@@ -2289,12 +2290,12 @@ class LightCone(object): # pragma: no cover
                 #_fn = self.get_cat_fn(fov, pix, channel, popid,
                 #    logmlim=logmlim, zlim=self.zlim, fmt=fmt)
 
-
                 for ff, field in enumerate([ra, dec, red, dat]):
                     # e.g., `parents` field for centrals is None
                     if field in [[], None]:
-                        continue
-                    
+                        print(f"! No halos in layer z={self.zlim}, logmlim={mlayer}")
+                        break
+
                     if type(field_names[ff]) == str:
                         if field_names[ff] == 'parents':
                             if len(field) != len(ra):
@@ -2321,11 +2322,9 @@ class LightCone(object): # pragma: no cover
                 dec = []
                 red = []
                 parh = []
+            
 
         pb.finish()
-
-        self.tracker = tracker
-        self.tracker_flat = tracker_flat
 
         ##
         # Done

@@ -917,7 +917,6 @@ class LogNormal(LightCone): # pragma: no cover
             # Note that x, y, z are in cMpc / h units, not actual cMpc.
             # The values thus run from 0 to Lbox.
             # Note: at this stage, always centrals.
-            print(f"Generating halo (satellites={satellites}) population for popid={popid} between z={zlo:.3f},{zhi:.3f}")
             halos = self.get_halo_population(z=zmid[i], ze=(zlo, zhi),
                 logmlim=logmlim, verbose=verbose, popid=popid,
                 seed_mass=seed_kwargs['seed_mass'], 
@@ -1059,8 +1058,6 @@ class LogNormal(LightCone): # pragma: no cover
 
         """
 
-        
-
         # ARES ID, parent ID [if applicable], ID str (user supplied; just -> str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
@@ -1089,11 +1086,15 @@ class LogNormal(LightCone): # pragma: no cover
         # Instead of providing seeds for everything by hand, we use one seed
         # to deterministically create seeds for the masses and positions
         # of all subhalos for each central.
-        ss_num = np.random.SeedSequence(entropy=seed, spawn_key=layer_id)
-
-        # Generate the random seeds we need in one shot and then split
-        # into pieces
-        seeds_all = ss_num.generate_state(Nc*4*2)
+        if layer_id is not None:
+            ss_num = np.random.SeedSequence(entropy=seed, spawn_key=layer_id)
+            # Generate the random seeds we need in one shot and then split
+            # into pieces
+            seeds_all = ss_num.generate_state(Nc*4*2)
+        else:
+            np.random.seed(seed)
+            seeds_all = np.random.randint(0, 2**32, size=Nc*4*2)
+        
         _seeds_num, _seeds_pos, _seeds_mass, _seeds_occ = \
             np.array_split(seeds_all, 4)
         
@@ -1446,7 +1447,8 @@ class LogNormal(LightCone): # pragma: no cover
         if apply_focc:
             # Notice: always use parent ID here! If we used popid
             # we'd get the satellite occupation, which can be
-            # different than centrals!
+            # different than centrals! The satellite occupation is 
+            # handled in get_catalog_subhalos
             _x, _y, _z, mass = self._filter_by_focc((_x, _y, _z, mass),
                 z, seed_occ, pid_par)
 
