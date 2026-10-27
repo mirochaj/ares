@@ -1072,8 +1072,8 @@ class GalaxyCohort(GalaxyAggregate):
         if not self.is_biased_mass:
             return Ms
 
-        if 'Mh' in kwargs:
-            assert np.allclose(kwargs['Mh'], self.halos.tab_M)
+        #if 'Mh' in kwargs:
+        #    assert np.allclose(kwargs['Mh'], self.halos.tab_M)
 
         offset = self.get_mstell_sys(**kwargs)
 
@@ -1084,11 +1084,11 @@ class GalaxyCohort(GalaxyAggregate):
         Return stellar mass over all halo masses at z=`z`.
         """
 
-        Mh = self.halos.tab_M
-        if 'Mh' in kwargs:
-            assert np.allclose(kwargs['Mh'], Mh)
+        #Mh = self.halos.tab_M
+        #if 'Mh' in kwargs:
+        #    assert np.allclose(kwargs['Mh'], Mh)
 
-        mstell = self.get_smhm(**kwargs) * Mh
+        mstell = self.get_smhm(**kwargs) * kwargs['Mh']
         return mstell
 
     def get_sfr_sys(self, **kwargs):

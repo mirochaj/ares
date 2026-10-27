@@ -495,7 +495,7 @@ class HaloModel(HaloMassFunction):
         # mass that generally normalizes the integrand.
         if lum1 is None:
             weight1 = self.tab_M
-            norm1 = weight / fcoll1
+            norm1 = rho_bar / fcoll1
         else:
             weight1 = lum1
             norm1 = 1.

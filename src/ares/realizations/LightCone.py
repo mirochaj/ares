@@ -2190,7 +2190,7 @@ class LightCone(object): # pragma: no cover
                             _dat = _Mh
                         elif channel in ['rvir']:
                             # in kpc internally for some reason, convert to cMpc
-                            _dat = self.sim.pops[pid].halos.get_Rvir(_red, _Mh) / 1e3    
+                            _dat = self.sim.pops[pid].halos.get_Rvir(_red, _Mh) / 1e3
                         elif channel in ['nsats']:
                             _dat = self.get_Nsats(_Mh, logmmin_sats=logmmin_sats)
                         elif channel in ['parents']:
@@ -2200,14 +2200,18 @@ class LightCone(object): # pragma: no cover
                                 channel, pid, seed=seed_kw['seed_lum'])
                             # This gets conversion factor from cgs (internal) to user's 
                             # preferred `cat_units`.
-                            _dat *= (c * 1e8 / 6563.**2) * self.get_map_norm(cat_units)
+                            _dat *= (c * 1e8 / known_lines[channel]**2) * self.get_map_norm(cat_units)
                             
                         elif channel.lower().startswith('ew'):
                             raise NotImplemented('help')
                         elif channel.lower() == 'sfr':
                             _dat = self.sim.pops[pid].get_sfr(z=_red, Mh=_Mh)
                         elif channel.lower() in ['ms', 'mstell']:
-                            raise NotImplemented('help')
+                            # I'm not sure why I let get_sfr interpolate (just above)
+                            # and don't have get_mstell do it...
+                            _dat = self.sim.pops[pid].get_mstell(z=_red, Mh=_Mh)
+                        elif channel.lower() in ['ms_obs', 'mstell_obs']:
+                            _dat = self.sim.pops[pid].get_mstell_obs(z=_red, Mh=_Mh)
                         elif channel.lower() in ['ellip', 'nsers', 'pa', 'r50']:
                             R_sec, nsers, ellip, pa = self._get_size_catalog(zlayer,
                                 mlayer, _red, _Mh, pid)

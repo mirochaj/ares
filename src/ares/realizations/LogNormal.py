@@ -1162,13 +1162,13 @@ class LogNormal(LightCone): # pragma: no cover
 
             Nsat_act = len(_m)
 
-            if mass_c[i] < 1e11:
-                if (Nsat_exp < 1) and (Nsat_act_tot > 3 or Nsat_act > 3):
-                    print(popid, np.log10(mass_c[i]), Nsat_exp, Nsat_act_tot, Nsat_act)
-    
-                if (Nsat_act > 10):
-                    print(popid, np.log10(mass_c[i]), Nsat_exp, Nsat_act_tot, Nsat_act)
-                    input('<enter>')
+            #if mass_c[i] < 1e11:
+            #    if (Nsat_exp < 1) and (Nsat_act_tot > 3 or Nsat_act > 3):
+            #        print(popid, np.log10(mass_c[i]), Nsat_exp, Nsat_act_tot, Nsat_act)
+    #
+            #    if (Nsat_act > 10):
+            #        print(popid, np.log10(mass_c[i]), Nsat_exp, Nsat_act_tot, Nsat_act)
+            #        input('<enter>')
 
             mass.extend(list(_m))
 
