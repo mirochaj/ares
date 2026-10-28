@@ -509,6 +509,9 @@ class LogNormal(LightCone): # pragma: no cover
         # from overdensities in a potentially halo mass dependent way.
         elif _bias_model_ == 1:
 
+            if len(m) == 0:
+                return None
+
             n_act = m.size
 
             ivox = np.arange(pvox.shape[0])
@@ -737,7 +740,17 @@ class LogNormal(LightCone): # pragma: no cover
         if np.any(cdf < 0):
             raise ValueError(f'negative cdf values ({len(cdf[cdf < 0])})')
         
-        if np.any(np.diff(cdf) < 0):
+        cdfdiff = np.diff(cdf)
+
+        # The CDF should be monotonically rising. This is mostly a check to 
+        # make sure nothing goofy has happened, but sometimes this wire is
+        # tripped because of a number = 0 (within machine precision) 
+        # but negative
+        tiny_negative = np.logical_and(cdfdiff < 0, np.abs(cdfdiff) < 1e-12)
+        cdfdiff[tiny_negative] = 0
+        if np.any(cdfdiff < 0):
+            print(cdf)
+            print(np.diff(cdf))
             raise ValueError('Halo mass CDF should be strictly rising with M!')
 
         #if np.all(cdf == 0):
@@ -1395,10 +1408,13 @@ class LogNormal(LightCone): # pragma: no cover
         # of halo masses.
         if self.bias_model == 0:
             pos = self.get_halo_positions(zsub, Nexp, rho, seed=seed_pos)
+
+            if pos is None:
+                return None, None, None, None
+            
             Nact = pos.shape[0]
 
             # Draw halo masses from HMF
-
             mass = self.get_halo_masses(zsub, Nact, 
                 logmlim=logmlim,
                 seed=seed_mass)
@@ -1411,6 +1427,10 @@ class LogNormal(LightCone): # pragma: no cover
             # First generate positions the easy way just to force this method
             # to have the same number of halos
             pos = self.get_halo_positions(z, Nexp, rho, seed=seed_pos, bias_model=0)
+
+            if pos is None:
+                return None, None, None, None
+            
             # Actual number is a Poisson draw
             Nact = pos.shape[0]#np.random.poisson(Nexp)
 
@@ -1422,6 +1442,9 @@ class LogNormal(LightCone): # pragma: no cover
 
             pos = self.get_halo_positions(zsub, Nact, rho, m=mass,
                 seed=seed_pos)
+            
+            if pos is None:
+                return None, None, None, None
         else:
             raise NotImplemented('help')
 
