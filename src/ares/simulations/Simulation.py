@@ -1284,7 +1284,7 @@ class Simulation(object):
         return ps_2d, ps_2d_by_pop
     
     def get_galaxy_number_counts(self, band, magbins, pops=None,
-        units='Angstroms', units_out='erg/s/cm^2', dlam=10, 
+        units='Angstroms', dlam=10, 
         zmin=None, zmax=None, zbin=0.01, 
         selection_criteria=None, volume_density=False):
         """

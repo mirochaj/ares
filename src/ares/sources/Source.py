@@ -754,7 +754,6 @@ class Source(object):
         eV\ :sup:`-1`\.
 
         """
-
         E = get_ev_from_x(x, units=units)
 
         if self.pf['source_Ekill'] is not None:

@@ -25,7 +25,9 @@ x_eV = h_p * x / erg_per_ev
 # Convert from provided nu * L_nu back to L_nu
 y = np.array(10**data['All'] / x)
 
-norm = 8.7025e31
+# integrating y/norm over x/eV yields ~1
+#norm = 8.7025e31
+norm = 1.778e32
 
 Emin = np.min(x_eV)
 Emax = np.max(x_eV)
@@ -39,6 +41,6 @@ def get_spectrum(E, t=0.0, **kwargs):
     if (type(E) in numeric_types) or (len(E) == 1):
         return np.interp(E, x_eV, y / norm, left=0, right=0)
     else:
-        return integrate_with_subgrid_interp(x_eV, y / norm, 
-            max(min(E), Emin), min(max(E), Emax))
+        return integrate_with_subgrid_interp(np.log(x_eV), y * x_eV / norm, 
+            np.log(max(min(E), Emin)), np.log(min(max(E), Emax)))
 

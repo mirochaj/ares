@@ -32,7 +32,7 @@ from scipy.interpolate import RectBivariateSpline, LinearNDInterpolator
 from ..util.Math import central_difference, interp1d_wrapper, \
     interp1d, smooth, integrate_with_subgrid_interp
 from ..util.Units import get_ang_from_x, get_ev_from_x, \
-    get_wave_or_equivalent, get_dwave_or_equivalent
+    get_wave_or_equivalent, get_dwave_or_equivalent, wavelength_units
 from ..physics.Constants import s_per_yr, g_per_msun, cm_per_mpc, G, m_p, \
     k_B, h_p, erg_per_ev, ev_per_hz, sigma_T, c, t_edd, cm_per_kpc, E_LL, E_LyA, \
     cm_per_pc, m_H, s_per_myr, Lsun
@@ -1947,20 +1947,24 @@ class GalaxyCohort(GalaxyAggregate):
         zcen = bin_e2c(zedges)
         counts = np.zeros_like(bins)
 
-        for i, z in enumerate(zcen):
+        units_are_wave = units.lower() in wavelength_units
+
+        for z in zcen:
             # Should deprecate this : x is always rest frame 
             # internally except this one particular application.
             # Should just use band.
+
             if (x is not None) and (cam is None) and (band is None):
-                _x_ = x / (1. + z)
-                _w_ = int(window / (1. + z))
+                _x_ = x / (1. + z) if units_are_wave else x * (1. + z)
+                _w_ = int(window / (1. + z)) if units_are_wave else int(window * (1. + z))
                 if _w_ % 2 == 0:
                     _w_ += 1
                 _band = None
             else:
                 _w_ = None
                 _x_ = None
-                _band = band / (1. + z)
+                _band = tuple(np.array(band) / (1. + z) if units_are_wave \
+                    else np.array(band) * (1. + z))
 
             mags, phi = self.get_lf(z, bins, x=_x_,
                 units=units, units_out='erg/s/hz', window=_w_, band=_band, use_logL=0,
@@ -2898,12 +2902,19 @@ class GalaxyCohort(GalaxyAggregate):
                 E = get_ev_from_x(band, units=units)
 
                 # get_spectrum here knows if E is a band to
-                # integrate over it.
+                # integrate over it, resulting in [Lh] = erg/s
                 Lh = self.src.get_spectrum(E) * Lbol
                 # This will return 1 if units_out doesn't have a Hz^-1 or equivalent in it
                 dnu = get_dwave_or_equivalent(band, units, units_out)
-                Lh = Lh / dnu
-
+                
+                if units_out.lower() == 'erg/s/hz':
+                    Lh = Lh / dnu
+                elif units_out.lower().startswith('erg/s/a'):
+                    wave = get_ang_from_x(x, units=units)
+                    Lh = (Lh / dnu) * c * 1e8 / wave**2
+                else:
+                    raise ValueError(f'unknown units={units_out}')
+                    
             else:
                 E = get_ev_from_x(x, units=units)
                 Lh = self.src.get_spectrum(E) * Lbol

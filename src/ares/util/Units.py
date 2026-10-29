@@ -15,6 +15,9 @@ import numpy as np
 from ..physics.Constants import h_p, c, erg_per_ev
 from .Misc import numeric_types
 
+wavelength_units = ['ang', 'a', 'angstrom', 'angstroms', 
+    'cm', 'microns', 'micron', 'mic', 'um']
+
 def get_wave_or_equivalent(x_in, units, units_out):
     """
     Convert between photon wavelength, energy, and frequency.
