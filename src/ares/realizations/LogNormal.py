@@ -507,7 +507,7 @@ class LogNormal(LightCone): # pragma: no cover
 
         # In this case, we're increasing the probability that halos are drawn
         # from overdensities in a potentially halo mass dependent way.
-        elif _bias_model_ == 1:
+        elif _bias_model_ >= 1:
 
             if len(m) == 0:
                 return None
@@ -518,7 +518,52 @@ class LogNormal(LightCone): # pragma: no cover
             delta_flat = delta_x.ravel()
 
             # Right now, alpha(m) = p0 * (m / 1e12)**p1
-            p0, p1 = self.bias_params
+            if _bias_model_ == 1:
+                p0, p1 = self.bias_params
+            elif _bias_model_ == 2:
+                # In this case, assume that the bias_params contains a grid 
+                # of parameters that depend on redshift and mass.
+                zgrid, mgrid, agrid = self.bias_params
+
+                logmlim = np.log10([min(m), max(m)])
+
+                # Interpolate or just NN? Just NN for now
+                p1 = 0.0
+                
+                iz = np.argmin(np.abs(z - zgrid))
+                iM = np.argmin(np.abs(logmlim[0] - mgrid))
+
+                p0 = agrid[iz,iM]
+
+                # Handle infs
+                if not np.isfinite(p0):
+                    print(f'Dealing with inf at iz={iz}, iM={iM}')
+                    go_back_by = 1
+                    while not np.isfinite(p0):
+                        if (iM > go_back_by - 1) and np.isfinite(agrid[iz,iM-go_back_by]):
+                            p0 = agrid[iz,iM-go_back_by]
+                        elif (iz > go_back_by - 1) and np.isfinite(agrid[iz-go_back_by,iM]):
+                            p0 = agrid[iz-go_back_by,iM]
+                        elif (iM > go_back_by - 1) and (iz > go_back_by - 1):
+                            p0 = agrid[iz-go_back_by,iM-go_back_by]
+                        else:
+                            go_back_by += 1
+
+                        if go_back_by > 2:
+                            raise StopIteration('This alpha(z,M) table seems very incomplete.')
+
+                    # Extrapolate outside range or just use edges?
+                    
+                    print(f'Dealt with inf: p0={p0} for iz={iz} iM={iM} (go_back_by={go_back_by})')
+                else:
+                    # Interpolate in z?
+                    p0 = np.interp(z, [zgrid[iz], zgrid[iz+1]], [agrid[iz,iM], agrid[iz+1,iM]])
+                
+                
+
+
+            else:
+                raise NotImplementedError(f'Unrecognized bias_model={_bias_model_}')
 
             if self.bias_within_bin:
                 pbar = ProgressBar(m.size, name=f"pos(m)", use=True)
@@ -563,6 +608,7 @@ class LogNormal(LightCone): # pragma: no cover
                 # `ivox` contains the flattened coordinates of each pixel
                 # as does `P_of_rho`. Passing in `m.size` sets number of
                 # draws.
+                np.random.seed(seed + 941) # just to be different from `seed`
                 i = np.random.choice(ivox, p=P_of_rho,
                     replace=self.bias_replacement, size=m.size)
 
@@ -1423,7 +1469,7 @@ class LogNormal(LightCone): # pragma: no cover
         # their positions. So, take a Poisson draw to obtain the *total*
         # number of halos in the box, *then* generate their masses, *then*
         # generate their positions (which are effectivley mass-dependent).
-        elif self.bias_model == 1:
+        elif self.bias_model >= 1:
             # First generate positions the easy way just to force this method
             # to have the same number of halos
             pos = self.get_halo_positions(z, Nexp, rho, seed=seed_pos, bias_model=0)
