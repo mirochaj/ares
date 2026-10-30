@@ -310,7 +310,7 @@ class Simulation(object):
         
         if flux_units2.lower() == 'si':
             to_ps_units2 = cm_per_m**2 / erg_per_s_per_nW / cm_per_mpc**2
-        elif flux_units.lower() == 'mjy':
+        elif flux_units2.lower() == 'mjy':
             to_ps_units2 = 1e17 / cm_per_mpc**2
         elif flux_units2.lower() == 'cgs':
             to_ps_units2 = 1 / cm_per_mpc**2
@@ -553,7 +553,23 @@ class Simulation(object):
                 else:
                     f_sel[i,j,bad==1,0] = 0
                     f_sel[i,j,bad==1,1] = 0
-        
+
+
+        ##
+        # Subtle thing: need to pre-emptively take union of
+        # masks for different sources that are really the same, e.g.,
+        # a HMXB population that is a different ARES source pop (by ID number)
+        # but live in the same galaxies as population 0 (star-forming galaxies).
+        for i, pop in enumerate(self.pops):
+            if pop.id_num_actual == i:
+                continue
+            
+            if self.pf['verbose']:
+                print(f"! Taking union masks for pop={pop.id_num_actual} and pop={i}.")
+                
+            f_sel[i,:,:,:] *= f_sel[pop.id_num_actual,:,:,:]
+            f_sel[pop.id_num_actual,:,:,:] *= f_sel[i,:,:,:]
+
         return f_sel
     
     def get_masks(self, masking_criteria, pops=None, mask_logic='or'):
