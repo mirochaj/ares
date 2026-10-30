@@ -2200,7 +2200,7 @@ class LightCone(object): # pragma: no cover
                                 channel, pid, seed=seed_kw['seed_lum'])
                             # This gets conversion factor from cgs (internal) to user's 
                             # preferred `cat_units`.
-                            _dat *= (c * 1e8 / known_lines[channel]**2) * self.get_map_norm(cat_units)
+                            _dat *= (c * 1e8 / known_lines[channel.lower()]**2) * self.get_map_norm(cat_units)
                             
                         elif channel.lower().startswith('ew'):
                             raise NotImplemented('help')

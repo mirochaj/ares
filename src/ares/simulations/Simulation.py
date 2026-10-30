@@ -419,14 +419,14 @@ class Simulation(object):
                         fsel1 = 1-fmask[k][i]
 
                     # Will default to 1h + 2h + shot
-                    if j == i:
-                        ps_z[i,j,:,k,:] = pop.get_ps_3d(scales,
-                            wave_obs1=xmic[k], wave_obs2=xmic2[k],
-                            fsel1=fsel1,
-                            **kwargs)
-                        #ps[i,:,k] = px[i,j,:,k]
-                        #ps_z[i,i,:,k,:] = px[i,j,:,k]#pop._ps_obs_integrand.copy()
-                        continue
+                    #if j == i:
+                    #    ps_z[i,j,:,k,:] = pop.get_ps_3d(scales,
+                    #        wave_obs1=xmic[k], wave_obs2=xmic2[k],
+                    #        fsel1=fsel1,
+                    #        **kwargs)
+                    #    #ps[i,:,k] = px[i,j,:,k]
+                    #    #ps_z[i,i,:,k,:] = px[i,j,:,k]#pop._ps_obs_integrand.copy()
+                    #    continue
 
                     if not include_inter_pop:
                         continue
@@ -455,7 +455,7 @@ class Simulation(object):
 
         ##
         # Final step: integrate along redshift axis.
-        ps, ps_by_pop = self.get_limber_integral(ps_z, waves=waves, waves2=waves2)
+        ps, ps_by_pop = self.get_limber_integral(ps_z, waves=xmic, waves2=xmic2)
 
         ##
         # Modify PS units before return
@@ -1081,6 +1081,8 @@ class Simulation(object):
         num : np.ndarray
             Galaxy number densities in cMpc^-3. This has shape (number of pops, 
             number of native redshift bins [like halos.tab_z])
+        waves, waves2 : tuple, list, np.ndarray
+            Wavelengths in microns.
 
         """
 
@@ -1141,7 +1143,7 @@ class Simulation(object):
             # Loop over waves
             for j in range(ps3d.shape[3]):
                 W_I_sq = freqs[j] * freqs2[j] \
-                     / (4. * np.pi)**2 / (1 + zarr)**4
+                     / (4. * np.pi)**2 / (1 + zarr)**2#4
                 
                 # The None slicing here is to match the first axis of
                 # `ps3d` aftering summing over populations, which is ell.

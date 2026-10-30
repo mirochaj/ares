@@ -4199,12 +4199,15 @@ class GalaxyCohort(GalaxyAggregate):
                 else:
                     cam = filt = None
                     x, units = cam_filt
+                    units_are_wave = units.lower() in wavelength_units
                     if type(x) in [tuple, list, np.ndarray]:
-                        band = x[0] / (1 + z), x[1] / (1 + z)
+                        band = tuple(np.array(x) / (1 + z)) if units_are_wave \
+                            else tuple(np.array(x) * (1 + z))
                         x = None
                     else:
                         band = None
-                        x = x / (1. + z)
+                        x = x / (1. + z) if units_are_wave \
+                            else x * (1. + z)
   
                 ##
                 # Convert the masking depth to luminosity at this redshift.
