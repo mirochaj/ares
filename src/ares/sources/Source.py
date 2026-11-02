@@ -731,7 +731,7 @@ class Source(object):
     #        return Lnu
     #
 
-    def get_spectrum(self, x, t=0.0, units='eV'):
+    def get_spectrum(self, x, t=0.0, units='eV', integrate_over_band=False):
         r"""
         Return fraction of bolometric luminosity emitted at energy E.
 
@@ -760,7 +760,13 @@ class Source(object):
             if self.pf['source_Ekill'][0] <= E <= self.pf['source_Ekill'][1]:
                 return 0.0
 
-        return self._normL * self._Intensity(E, t=t)
+        if integrate_over_band:
+            assert len(E) == 2, \
+                "If using integrate_over_band=True, provided `x` must be two elements."
+            return quad(lambda EE: self._normL * self._Intensity(EE, t=t),
+                        E[0], E[1])[0]
+        else:
+            return self._normL * self._Intensity(E, t=t)
 
     def BolometricLuminosity(self, t=0.0, M=None):
         """

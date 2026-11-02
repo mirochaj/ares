@@ -32,13 +32,13 @@ norm = 1.778e32
 Emin = np.min(x_eV)
 Emax = np.max(x_eV)
 
-def get_spectrum(E, t=0.0, **kwargs):
+def get_spectrum(E, t=0.0, integrate_over_band=False, **kwargs):
     """
     Broadband quasar template spectrum, normalized such that it 
     integrates to unity (if integrating over x/[eV])
     """
 
-    if (type(E) in numeric_types) or (len(E) == 1):
+    if (type(E) in numeric_types) or (len(E) == 1) or (not integrate_over_band):
         return np.interp(E, x_eV, y / norm, left=0, right=0)
     else:
         return integrate_with_subgrid_interp(np.log(x_eV), y * x_eV / norm, 

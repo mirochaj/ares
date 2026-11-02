@@ -1111,9 +1111,6 @@ class Simulation(object):
         Hofz = np.array([self.cosm.HubbleParameter(z) \
             for z in zarr])
         
-        vol = np.array([self.cosm.ProjectedVolume(z, 1., dz=dz[i]) \
-                for i, z in enumerate(zarr)])
-
         dchi_dz = (c / cm_per_mpc / Hofz)
         dchi_dz_dsq = dchi_dz / d**2 
 
@@ -1123,15 +1120,12 @@ class Simulation(object):
 
         if waves is not None:
             freqs_2d = c / (np.array(waves) * 1e-4)
-            dnu = np.abs(np.diff(freqs_2d, axis=1))
             freqs = np.mean(freqs_2d, axis=1)
 
             if waves2 is not None:
                 freqs_2d2 = c / (np.array(waves2) * 1e-4)
-                dnu2 = np.abs(np.diff(freqs_2d2, axis=1))
                 freqs2 = np.mean(freqs_2d2, axis=1)
             else:
-                dnu2 = dnu
                 freqs2 = freqs
 
         ##
@@ -1159,7 +1153,7 @@ class Simulation(object):
             # Loop over waves
             for j in range(ps3d.shape[3]):
                 W_I_sq = freqs[j] * freqs2[j] \
-                     / (4. * np.pi)**2 / (1 + zarr)**2#4
+                     / (4. * np.pi)**2 / (1 + zarr)**2
                 
                 # The None slicing here is to match the first axis of
                 # `ps3d` aftering summing over populations, which is ell.
@@ -1216,7 +1210,6 @@ class Simulation(object):
                 # `ps3d` which is ell.
                 # Note: remaining unsliced dimensions of `ps3d` are
                 # (ell modes, num redshifts [like halos.tab_z])
-                print(dchi_dz_dsq.shape, W_g.shape, ps3d.shape)
                 limber_integ = dchi_dz_dsq[None,:] * W_g[None,:]**2 \
                     * ps3d.sum(axis=0).sum(axis=0)[:,i,:] / dz[None,:]
             
@@ -1260,7 +1253,7 @@ class Simulation(object):
                             num[:,j,:].sum(axis=0), zlo, zhi)
                     
                     W_g = n_vs_zall / n_in_zbin / ((c / cm_per_mpc) / Hofz)
-                    W_I = freqs[j] / (4. * np.pi) / (1 + zarr)**2
+                    W_I = freqs[j] / (4. * np.pi) / (1 + zarr)
                     
                     # The None slicing here is to match the first axis of
                     # `ps3d` which is ell.

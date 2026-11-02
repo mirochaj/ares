@@ -2892,7 +2892,7 @@ class GalaxyCohort(GalaxyAggregate):
             lum_per_mass = self.pf['pop_lum_per_mass']
 
             Lbol = Ms * lum_per_mass
-            
+
             if (band is not None):
                 if isinstance(band, str):
                     assert band.lower().startswith('bol')
@@ -2901,9 +2901,8 @@ class GalaxyCohort(GalaxyAggregate):
                 # Need to introduce SED modulation here
                 E = get_ev_from_x(band, units=units)
 
-                # get_spectrum here knows if E is a band to
-                # integrate over it, resulting in [Lh] = erg/s
-                Lh = self.src.get_spectrum(E) * Lbol
+                # Need to tell get_spectrum to integrate
+                Lh = self.src.get_spectrum(E, integrate_over_band=1) * Lbol
                 # This will return 1 if units_out doesn't have a Hz^-1 or equivalent in it
                 dnu = get_dwave_or_equivalent(band, units, units_out)
                 
