@@ -1120,6 +1120,9 @@ class LogNormal(LightCone): # pragma: no cover
         # ARES ID, parent ID [if applicable], ID str (user supplied; just -> str)
         pid, pid_par, pid_str = get_pop_info(popid)
 
+        assert len(pid_str) == 2, \
+            "Satellite IDs must be strings that indicate the parent, e.g., '2a', not just 2."
+
         ##
         # All we're going to do is randomly distribute satellites in
         # mass according to the subhalo mass function and in space
