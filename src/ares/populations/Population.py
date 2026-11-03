@@ -180,7 +180,7 @@ class Population(object):
             if self.pf['pop_sfr_model'].startswith('link'):
                 link, whatever, idnum = self.pf['pop_sfr_model'].split(':')
                 self._id_num_actual = int(idnum)
-            elif self.pf['pop_focc'].startswith('link'):
+            elif isinstance(self.pf['pop_focc'], str) and self.pf['pop_focc'].startswith('link'):
                 link, whatever, idnum = self.pf['pop_focc'].split(':')
                 self._id_num_actual = int(idnum)
             else:
