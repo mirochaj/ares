@@ -7431,7 +7431,7 @@ class GalaxyCohort(GalaxyAggregate):
             # Hence the use of None in slices below.
             dndlnm_2d = self.halos.tab_dndlnm[iz][:,None] \
                        * self.halos.tab_dndlnm_sub[:,:] \
-                       * focc[None,:] * fsurv[None,:] 
+                       * focc[None,:] * fsurv[None,:]
             
             # Implicit here is that satellite properties are independent
             # of central properties. In the future, may add an additional focc
@@ -7911,7 +7911,7 @@ class GalaxyCohort(GalaxyAggregate):
             _fmask_union = fsel1 #* fsel2 if is_inter_pop else fsel2
 
             fsel_union = np.minimum(fsel1, fsel2)
-
+            
         #
         f1 = self.get_ps_kernel(z, k, term=2, wave=wave1, 
             isnum=isnum1, fsel=fsel_union)
@@ -7930,6 +7930,7 @@ class GalaxyCohort(GalaxyAggregate):
                 fsel=fsel_union)
 
             b_2 = np.trapezoid(b_h * f2, x=self.halos.tab_lnM)
+            
         else:
             if (wave2 is None) or (np.allclose(wave1, wave2)):
                 b_2 = b_1

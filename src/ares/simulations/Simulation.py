@@ -908,7 +908,7 @@ class Simulation(object):
         ##
         # Final step: integrate along redshift axis.
         # Leave shot term out of this.
-        ps, ps_by_pop = self.get_limber_integral(ps_z[:,:,:,:,:,:,1:].sum(axis=-1),
+        ps, ps_by_pop = self.get_limber_integral(ps_z[:,:,:,:,:,:,0:].sum(axis=-1),
             waves=waves, zbins=zbins, num=num_pz)
         
         # Just cross-shot here
@@ -921,8 +921,8 @@ class Simulation(object):
         ps_by_pop *= to_ps_units
 
         # Need dummy slice for ell axis
-        ps += ps_sh_I * to_ps_units \
-            * (1.  / num_p[:,:,:,1].sum(axis=0)[None,:,:] / sqdeg_per_std)
+        #ps += ps_sh_I * to_ps_units #\
+            #* (1.  / num_p[:,:,:,1].sum(axis=0)[None,:,:] / sqdeg_per_std)
         
         self.num_by_pop = num_p
         self.num_by_pop_z = num_pz
@@ -1186,7 +1186,8 @@ class Simulation(object):
         
                 # N(z), though integral will be truncated to 
                 # (zlo, zhi) interval below (don't worry)
-                # Note: this is in units of cMpc^-3
+                # Note: this is in units of cMpc^-3, 
+                # summed over populations but not redshift.
                 n_vs_zall = num[:,:].sum(axis=0)
 
                 # Total number of galaxies in this particular redshift bin,
@@ -1198,12 +1199,12 @@ class Simulation(object):
                 # ps3d (below) in the shot limit.
                 # The (c/H) factor will get cancelled by dchi_dz_dsq,
                 # which will leave only a factor of d**2.
-                W_g = n_vs_zall / n_in_zbin / ((c / cm_per_mpc) / Hofz)
+                W_g = 1. / n_in_zbin / ((c / cm_per_mpc) / Hofz)
 
                 #print('hi', n_tot, W_g, dchi_dz, zlo, zhi)
                 check_Wg = integrate_with_subgrid_interp(zarr, 
-                    W_g * dchi_dz, zlo, zhi)
-
+                    W_g * dchi_dz * n_vs_zall, zlo, zhi)
+                
                 print('checking W_g', check_Wg, n_in_zbin)
 
                 # The None slicing here is to match the first axis of
@@ -1211,7 +1212,7 @@ class Simulation(object):
                 # Note: remaining unsliced dimensions of `ps3d` are
                 # (ell modes, num redshifts [like halos.tab_z])
                 limber_integ = dchi_dz_dsq[None,:] * W_g[None,:]**2 \
-                    * ps3d.sum(axis=0).sum(axis=0)[:,i,:] / dz[None,:]
+                    * ps3d.sum(axis=0).sum(axis=0)[:,i,:]
             
                 for k in range(ps3d.shape[2]):
                     ps_2d[k,i] = integrate_with_subgrid_interp(zarr, 
@@ -1245,6 +1246,8 @@ class Simulation(object):
                 for j in range(ps3d.shape[3]):
                     # N(z), though integral will be truncated to 
                     # (zlo, zhi) interval below (don't worry)
+                    # Note: this is in units of cMpc^-3, 
+                    # Recall that this is summing over populations.
                     n_vs_zall = num[:,j,:].sum(axis=0)
                     
                     # Total number of galaxies in this particular redshift bin,
@@ -1252,9 +1255,9 @@ class Simulation(object):
                     n_in_zbin = integrate_with_subgrid_interp(zarr, 
                             num[:,j,:].sum(axis=0), zlo, zhi)
                     
-                    W_g = n_vs_zall / n_in_zbin / ((c / cm_per_mpc) / Hofz)
-                    W_I = freqs[j] / (4. * np.pi) / (1 + zarr)
-                    
+                    W_g = 1. / n_in_zbin / ((c / cm_per_mpc) / Hofz)
+                    W_I = freqs[j] / (4. * np.pi) / (1 + zarr)**2
+
                     # The None slicing here is to match the first axis of
                     # `ps3d` which is ell.
                     limber_integ = dchi_dz_dsq[None,:] * W_g[None,:] * W_I[None,:] \
