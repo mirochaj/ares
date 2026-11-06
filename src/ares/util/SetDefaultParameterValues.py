@@ -496,6 +496,7 @@ def PopulationParameters():
         "pop_type": 'galaxy',
 
     "pop_type": 'galaxy',
+    "pop_lives_within": None,
 
     "pop_target_volume": None,
     "pop_target_redshift": None,

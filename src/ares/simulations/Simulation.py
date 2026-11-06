@@ -1217,8 +1217,6 @@ class Simulation(object):
                 check_Wg = integrate_with_subgrid_interp(zarr, 
                     W_g * dchi_dz * n_vs_zall, zlo, zhi)
                 
-                print('checking W_g', check_Wg, n_in_zbin)
-
                 # The None slicing here is to match the first axis of
                 # `ps3d` which is ell.
                 # Note: remaining unsliced dimensions of `ps3d` are

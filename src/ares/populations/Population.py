@@ -176,15 +176,27 @@ class Population(object):
 
     @property
     def id_num_actual(self):
+        """
+        This helps us identify source populations that are really a kind of
+        duplicate of existing populations, e.g., HMXBs that live in star-forming
+        centrals. The main challenege here is automatically detecting when this
+        is happening. We can't just look for linked parameters, since it's OK
+        to do this even for distinct pops (e.g., we often link satellite properties
+        to centrals). 
+        """
         if not hasattr(self, '_id_num_actual'):
-            if self.pf['pop_sfr_model'].startswith('link'):
-                link, whatever, idnum = self.pf['pop_sfr_model'].split(':')
-                self._id_num_actual = int(idnum)
-            elif isinstance(self.pf['pop_focc'], str) and self.pf['pop_focc'].startswith('link'):
-                link, whatever, idnum = self.pf['pop_focc'].split(':')
-                self._id_num_actual = int(idnum)
+            if self.pf['pop_lives_within'] is not None:
+                self._id_num_actual = self.pf['pop_lives_within']
             else:
                 self._id_num_actual = self.id_num
+            #elif self.pf['pop_sfr_model'].startswith('link'):
+            #    link, whatever, idnum = self.pf['pop_sfr_model'].split(':')
+            #    self._id_num_actual = int(idnum)
+            #elif isinstance(self.pf['pop_focc'], str) and self.pf['pop_focc'].startswith('link'):
+            #    link, whatever, idnum = self.pf['pop_focc'].split(':')
+            #    self._id_num_actual = int(idnum)
+            #else:
+            #    self._id_num_actual = self.id_num
 
         return self._id_num_actual
 

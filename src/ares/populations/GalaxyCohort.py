@@ -4155,8 +4155,6 @@ class GalaxyCohort(GalaxyAggregate):
         #if is_mask:
         #    tab_fsel = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size, 2))
         #else:
-
-        print('in get_galaxy_subsample', selection_criteria, z)
         
         tab_fsel = np.ones((self.halos.tab_z.size, self.halos.tab_M.size, 2))
         if (selection_criteria is None) or (not self.is_cataloged):
