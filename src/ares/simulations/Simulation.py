@@ -509,10 +509,10 @@ class Simulation(object):
         else:    
             f_sel = np.ones((len(self.pops), self.halos.tab_z.size, 
                 self.halos.tab_M.size, 2))
-            
+                        
         if selection_criteria is None:
             return f_sel
-
+        
         for i, pop in enumerate(self.pops):
             if pops is not None:
                 if i not in pops:
@@ -547,7 +547,7 @@ class Simulation(object):
             # halos outside our modeled range. 
             for j, z in enumerate(self.halos.tab_z):
                 bad = np.logical_or(self.halos.tab_M > pop.get_Mmax(z),
-                                     self.halos.tab_M < pop.get_Mmin(z))
+                                    self.halos.tab_M < pop.get_Mmin(z))
                 if is_mask:
                     f_sel[i,j,bad==1,0] = 1
                     f_sel[i,j,bad==1,1] = 1
@@ -562,6 +562,10 @@ class Simulation(object):
         # a HMXB population that is a different ARES source pop (by ID number)
         # but live in the same galaxies as population 0 (star-forming galaxies).
         for i, pop in enumerate(self.pops):
+            if pops is not None:
+                if i not in pops:
+                    continue
+
             if pop.id_num_actual == i:
                 continue
             
@@ -1004,8 +1008,10 @@ class Simulation(object):
 
         # Get full z-dependent number density
 
-        num_pz = np.zeros((len(self.pops), len(zarr)))
-        fsel_allz = self.get_galaxy_subsample(selection_criteria=selection_criteria, pops=pops)
+        num_pz = np.zeros((len(self.pops), len(zarr), 2))
+        fsel_allz = self.get_galaxy_subsample(
+            selection_criteria=selection_criteria, 
+            pops=pops)
         
         for i, pop in enumerate(self.pops):
             if pops is not None:
@@ -1018,8 +1024,10 @@ class Simulation(object):
             # This is per deg^2 / dz
             num_pz[i,:,1] = self.pops[i].get_num_from_fsel(fsel_allz[i], volume_density=0)
         
-        # Loop over source populations and compute auto spectrum.
+        # Track volume density (first axis) and surface density (second axis)
         num_p = np.zeros((len(self.pops), len(zbins), 2))
+
+        # Loop over source populations and compute auto spectrum.
         for h, zbin in enumerate(zbins):
 
             zlo, zhi = zbin
@@ -1045,11 +1053,11 @@ class Simulation(object):
                 if pops is not None:
                     if i not in pops:
                         continue
-                    
+                                
                 num_p[i,h,0] = self.pops[i].get_num_from_fsel(fsel[i], zbin=zbin)
                 num_p[i,h,1] = self.pops[i].get_num_from_fsel(fsel[i], zbin=zbin,
                     volume_density=0)
-    
+                
                 for j, popx in enumerate(self.pops):
                     # Avoid double counting.
                     if (j > i):
@@ -1157,7 +1165,7 @@ class Simulation(object):
             # Loop over waves
             for j in range(ps3d.shape[3]):
                 W_I_sq = freqs[j] * freqs2[j] \
-                     / (4. * np.pi)**2 / (1 + zarr)**2
+                     / (4. * np.pi)**2 / (1 + zarr)**4
                 
                 # The None slicing here is to match the first axis of
                 # `ps3d` aftering summing over populations, which is ell.

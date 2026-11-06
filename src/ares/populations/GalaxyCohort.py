@@ -4155,6 +4155,8 @@ class GalaxyCohort(GalaxyAggregate):
         #if is_mask:
         #    tab_fsel = np.zeros((self.halos.tab_z.size, self.halos.tab_M.size, 2))
         #else:
+
+        print('in get_galaxy_subsample', selection_criteria, z)
         
         tab_fsel = np.ones((self.halos.tab_z.size, self.halos.tab_M.size, 2))
         if (selection_criteria is None) or (not self.is_cataloged):
@@ -4162,7 +4164,7 @@ class GalaxyCohort(GalaxyAggregate):
                 return tab_fsel
             else:
                 return tab_fsel[0,:,:]
-        
+            
         ##
         # Otherwise, general case
         #if self.pf['pop_mask_wave'] is not None:
@@ -4211,7 +4213,7 @@ class GalaxyCohort(GalaxyAggregate):
         zlo = max(self.zdead, self.pf['final_redshift'])
         zhi = self.zform * 1.
 
-        if 'z' in selection_criteria:
+        if select_on_z:
             zlo = max(zlo, selection_criteria['z'][0])
             zhi = min(zhi, selection_criteria['z'][1])
 
@@ -4228,8 +4230,8 @@ class GalaxyCohort(GalaxyAggregate):
         # Synthesize galaxy mags one redshift at a time.
         
         num_sel = 0
-        #if select_on_z:
-        #    num_sel += len(selection_criteria['z'])
+        if select_on_z:
+            num_sel += 1
         
         if select_on_mag:
             num_sel += len(selection_criteria['mag'])
@@ -4254,6 +4256,10 @@ class GalaxyCohort(GalaxyAggregate):
 
             if (z is not None) and (i != iz):
                 continue
+
+            if select_on_z:
+                tmp_fsel[i,:,h_tot,:] = 1
+                h_tot += 1
 
             if select_on_mag:
                 #single_cut = len(selection_criteria['mag']) == 1
@@ -4374,20 +4380,20 @@ class GalaxyCohort(GalaxyAggregate):
             tab_fsel = np.max(tmp_fsel, axis=-2)
         else:
             raise NotImplementedError('pop_mask_logic must be `and` or `or`.')
-#
+
         ## Occasionally we get values of 1 + numbers of order machine precision.
         ## This will cause major problems down the line when we, e.g.,
         ## retrieve the unmasked fraction 1 - fmask, and get negative numbers.
         ## Hence this (I think quite reasonable) kludge to enforce values <= 1.
         tab_fsel[tab_fsel>1] = 1
-#
+
         ## Same goes for the other side of things
         tab_fsel[tab_fsel<0] = 0
 
         if z is not None:
             iz = self.get_zindex(z)
             return tab_fsel[iz]
-#
+
         return tab_fsel
     
     def _get_fsel(self, fsel, z=None):
@@ -4500,14 +4506,14 @@ class GalaxyCohort(GalaxyAggregate):
             assert fsel.shape == (self.halos.tab_z.size, self.halos.tab_M.size, 2)
 
         num = np.zeros_like(self.halos.tab_z)
-        for i, z in enumerate(self.halos.tab_z):
+        for i, _z_ in enumerate(self.halos.tab_z):
             if np.all(fsel[i,:,0] == 0):
                 continue
 
             if volume_density:
                 dVdOmega = 1. #/ dz[i]
             else:
-                dVdOmega = self.cosm.ProjectedVolume(z, angle=1., dz=dz[i]) / dz[i]
+                dVdOmega = self.cosm.ProjectedVolume(_z_, angle=1., dz=dz[i]) / dz[i]
             
             focc = self.tab_focc[i,:]
 
@@ -4524,8 +4530,9 @@ class GalaxyCohort(GalaxyAggregate):
                 dndlnm = np.trapezoid(dndlnm_pre, dx=self.halos.dlnm, axis=0)
     
                 num[i] = np.trapezoid(dndlnm, dx=self.halos.dlnm) * dVdOmega
-            
+                    
         if zbin is not None:
+            
             # num will already be zero outside the zbin?
             # Not necessarily -- this is a way of adding a redshift selection
             # in post, e.g., you could do the mag selection once and then 
@@ -5115,7 +5122,7 @@ class GalaxyCohort(GalaxyAggregate):
         # If we made it here, there's no scatter. Life is a bit easier.
         # Still could be centrals or satellites but that's encoded in `dndm`.
 
-        fsel = self._get_fsel_winterp(z, selection_criteria, Lh, None)
+        fsel = self._get_fsel_winterp(z, selection_criteria, Lh, None)[:,0]
         
         
         # Used to assert all dL > 0, but sometimes for very massive (and
