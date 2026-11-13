@@ -4262,7 +4262,6 @@ class GalaxyCohort(GalaxyAggregate):
             if select_on_mag:
                 #single_cut = len(selection_criteria['mag']) == 1
                 for h, selection in enumerate(selection_criteria['mag']):
-
                     tmp_fsel[i,:,h_tot,:] = \
                             self._get_fsel_single_cut(_z_, selection)
                                         
@@ -4281,12 +4280,17 @@ class GalaxyCohort(GalaxyAggregate):
                     ##
                     # Have hard-coded option for known samples like DESI-LRG/ELG?
                     if selection.lower() == 'desi_bgs':
-                       
-                        tmp_fsel[i,:,h_tot,:] = \
-                            self._get_fsel_single_cut(_z_, 
+
+                        if _z_ < 0.5:
+                            tmp_fsel[i,:,h_tot,:] = \
+                                self._get_fsel_single_cut(_z_, 
                                 ('sdss_r', (-np.inf, 19.5)))
                         
                     elif selection.lower() == 'desi_lrg':
+
+                        if (_z_ < 0.4) or (_z_ > 1):
+                            h_tot += 1
+                            continue
     
                         _x_, mags = self.get_mags(_z_, 
                             absolute=False, cam='sdss', filters=['g', 'r', 'z']
@@ -4327,24 +4331,46 @@ class GalaxyCohort(GalaxyAggregate):
                         # Will we ever do something more sophisticated?
                         tmp_fsel[i,:,h_tot,0] = tmp_fsel[i,:,h,1]
 
-                    elif selection.lower() == 'desi_elg':
+                    elif selection.lower().startswith('desi_elg'):
+                        # No [OII] therefore z unreliable
+                        if (_z_ > 1.6):
+                            h_tot += 1
+                            continue
+
                         _x_, mags = self.get_mags(_z_, 
                             absolute=False, cam='sdss', filters=['g', 'r', 'z']
                             )
                         
-                        mag_g, mag_r, mag_z, = mags.T - (2.5 / np.log(10) / 2.) * sigma**2
+                        mag_g, mag_r, mag_z, = \
+                            mags.T - (2.5 / np.log(10) / 2.) * sigma**2
                         
                         ##
                         # Adjust mags due to scatter as post-processing step?
                         sigma = self.pf['pop_scatter_sfh']
 
-                        lop_cut = 1.3
-                        vlo_cut = 1.6
+                        is_elg = np.logical_and(
+                            mag_g - mag_r < 0.5 * (mag_r - mag_z) + 0.1,
+                            mag_r - mag_z > 0.15
+                            )
 
-                        is_elg = np.logical_and(mag_g - mag_r < 0.5 * (mag_r - mag_z) + 0.1,
-                            mag_g - mag_r < -1.2 * (mag_r - mag_z) + lop_cut)
                         
-                        is_elg = np.logical_and(is_elg, mag_r - mag_z > 0.15)
+                        is_lop = mag_g - mag_r < -1.2 * (mag_r - mag_z) + 1.3
+                        is_vlo = np.logical_and(
+                            mag_g - mag_r > -1.2 * (mag_r - mag_z) + 1.3,
+                            mag_g - mag_r < -1.2 * (mag_r - mag_z) + 1.6
+                        )
+
+                        if selection.lower().endswith('lop'):
+                            is_elg = np.logical_and(is_elg, is_lop)
+                        elif selection.lower().endswith('vlo'):
+                            is_elg = np.logical_and(is_elg, is_vlo)
+                        else:
+                            is_elg = np.logical_and(is_elg, 
+                                np.logical_or(is_vlo, is_lop)
+                                )
+
+                        # Been adding this via 'mag' selection
+                        # to keep it more free
                         #is_elg = np.logical_and(is_elg, 
                         #         np.logical_and(mag_g < 24, mag_g > 20))
 
@@ -4450,7 +4476,8 @@ class GalaxyCohort(GalaxyAggregate):
         Returns
         -------
         Number density of galaxies in units determined by `volume_density` 
-        parameter.
+        parameter. If volume_density=False, the units are number/deg^2/dz,
+        otherwise number/cMpc^3/dz.
             
         """
 
@@ -4488,7 +4515,6 @@ class GalaxyCohort(GalaxyAggregate):
             if volume_density:
                 return num 
             else:
-                raise NotImplemented('need to deal with dz factor')
                 return num * self.cosm.ProjectedVolume(z, angle=1., dz=1)
         
         ##

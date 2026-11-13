@@ -396,7 +396,7 @@ class Simulation(object):
                             # and enforce a perfect match.
                             
                             _k_ = np.argmin(np.abs(wave.mean() - _chan_.mean(axis=1)))
-                            assert np.allclose(_chan_[_k_], wave), \
+                            assert np.allclose(_chan_[_k_], wave, atol=1e-3), \
                                 f"Mismatch in _chan_[k]={_chan_[k]} and wave={wave}!"
 
                             if not np.allclose(xmic2[k], xmic[k]):

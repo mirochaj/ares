@@ -1248,22 +1248,138 @@ smhm_univ.update(sed_modeling_univ)
 smhm_univ.update(lines_wprof)
 smhm_univ.update(_base_smhm_univ)
 
-#
-#smhm_evol = setup.copy()
-#smhm_evol.update(smhm_Q)
-#smhm_evol.update(dust_dplx)
-#smhm_evol.update(_base_smhm_evol)
-#smhm_evol.update(sed_modeling_evol)
-#smhm_evol.update(lines_wprof)
-#
-##
-# New: naming scheme:
-# 1. smhm_same_evol_0, smhm_same_evol_1, smhm_same_evol_2
-# 3. smhm_diff_evol_0, smhm_diff_evol_1, smhm_diff_evol_2
-# Plan for satellites?
-# 1. smhm_c_same_s_same_evol_0
-# 2. smhm_c_diff_s_diff_evol_0
-# 3. smhm_c_diff_s_same_evol_0 # would we ever do this?
-# 4. smhm_c_same_s_diff_evol_0 # would we ever do this?
+smhm_same_beta_0_sysb13_0 = setup.copy()
+smhm_same_beta_0_sysb13_0['pop_sfr_below_ms{1}'] = None
+smhm_same_beta_0_sysb13_0.update(ms_offset)
+smhm_same_beta_0_sysb13_0['pop_sys_method{0}'] = 1
+smhm_same_beta_0_sysb13_0.update(dust_dplx)
+smhm_same_beta_0_sysb13_0.update(
+{
+  'pq_func_par0[0]{0}':6.562857636257217e-05,
+  'pq_func_par1[0]{0}':1154449083507.509,
+  'pq_func_par2[0]{0}':1.4071043353566437,
+  'pq_func_par3[0]{0}':-0.5239161398777057,
+  'pq_func_par0[2]{0}':0.22959302905619283,
+  'pq_func_par1[2]{0}':0.9761108930455651,
+  'pq_func_par2[2]{0}':12.03380400340656,
+  'pq_func_par3[2]{0}':-0.05511582655081092,
+  'pq_func_par4[2]{0}':-1.2332402259494204,
+  'pq_func_par8[2]{0}':-4.5779020327750874,
+  'pq_func_par5[2]{0}':-1.7327723034806422,
+  'pq_func_par9[2]{0}':1.1888386851276551,
+  'pq_func_par6[2]{0}':0.6386486399159326,
+  'pq_func_par10[2]{0}':0.32070815831480776,
+  'pq_func_par7[2]{0}':-0.9789361338394484,
+  'pq_func_par11[2]{0}':0.04394171669492039,
+  'pq_func_par0[1]{0}':0.0004627849835462555,
+  'pq_func_par1[1]{0}':6537906352.698283,
+  'pq_func_par2[1]{0}':2.1930223153118424,
+  'pq_func_par3[1]{0}':2.1059206806810735,
+  'pq_func_par5[1]{0}':-1.0371766434006386,
+  'pq_func_par9[1]{0}':1.4070001958780367,
+  'pq_func_par6[1]{0}':4.372888554276101,
+  'pq_func_par10[1]{0}':-1.3271136455466546,
+  'pq_func_par7[1]{0}':-0.510525457827055,
+  'pq_func_par11[1]{0}':-0.4835763094033978,
+  'pq_func_par8[1]{0}':-3.096409521331084,
+  'pq_func_par12[1]{0}':1.6359221029163027,
+  'pq_func_par21[1]{0}':1119252967849.1277,
+  'pq_func_par22[1]{0}':1.849164459472881,
+  'pq_func_par23[1]{0}':-0.7456435537366962,
+  'pq_func_par24[1]{0}':0.7732103327285816,
+  'pq_func_par1[8]{1}':0.49297559865578056,
+  'pq_func_par2[8]{1}':9.338480671751258,
+  'pq_func_par3[8]{1}':-3.352067942643884,
+  'pq_func_par0[4]{0}':0.6903999151968345,
+  'pq_func_par1[4]{0}':32774110691819.363,
+  'pq_func_par2[4]{0}':0.10113320097748182,
+  'pq_func_par3[4]{0}':-0.48398649305620156,
+  'pq_func_par5[4]{0}':1.2408484734148137,
+  'pq_func_par9[4]{0}':-0.4936475325018219,
+  'pq_func_par6[4]{0}':-4.780120045635766,
+  'pq_func_par10[4]{0}':1.9266465199992573,
+  'pq_func_par7[4]{0}':1.1433106034863392,
+  'pq_func_par11[4]{0}':-0.3297430117564527,
+  'pq_func_par8[4]{0}':2.5000519316897227,
+  'pq_func_par12[4]{0}':-1.2901111404169323,
+  'pop_scatter_sfh{0}':0.5008636842801829,
+  'pop_sys_mstell_now{0}':-0.22101780211539848,
+  'pop_sys_mstell_a{0}':0.03097006183382128,
+  'pop_sys_sfr_now{0}':0.0034202522721927713,
+  'pop_sys_sfr_a{0}':0.10023587183303122,
+}
+)
 
-# Satellite possibilities: satellites follow same relation, satellites follow same relation as host
+smhm_same_beta_0_sysb13_1 = setup.copy()
+smhm_same_beta_0_sysb13_1['pop_sfr_below_ms{1}'] = None
+smhm_same_beta_0_sysb13_1.update(ms_offset)
+smhm_same_beta_0_sysb13_1['pop_sys_method{0}'] = 'b13'
+smhm_same_beta_0_sysb13_1.update(dust_dplx)
+smhm_same_beta_0_sysb13_1.update(
+smhm_same_beta_0_sysb13_1 = \
+{
+  'pq_func_par0[0]{0}':6.546727266822017e-05,
+  'pq_func_par1[0]{0}':1136905956377.808,
+  'pq_func_par2[0]{0}':1.4156915095122995,
+  'pq_func_par3[0]{0}':-0.4514852331791116,
+  'pq_func_par0[2]{0}':0.1491800866920906,
+  'pq_func_par1[2]{0}':0.8446452880307186,
+  'pq_func_par2[2]{0}':12.18562808348727,
+  'pq_func_par3[2]{0}':-0.18024807039691898,
+  'pq_func_par4[2]{0}':-0.6590953289680745,
+  'pq_func_par8[2]{0}':0.7793974919727285,
+  'pq_func_par5[2]{0}':-0.7982261636442499,
+  'pq_func_par9[2]{0}':0.7169509562194679,
+  'pq_func_par6[2]{0}':0.5734508410202568,
+  'pq_func_par10[2]{0}':-0.4644208946519799,
+  'pq_func_par7[2]{0}':-0.5186469945609264,
+  'pq_func_par11[2]{0}':0.23659963095221978,
+  'pq_func_par0[1]{0}':0.001007364541523169,
+  'pq_func_par1[1]{0}':1326519460.54632,
+  'pq_func_par2[1]{0}':2.2379857921304422,
+  'pq_func_par3[1]{0}':1.9052260769461395,
+  'pq_func_par5[1]{0}':-0.5098255681380844,
+  'pq_func_par9[1]{0}':0.9741375284030075,
+  'pq_func_par6[1]{0}':4.754985948790003,
+  'pq_func_par10[1]{0}':-1.228361510825788,
+  'pq_func_par7[1]{0}':-1.4149050329638366,
+  'pq_func_par11[1]{0}':0.17578824586267813,
+  'pq_func_par8[1]{0}':-0.09626745183237181,
+  'pq_func_par12[1]{0}':0.4078644050282395,
+  'pq_func_par21[1]{0}':1013097973578.8844,
+  'pq_func_par22[1]{0}':1.3514979870549007,
+  'pq_func_par23[1]{0}':-1.2031868097741518,
+  'pq_func_par24[1]{0}':0.6619917562474905,
+  'pq_func_par1[8]{1}':0.4104785368113815,
+  'pq_func_par2[8]{1}':11.059218140396677,
+  'pq_func_par3[8]{1}':-0.17829197662450125,
+  'pq_func_par0[4]{0}':0.7697205378843031,
+  'pq_func_par1[4]{0}':4160660742744.083,
+  'pq_func_par2[4]{0}':0.07805093889037408,
+  'pq_func_par3[4]{0}':0.03211092441361023,
+  'pq_func_par5[4]{0}':0.4876060689578921,
+  'pq_func_par9[4]{0}':-0.2817883458629737,
+  'pq_func_par6[4]{0}':-1.5016658722303664,
+  'pq_func_par10[4]{0}':0.565798417858104,
+  'pq_func_par7[4]{0}':0.4330306169071437,
+  'pq_func_par11[4]{0}':0.17402247818037384,
+  'pq_func_par8[4]{0}':-0.4775168720020432,
+  'pq_func_par12[4]{0}':-0.02394168386389614,
+  'pop_scatter_sfh{0}':0.18446978089116553,
+  'pop_sys_mstell_now{0}':-0.21758337994488097,
+  'pop_sys_mstell_a{0}':0.08843867257875916,
+  'pop_sys_sfr_now{0}':0.21783689395849437,
+}
+)
+
+# Files not hosted anywhere yet, have to be in the know
+smhm_same_beta_0_sysb13_0.update(
+{
+ 'pop_lum_tab{0}': f"{HOME}/.ares/sedtabs/smhm_same_beta_0_sysb13_0_seds/igl_best/sedtab_pop_0.hdf5",
+ 'pop_lum_tab{1}': f"{HOME}/.ares/sedtabs/smhm_same_beta_0_sysb13_0_seds/igl_best/sedtab_pop_1.hdf5",
+ 'pop_lum_tab{2}': f"{HOME}/.ares/sedtabs/smhm_same_beta_0_sysb13_0_seds/igl_best/sedtab_pop_0.hdf5",
+ 'pop_lum_tab{3}': f"{HOME}/.ares/sedtabs/smhm_same_beta_0_sysb13_0_seds/igl_best/sedtab_pop_1.hdf5",
+}
+)
+
+fiducial = smhm_same_beta_0_sysb13_0
