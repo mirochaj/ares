@@ -31,8 +31,8 @@ def test():
         grid.set_ionization(x=[1. - 1e-8, 1e-8])
         grid.set_temperature(T)
 
-        coeff = coeffB = ares.physics.RateCoefficients(grid=grid, rate_src=src, T=T)
-        coeffA = ares.physics.RateCoefficients(grid=grid, rate_src=src, T=T,
+        coeff = coeffB = ares.physics.RateCoefficients(grid=grid, rate_src=src)
+        coeffA = ares.physics.RateCoefficients(grid=grid, rate_src=src,
             recombination='A')
 
         # First: collisional ionization, recombination

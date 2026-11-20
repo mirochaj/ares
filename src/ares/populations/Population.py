@@ -25,6 +25,7 @@ from scipy.special import gammaincinv
 from ares.data import read as read_lit
 from scipy.interpolate import interp1d
 from ..util.PrintInfo import print_pop
+from ..util.Units import get_ev_from_x
 from ..obs.Photometry import Photometry
 from ..obs.OpticalDepth import OpticalDepth
 from ..util.ParameterFile import get_pq_pars
@@ -984,7 +985,7 @@ class Population(object):
             assert units.lower() == 'ev'
             band = self.pf['pop_Emin'], self.pf['pop_Emax']
 
-        Emin, Emax = self.src.get_ev_from_x(band, units=units)
+        Emin, Emax = get_ev_from_x(band, units=units)
 
         # Lower bound
         if (Emin is not None) and (self.src is not None):
@@ -1047,7 +1048,7 @@ class Population(object):
 
         """
 
-        Emin, Emax = self.src.get_ev_from_x(band, units=units)
+        Emin, Emax = get_ev_from_x(band, units=units)
 
         if self.pf['pop_sed'] is None:
             Eavg = np.mean([Emin, Emax])
