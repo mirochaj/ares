@@ -11,6 +11,7 @@ which handles grid initialization, time-stepping, data storage, etc.
 
 """
 
+import copy
 import numpy as np
 from ..core import Grid
 from ..solvers import Chemistry
@@ -31,7 +32,8 @@ class GasParcel(object):
                 "Must provide parameters to initialize a Simulation!"
             self.pf = ParameterFile(is_sim_level=True, **kwargs)
         else:
-            self.pf = pf
+            self.pf = copy.copy(pf)
+            self.pf.update(kwargs)
 
         self._cosm_ = cosm
         self.grid = Grid(pf=self.pf, cosm=cosm, **kwargs)

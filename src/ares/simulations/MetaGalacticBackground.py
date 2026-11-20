@@ -215,7 +215,12 @@ class MetaGalacticBackground(AnalyzeMGB):
 
         lwb_and_in_pops = set(self._lwb_sources) & set(include_pops)
 
-        is_converged = self._is_Mmin_converged(lwb_and_in_pops)
+        if self.pf['feedback_LW']:
+            _pops = sorted(set(self._lwb_sources) & set(include_pops))
+        else:
+            _pops = list(include_pops)
+
+        is_converged = self._is_Mmin_converged(_pops)
 
         ##
         # Feedback
