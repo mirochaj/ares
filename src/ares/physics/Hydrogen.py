@@ -459,7 +459,7 @@ class Hydrogen(object):
             to_solve = lambda Ts: np.abs(Ts * Ts_inv(Ts) - 1.)
 
             x = fsolve(to_solve, Tcmb, full_output=True, epsfcn=1e-3)
-            Ts = abs(float(x[0]))
+            Ts = abs(float(x[0][0]))
 
             return xa(Ts), Sa(Ts), Ts
         else:

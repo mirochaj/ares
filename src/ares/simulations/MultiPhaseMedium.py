@@ -547,7 +547,7 @@ class MultiPhaseMedium(object):
 
             snapshot['rho'] = self.parcel_igm.grid.cosm.MeanBaryonDensity(red)
             n = self.parcel_igm.grid.particle_density(snapshot.copy(), red)
-            snapshot['n'] = float(n)
+            snapshot['n'] = float(np.squeeze(n))
 
             # Need to keep the cell number dimension for consistency
             for element in snapshot:

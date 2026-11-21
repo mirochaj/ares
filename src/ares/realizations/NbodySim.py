@@ -76,7 +76,6 @@ class NbodySim(LightCone): # pragma: no cover
         """
 
         # Should setup to keep box in memory until we change to a different z
-
         m, xx, yy, zz = self.sim.pops[0].pf['pop_halos'](z).T
 
         ok = np.logical_and(m >= mmin, m < mmax)

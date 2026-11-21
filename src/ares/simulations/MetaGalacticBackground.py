@@ -819,7 +819,7 @@ class MetaGalacticBackground(AnalyzeMGB):
                     x = kwargs['{0!s}_{1!s}'.format(pop.zone, absorber)]
 
                     if self.grid.dims == 1:
-                        this_pop['k_ion'][0][j] /= x
+                        this_pop['k_ion'][0][j] /= np.squeeze(x)
 
                     # No helium for cgm, at least not this carefully
                     if pop.zone == 'cgm':

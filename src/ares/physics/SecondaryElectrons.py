@@ -56,13 +56,13 @@ class SecondaryElectrons(object):
             self.E = np.array(f[("electron_energy")])
             self._x = np.array(f[("ionized_fraction")])
 
-            self.fh_tab = np.array(f[("f_heat")])
-            self.fionHI_tab = np.array(f[("fion_HI")])
-            self.fionHeI_tab = np.array(f[("fion_HeI")])
-            self.fionHeII_tab = np.array(f[("fion_HeII")])
-            self.fexc_tab = np.array(f[("fexc")])
-            self.flya_tab = np.array(f[('f_Lya')])
-            self.fion_tab = np.array(f[('fion')])
+            self.tab_fh = np.array(f[("f_heat")])
+            self.tab_fionHI = np.array(f[("fion_HI")])
+            self.tab_fionHeI = np.array(f[("fion_HeI")])
+            self.tab_fionHeII = np.array(f[("fion_HeII")])
+            self.tab_fexc = np.array(f[("fexc")])
+            self.tab_flya = np.array(f[('f_Lya')])
+            self.tab_fion = np.array(f[('fion')])
 
             f.close()
         else:
@@ -71,14 +71,14 @@ class SecondaryElectrons(object):
         self._logx = np.log10(self.x)
 
         # Now, setup splines
-        from scipy.interpolate import RectBivariateSpline, interp2d
+        from scipy.interpolate import RectBivariateSpline
 
-        self.fh = RectBivariateSpline(self.E, self.x, self.fh_tab)
-        self.fHI = RectBivariateSpline(self.E, self.x, self.fionHI_tab)
-        self.fHeI = RectBivariateSpline(self.E, self.x, self.fionHeI_tab)
-        self.fHeII = RectBivariateSpline(self.E, self.x, self.fionHeII_tab)
-        self.fexc = RectBivariateSpline(self.E, self.x, self.fexc_tab)
-        self.flya = RectBivariateSpline(self.E, self.x, self.flya_tab)
+        self.get_fh = RectBivariateSpline(self.E, self.x, self.tab_fh)
+        self.get_fHI = RectBivariateSpline(self.E, self.x, self.tab_fionHI)
+        self.get_fHeI = RectBivariateSpline(self.E, self.x, self.tab_fionHeI)
+        self.get_fHeII = RectBivariateSpline(self.E, self.x, self.tab_fionHeII)
+        self.get_fexc = RectBivariateSpline(self.E, self.x, self.tab_fexc)
+        self.get_flya = RectBivariateSpline(self.E, self.x, self.tab_flya)
 
     @property
     def logx(self):
@@ -179,21 +179,15 @@ class SecondaryElectrons(object):
         # Furlanetto & Stoever (2010)
         if method == 3:
 
-            f = tiny_number * np.zeros_like(xHII)
-
-            for i, x in enumerate(xHII):
-
-                if channel == 'heat':
-                    f[i] = self.fh(E, x)
-                if channel == 'h_1':
-                    f[i] = self.fHI(E, x)
-                if channel == 'he_1':
-                    f[i] = self.fHeI(E, x)
-                if channel == 'he_2':
-                    f[i] = self.fHeII(E, x)
-                if channel == 'lya':
-                    f[i] = self.flya(E, x)
-                if channel == 'exc':
-                    f[i] = self.fexc(E, x)
-
-            return f
+            if channel == 'heat':
+                return self.get_fh(E * np.ones_like(xHII), xHII, grid=False)
+            if channel == 'h_1':
+                return self.get_fHI(E * np.ones_like(xHII), xHII, grid=False)
+            if channel == 'he_1':
+                return self.get_fHeI(E * np.ones_like(xHII), xHII, grid=False)
+            if channel == 'he_2':
+                return self.get_fHeII(E * np.ones_like(xHII), xHII, grid=False)
+            if channel == 'lya':
+                return self.get_flya(E * np.ones_like(xHII), xHII, grid=False)
+            if channel == 'exc':
+                return self.get_fexc(E * np.ones_like(xHII), xHII, grid=False)

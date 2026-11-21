@@ -13,7 +13,7 @@ Description:
 import ares
 import numpy as np
 
-def test(tmp_dir):
+def test(tmp_path):
 
     updates = {'stop_time': 100, 'grid_cells': 32}
 
@@ -36,7 +36,7 @@ def test(tmp_dir):
     assert np.mean(sim.history['Tk'][-1]) > sim.history['Tk'][0,0]
 
     # This run will have generated a lookup table for Gamma. Write to disk.
-    sim.save_tables(prefix=f'{tmp_dir}/test_rt1d')
+    sim.save_tables(prefix=f'{tmp_path}/test_rt1d')
 
     # Eventually, test read capability. Currently broken.
 

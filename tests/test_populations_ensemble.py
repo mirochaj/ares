@@ -14,7 +14,7 @@ import ares
 import numpy as np
 from ares.physics.Constants import rhodot_cgs, E_LL, cm_per_mpc, ev_per_hz
 
-def test(tmp_dir):
+def test(tmp_path):
     pars = ares.util.ParameterBundle('mirocha2020:univ')
     pars.update(ares.util.ParameterBundle('testing:galaxies'))
     # Can't actually do this test yet because we don't have access to
@@ -23,7 +23,7 @@ def test(tmp_dir):
     pop = ares.populations.GalaxyPopulation(**pars)
 
     # Test I/O. Should add more here eventually.
-    pop.save(f'{tmp_dir}/test_ensemble', clobber=True)
+    pop.save(f'{tmp_path}/test_ensemble', clobber=True)
 
     z = pop.tab_z
     t = pop.tab_t

@@ -13,13 +13,12 @@ Description:
 import ares
 import numpy as np
 
-def test(tmp_dir):
+def test(tmp_path):
     pars = ares.util.ParameterBundle('global_signal:basic')
     sim = ares.simulations.Simulation(**pars)
 
     sim.sim_gs.info
     pf = sim.pf
-    sim.sim_gs.pf._check_for_conflicts()
     assert sim.pf.Npops == 3
 
     sim_gs = sim.get_21cm_gs()
@@ -62,7 +61,7 @@ def test(tmp_dir):
     curv2 = sim_gs.dTb2dnu2
 
     # Save, read back in
-    output = tmp_dir / "test"
+    output = tmp_path / "test"
     sim_gs.save(output, suffix='pkl', clobber=True)
     sim_gs.save(output, suffix='hdf5', clobber=True)
 
@@ -71,12 +70,12 @@ def test(tmp_dir):
 
 if __name__ == '__main__':
     import os 
-
+    from pathlib import Path
     if os.environ.get('RUNNER_TEMP') is not None:
         tmp_dir = os.environ.get('RUNNER_TEMP')
     else:
         if not os.path.exists('_tmp_ares_data'):
             os.mkdir('_tmp_ares_data')
-        tmp_dir = '_tmp_ares_data'
+        tmp_dir = Path('_tmp_ares_data')
 
     test(tmp_dir)

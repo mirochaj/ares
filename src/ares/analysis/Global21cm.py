@@ -23,6 +23,11 @@ from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis, add_time_axis
 
 class Global21cm(object):
     def __getattr__(self, name):
+        # Borrow properties (e.g. history_asc) from analysis.MultiPhaseMedium
+        if name in MultiPhaseMedium.__dict__:
+            return MultiPhaseMedium.__dict__[name].__get__(self, MultiPhaseMedium)
+        #history_asc = MultiPhaseMedium.history_asc 
+        
         if name[0] == '_':
             raise AttributeError(name)
         
@@ -184,7 +189,7 @@ class Global21cm(object):
     def track(self):
         if not hasattr(self, '_track'):
             if hasattr(self, 'pf'):
-                self._track = TurningPoints(**self.pf)
+                self._track = TurningPoints(pf=self.pf)
             else:
                 self._track = TurningPoints()
         return self._track

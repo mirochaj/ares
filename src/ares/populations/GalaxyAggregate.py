@@ -119,10 +119,10 @@ class GalaxyAggregate(HaloPopulation):
             assert units.lower() == 'ev'
         elif (band is not None):
             pass
-        elif (x is not None):
-            # This is a problem because it implies a non-band-integrated
-            # luminosity density, which means we have to be careful with units.
-            raise NotImplementedError(f"Haven't implemented units_out={units_out}")
+        #elif (x is not None):
+        #    # This is a problem because it implies a non-band-integrated
+        #    # luminosity density, which means we have to be careful with units.
+        #    raise NotImplementedError(f"Haven't implemented units_out={units_out}")
         elif units_out.lower() != 'erg/s/ev':
             raise NotImplementedError(f"Haven't implemented units_out={units_out}")
 

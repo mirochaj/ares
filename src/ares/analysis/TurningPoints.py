@@ -20,8 +20,8 @@ from scipy.interpolate import splrep, splev
 from ..util.SetDefaultParameterValues import SetAllDefaults
 
 class TurningPoints(object):
-    def __init__(self, inline=False, **kwargs):
-        self.pf = ParameterFile(**kwargs)
+    def __init__(self, inline=False, pf=None, **kwargs):
+        self.pf = pf if pf is not None else ParameterFile(**kwargs)
 
         self.delay = self.pf['delay_extrema']
 

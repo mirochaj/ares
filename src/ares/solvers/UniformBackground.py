@@ -721,11 +721,11 @@ class UniformBackground(object):
 
 
             self.k_ion[i,0,j] += \
-                self.volume.IonizationRateIGM(z, species=j, popid=i,
-                band=k, **kwargs)
+                np.squeeze(self.volume.IonizationRateIGM(z, species=j, popid=i,
+                band=k, **kwargs))
             self.k_heat[i,0,j] += \
-                self.volume.HeatingRate(z, species=j, popid=i,
-                band=k, **kwargs)
+                np.squeeze(self.volume.HeatingRate(z, species=j, popid=i,
+                band=k, **kwargs))
 
             for h, donor in enumerate(self.grid.absorbers):
                 self.k_ion2[i,0,j,h] += \
@@ -734,8 +734,8 @@ class UniformBackground(object):
 
         elif kwargs['zone'] in ['cgm', 'both']:
 
-            Gamma = self.volume.IonizationRateCGM(z, species=j, popid=i,
-                band=k, **kwargs)
+            Gamma = np.squeeze(self.volume.IonizationRateCGM(z, species=j, popid=i,
+                band=k, **kwargs))
 
             self.k_ion[i,0,j] += Gamma
 

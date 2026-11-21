@@ -84,7 +84,7 @@ def get_nu(sigma, nu_in, nu_out):
 
     # Minimize difference between integral (as function of variance) and
     # specified area (i.e., supplied confidence interval).
-    to_min = lambda y: abs(integral(y) - nu_in)
+    to_min = lambda y: abs(integral(y[0]) - nu_in)
 
     # Solve above equation to obtain the 1-sigma error-bar.
     s1 = fmin(to_min, guess * sigma, disp=False)[0]
@@ -95,7 +95,7 @@ def get_nu(sigma, nu_in, nu_out):
     f_s_out = lambda s_out: quad(lambda x: pdf(x, s=s1),
         -abs(s_out), abs(s_out))[0]
 
-    to_min = lambda y: abs(f_s_out(y) - nu_out)
+    to_min = lambda y: abs(f_s_out(y[0]) - nu_out)
 
     s_out = fmin(to_min, guess * sigma, disp=False)[0]
 

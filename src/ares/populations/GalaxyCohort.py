@@ -983,7 +983,7 @@ class GalaxyCohort(GalaxyAggregate):
                     if not np.any(huge):
                         continue
 
-                    ilt0 = int(huge[-1])
+                    ilt0 = int(huge[-1,0])
 
                     # Extrapolate
                     _Msafe = min(self.halos.tab_M[ilt0] * 10, 1e13)
