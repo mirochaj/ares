@@ -1,6 +1,7 @@
 # .coveragerc to control coverage.py
 [run]
 branch = False
+source_pkgs = ares
 
 [report]
 precision = 2
@@ -38,14 +39,14 @@ exclude_lines =
     if __name__ == .__main__.:
 
 omit =
-    ares/util/Aesthetics.py
-    ares/util/cli.py
-    ares/util/MPIPool.py
-    ares/util/PrintInfo.py
-    ares/util/Warnings.py
-    ares/analysis/*.py
-    ares/inference/*.py
-    ares/data/*.py
+    */ares/util/Aesthetics.py
+    */ares/util/cli.py
+    */ares/util/MPIPool.py
+    */ares/util/PrintInfo.py
+    */ares/util/Warnings.py
+    */ares/analysis/*.py
+    */ares/inference/*.py
+    */ares/data/*.py
 
 ignore_errors = True
 

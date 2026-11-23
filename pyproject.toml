@@ -63,7 +63,7 @@ where = ["src"]
 [tool.setuptools_scm]
 
 [tool.pytest.ini_options]
-addopts = "--cov-config=.coveragerc --cov=ares --cov-report=html -v"
+addopts = "--cov-config=.coveragerc --cov --cov-report=html -v"
 testpaths = [
   "tests/*.py",
 ]
