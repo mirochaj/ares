@@ -487,7 +487,8 @@ class Global21cm(AnalyzeGlobal21cm):
                 raise IOError('{!s} exists! Set clobber=True to overwrite.'.format(fn))
 
         if suffix == 'pkl':
-            write_pickle_file(self.history._data, fn, ndumps=1, open_mode='w',\
+            data = getattr(self.history, '_data', self.history)
+            write_pickle_file(data, fn, ndumps=1, open_mode='w',\
                 safe_mode=False, verbose=False)
         elif suffix in ['hdf5', 'h5']:
             import h5py

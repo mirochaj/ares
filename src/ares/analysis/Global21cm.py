@@ -22,6 +22,8 @@ from scipy.interpolate import interp1d, splrep, splev
 from .MultiPhaseMedium import MultiPhaseMedium, add_redshift_axis, add_time_axis
 
 class Global21cm(object):
+    __init__ = MultiPhaseMedium.__init__
+    
     def __getattr__(self, name):
         # Borrow properties (e.g. history_asc) from analysis.MultiPhaseMedium
         if name in MultiPhaseMedium.__dict__:

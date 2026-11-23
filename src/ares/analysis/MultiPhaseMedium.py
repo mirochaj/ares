@@ -89,9 +89,9 @@ class MultiPhaseMedium(object):
             self.history = data.copy()
 
         # Read output of a simulation from disk
-        elif isinstance(data, str):
-            self.prefix = data
-            self._load_data(data)
+        elif isinstance(data, (str, os.PathLike)):
+            self.prefix = str(data)
+            self._load_data(self.prefix)
 
         self.kwargs = kwargs
 
@@ -168,7 +168,7 @@ class MultiPhaseMedium(object):
     @property
     def cosm(self):
         if not hasattr(self, '_cosm'):
-            self._cosm = Cosmology(**self.pf)
+            self._cosm = Cosmology(pf=self.pf)
 
         return self._cosm
 
