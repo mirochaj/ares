@@ -133,7 +133,7 @@ _low = \
  'pop_sed{2}': 'eldridge2009',
  'pop_binaries{2}': False,
  'pop_Z{2}': 1e-3,
- 'pop_Emin{2}': E_LyA,
+ 'pop_Emin{2}': 1.,
  'pop_Emax{2}': 24.6,
  #'pop_EminNorm{2}': 0.,
  #'pop_EmaxNorm{2}': np.inf,

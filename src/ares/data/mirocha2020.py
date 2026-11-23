@@ -35,7 +35,7 @@ _sed_updates = \
  'pop_sed': 'eldridge2009',
  'pop_binaries': False,
  'pop_rad_yield': 'from_sed',
- 'pop_Emin': E_LyA,
+ 'pop_Emin': 1.,
  'pop_Emax': 24.6,
  'pop_fesc': 0.2,
 

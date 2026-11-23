@@ -32,7 +32,7 @@ def test():
 
     # Testing parameterized SFHs
     tobs = 1.3e4
-    tarr = np.arange(100, 1.37e4, 10)
+    tarr = np.arange(1, 1.37e4, 1)
     sfr = 1
     mass = 1e12
 

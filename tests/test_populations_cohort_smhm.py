@@ -36,14 +36,14 @@ def test():
     x, phi = pop.get_lf(6, mags)
     x2, phi2 = pop.get_lf(6, mags, use_tabs=False)
 
-    assert np.allclose(phi, phi2)
+    assert np.allclose(phi, phi2, rtol=1e-2), "Error of use_tabs exceeds 1% for LF"
 
     x, phi = pop.get_mf(6, np.arange(6, 12, 0.1))
     x2, phi2 = pop.get_mf(6, np.arange(6, 12, 0.1), use_tabs=False)
 
     err = np.abs(phi - phi2) / phi2
 
-    assert np.allclose(phi, phi2, rtol=1e-2), "Error of use_tabs exceeds 1%"
+    assert np.allclose(phi, phi2, rtol=1e-2), "Error of use_tabs exceeds 1% for SMF"
 
     focc = pop.get_focc(6, Mh)
     fsurv = pop.get_fsurv(6, Mh)

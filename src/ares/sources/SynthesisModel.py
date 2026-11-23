@@ -146,16 +146,24 @@ class SynthesisModelBase(Source):
         else:
             raise NotImplementedError('Unrecognized `band_units` option.')
 
-        j1 = np.argmin(np.abs(Emin - self.tab_energies_c))
-        j2 = np.argmin(np.abs(Emax - self.tab_energies_c))
+        Eavg = self.eV_per_phot(Emin, Emax)
 
-        E = self.tab_energies_c[j2:j1][-1::-1]
+        # For SSPs, eV_per_phot returns the full time series; pick source_age.
+        if self.is_ssp:
+            return np.interp(self.pf['source_age'], self.tab_t, Eavg)
 
-        # Units: erg / s / Hz
-        to_int = self.get_spectrum(E)
-
-        # Units: erg / s
-        return np.trapezoid(to_int * E, x=E) / np.trapezoid(to_int, x=E)
+        return Eavg
+    
+        #j1 = np.argmin(np.abs(Emin - self.tab_energies_c))
+        #j2 = np.argmin(np.abs(Emax - self.tab_energies_c))
+#
+        #E = self.tab_energies_c[j2:j1][-1::-1]
+#
+        ## Units: erg / s / Hz
+        #to_int = self.get_spectrum(E)
+#
+        ## Units: erg / s
+        #return np.trapezoid(to_int * E, x=E) / np.trapezoid(to_int, x=E)
 
     def _cache_spec(self, E):
         if not hasattr(self, '_cache_spec_'):
@@ -601,6 +609,9 @@ class SynthesisModelBase(Source):
         i0 = np.argmin(np.abs(self.tab_energies_c - Emin))
         i1 = np.argmin(np.abs(self.tab_energies_c - Emax))
 
+        assert i0 > i1, \
+            f"Band ({Emin}, {Emax}) eV is narrower than one SED bin."
+
         # [self.tab_sed] = erg / s / A / [depends]
 
         # Must convert units
@@ -610,10 +621,13 @@ class SynthesisModelBase(Source):
             / self.tab_energies_c[i1:i0] / erg_per_ev,
             x=np.log(self.tab_waves_c[i1:i0]), axis=1)
 
+        # Average photon energy [eV] at each age
+        Eavg_t = E_tot / N_tot / erg_per_ev
+
         if self.is_ssp:
-            return E_tot / N_tot / erg_per_ev
+            return Eavg_t
         else:
-            return E_tot[-1] / N_tot[-1] / erg_per_ev
+            return np.interp(self.pf['source_age'], self.tab_t, Eavg_t)
 
     def get_rad_yield(self, band=None, units='eV', units_out='erg/s/Hz',
         raw=True):
@@ -628,13 +642,13 @@ class SynthesisModelBase(Source):
             self.get_lum_per_sfr_of_t(band=band, units=units,
             units_out=units_out, raw=raw)
 
-        if self.is_ssp:
-            # erg / s / Msun
-            return np.interp(self.pf['source_age'], self.tab_t,
-                erg_per_variable)
-        else:
+        #if self.is_ssp:
+        # erg / s / Msun
+        return np.interp(self.pf['source_age'], self.tab_t,
+            erg_per_variable)
+        #else:
             # erg / Msun
-            return erg_per_variable[-1]
+        #    return erg_per_variable[-1]
 
     #@property
     #def Lbol_at_tsf(self):
@@ -771,8 +785,10 @@ class SynthesisModelBase(Source):
             photons_per_b_t = photons_per_s_per_msun * s_per_yr \
                 / self.cosm.b_per_msun
 
-            # Return last element: steady state result
-            phot_per_b = photons_per_b_t[-1]
+            if return_all_t:
+                phot_per_b = photons_per_b_t
+            else:
+                phot_per_b = np.interp(self.pf['source_age'], self.tab_t, photons_per_b_t)
 
         self._nphot_per_bar[(band, raw, return_all_t)] = phot_per_b
 
