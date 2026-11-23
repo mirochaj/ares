@@ -423,10 +423,12 @@ class Source(object):
 
         return self._hnu_bar_all
 
-    def get_avg_photon_energy(self, Emin, Emax):
+    def get_avg_photon_energy(self, band, band_units='ev'):
         """
         Return average photon energy in supplied band.
         """
+
+        Emin, Emax = get_ev_from_x(band, band_units)
 
         integrand = lambda EE: self.get_spectrum(EE) * EE
         norm = lambda EE: self.get_spectrum(EE)

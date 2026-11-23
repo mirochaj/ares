@@ -780,7 +780,9 @@ class SynthesisModelBase(Source):
                     initial=0.0)
             else:
                 phot_per_b = np.trapezoid(photons_per_b_t, x=self.tab_t*s_per_myr)
-        # Take steady-state result
+        # For continuous star formation, we don't integrate over time,
+        # just return the appropriate value at `source_age` or
+        # at all times (if return_all_t == True).
         else:
             photons_per_b_t = photons_per_s_per_msun * s_per_yr \
                 / self.cosm.b_per_msun

@@ -412,6 +412,7 @@ satellites_q['pop_include_2h'] = True
 satellites_q['pop_include_shot'] = True
 satellites_q['pop_fstar'] = 'link:fstar:1'
 satellites_q['pop_sfr'] = 'link:sfr:1'
+satellites_q['pop_sfr_below_ms'] = None
 #satellites_q['pop_scatter_sfh'] = 'pop_scatter_sfh{0}'
 #satellites_q['pop_scatter_smhm'] = 'pop_scatter_smhm{1}'
 
