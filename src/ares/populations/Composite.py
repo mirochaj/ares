@@ -138,6 +138,7 @@ class CompositePopulation(object):
                         self.pops[i]._get_ssfr = self.pops[element].get_ssfr
                     else:
                         self.pops[i]._get_sfr = self.pops[element].get_sfr
+                        self.pops[i]._sfr_linkee = self.pops[element]
                 elif to_quantity[i][j] in ['Av']:
                     if self.pops[i] is None:
                         self.pops[i] = GalaxyCohort(pf=self.pf.pfs[i],

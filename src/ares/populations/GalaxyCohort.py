@@ -1138,6 +1138,10 @@ class GalaxyCohort(GalaxyAggregate):
         return 10**(np.log10(sfr) + offset)
 
     def get_ms_offset(self, **kwargs):
+        linkee = getattr(self, '_sfr_linkee', None)
+        if (linkee is not None) and linkee.is_quiescent:
+            return linkee.get_ms_offset(**kwargs)
+
         if 'Mh' in kwargs:
             ones = np.ones_like(kwargs['Mh'])
         else:
@@ -1181,13 +1185,18 @@ class GalaxyCohort(GalaxyAggregate):
         """
 
         if hasattr(self, '_get_sfr'):
-            if self.is_quiescent and self.pf['pop_ms_offset'] is not None:
-                factor = self.get_ms_offset(**kwargs)
-            elif self.is_quiescent and self.pf['pop_sfr_below_ms'] is not None:
-                # Eventually deprecate this
-                factor = 1. / self.pf['pop_sfr_below_ms']
+            linkee = getattr(self, '_sfr_linkee', None)
+            if (linkee is not None) and linkee.is_quiescent:
+                # Linked pop has already applied its own MS offset; don't
+                # apply a second one (e.g., quiescent satellites -> centrals).
+                factor = 1.
             else:
-                factor = 1
+                factor = self.get_ms_offset(**kwargs)
+            #elif self.is_quiescent and self.pf['pop_sfr_below_ms'] is not None:
+            #    # Eventually deprecate this
+            #    factor = 1. / self.pf['pop_sfr_below_ms']
+            #else:
+            #    factor = 1
         
             return self._get_sfr(**kwargs) * factor
 
