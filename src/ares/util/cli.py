@@ -210,14 +210,9 @@ def unpack_bpass_v1(parent_dir):
 # Auxiliary data downloads
 # Format: [URL, file1, file2, ..., file to run when done]
 aux_data = {
-    "halos_tests": [
-        "https://drive.google.com/file/d/1k8YG1Z02WQ-bUFqBB6C7W4eb_huwMKxz/view?usp=sharing",
-        "halos_tests.tar.gz",
-        None,
-    ],
     "halos": [
-        "https://drive.google.com/file/d/1sglCEiO6HrpQJWKcwmBNvRl1lyUQWfNO/view?usp=sharing",
-        "halos.tar.gz",
+        "https://drive.google.com/file/d/1AcryTUCeIfsxgMPT9-uPZcCWb-jDcs-N/view?usp=sharing",
+        "halos_20261123.tar.gz",
         None,
     ],
     "inits": [
@@ -436,24 +431,17 @@ dataset_groups = {
     "tests": [
         "inits",
         "secondary_electrons",
-        "halos_tests",
+        "halos",
         "wfc",
         "wfc3",
         "planck",
         "bpass_v1_tests",
         "optical_depth",
     ],
-    # Don't think test_files ever gets used, covered by 'tests' above
-    #"test_files": [
-    #    "inits.tar.gz",
-    #    "elec_interp.tar.gz",
-    #    "halos_tests.tar.gz",
-    #    "IR.zip",
-    #    "wfc.tar.gz",
-    #    aux_data["planck"][1],
-    #    "bpass_v1_tests.tar.gz",
-    #    "tau.tar.gz",
-    #],
+    "tests_slow": [
+        "sdss",
+        "sedtabs",
+    ],
     "photometry": [
         "nircam",
         "irac",
@@ -1383,6 +1371,10 @@ def init_ares(args):
             halo_mf='Tinker10', halo_dt=100, halo_tmin=100, halo_dz=None)
         generate_ukm_tables(f"{args.path}/halos", prof='nfw',
             halo_mf='Tinker10', halo_dt=10, halo_tmin=30, halo_dz=None)
+        
+        ##
+        # Could add calls using tmin=5000, which is what resolved
+        # galaxies' tables use.
 
         # Nice to have UniverseMachine for comparison and for 
         # all the included datasets

@@ -28,8 +28,6 @@ classifiers = [
   "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Science/Research",
   "License :: OSI Approved :: MIT License",
-  "Programming Language :: Python :: 3.7",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Langauge :: Python :: 3.10",
   "Programming Langauge :: Python :: 3.11",
@@ -63,7 +61,10 @@ where = ["src"]
 [tool.setuptools_scm]
 
 [tool.pytest.ini_options]
-addopts = "--cov-config=.coveragerc --cov --cov-report=html -v"
+addopts = "--cov-config=.coveragerc --cov --cov-report=html -v -m 'not slow'"
+markers = [
+  "slow: long-running tests or tests needing extra data (deselect with '-m \"not slow\"')",
+]
 testpaths = [
   "tests/*.py",
 ]

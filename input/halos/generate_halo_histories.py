@@ -64,7 +64,7 @@ fn = '{}.hdf5'.format(pref)
 if not os.path.exists(fn):
 
     print("Running new trajectories...")
-    zall, hist = pop.Trajectories()
+    zall, hist = pop.get_histories()
 
     f = h5py.File(fn, 'w')
 

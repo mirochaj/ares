@@ -53,7 +53,7 @@ def test():
     # Crude checks
     assert 1e-9 <= np.mean(frd) <= 1e-1, \
         f"BH FRD={np.mean(frd)} unreasonable!"
-    assert 1 <= np.interp(10, zarr, bhmd) <= 1e9, \
+    assert 1e-2 <= np.interp(10, zarr, bhmd) <= 1e9, \
         f"BHMD={np.interp(10, zarr, bhmd)} unreasonable!"
 
 

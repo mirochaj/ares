@@ -1470,7 +1470,7 @@ def ControlParameters():
         "cosmological_ics": False,
         "load_sim": False,
 
-        "cosmological_Mmin": None, #['filtering', 'tegmark'],
+        "cosmological_Mmin": None, # 'tegmark' sets molecular cooling floor
 
         # Timestepping
         "max_timestep": 1.0,

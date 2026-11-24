@@ -28,7 +28,7 @@ pars = \
  "halo_logMmax": 18,
  #"halo_zmin": 0,
  #"halo_zmax": 60,
- #"halo_dz": 0.05,
+ "halo_dz": None,    # 0.05 by default but this switches us to time grid
 
  #"hps_zmin": 0,
  #"hps_zmax": 30,
@@ -37,7 +37,6 @@ pars = \
  "halo_dt": 100,
  "halo_tmin": 100.,
  "halo_tmax": 13.7e3, # Myr
-
 
  'halo_dlnk': 0.05,
  'halo_dlnR': 0.001,

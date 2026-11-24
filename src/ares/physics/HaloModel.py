@@ -1493,6 +1493,8 @@ class HaloModel(HaloMassFunction):
             print(f"# Will save to {fn}.")
 
         if prof in [None, 'nfw']:
+            if prof is None:
+                prof = 'nfw'
             is_nfw = True
             shape = (self.tab_z.size, self.tab_M.size, self.tab_k.size)
         else:
@@ -1520,7 +1522,7 @@ class HaloModel(HaloMassFunction):
             if os.path.exists(fn_z):
                 with open(fn_z, 'rb') as f:
                     self._tab_uofk[i] = pickle.load(f)
-                print(f"! Loaded einasto checkpoint {fn_z}.")
+                print(f"! Loaded checkpoint {fn_z}.")
                 pb.update(min(i+size, len(self.tab_z)))
                 continue
             

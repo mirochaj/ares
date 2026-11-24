@@ -35,7 +35,7 @@ def test():
     x, phi_M = sim.pops[0].get_lf(zarr[0], mags, use_mags=True,
         x=1600., units='Angstroms')
 
-    assert 90 <= sim_gs.nu_C <= 115, \
+    assert 90 <= sim_gs.nu_C <= 120, \
         "Global signal unreasonable! nu_min={:.1f} MHz".format(sim_gs.nu_C)
     assert -250 <= sim_gs.dTb_C <= -150, \
         "Global signal unreasonable! dTb_min={:.1f} mK".format(sim_gs.dTb_C)

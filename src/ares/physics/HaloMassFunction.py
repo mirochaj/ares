@@ -154,7 +154,7 @@ class HaloMassFunction(object):
                     self.tab_name = candidates[0]
                     print(f"* Found {self.tab_name}.")
                 else:
-                    raise IOError("Did not find matching HMF table.")
+                    raise IOError(f"Did not find matching HMF table. Was looking for {full_path}")
 
 
         # Override switch: compute Press-Schechter function analytically
@@ -440,7 +440,7 @@ class HaloMassFunction(object):
                 self.tab_ngtm, self.tab_mgtm = self._get_ngtm_mgtm_from_dndm()
                 # tab_MAR will be re-generated automatically if summoned,
                 # as will tab_Mmin_floor.
-            elif len(self.pf['halo_mf_cache']) == 10:
+            elif len(self.pf['halo_mf_cache']) == 9:
                 (
                     self.tab_z,
                     self.tab_t,
@@ -449,11 +449,10 @@ class HaloMassFunction(object):
                     self.tab_mgtm,
                     self.tab_ngtm,
                     self._tab_MAR,
-                    self.tab_Mmin_floor,
                     self.tab_bias,
                     self._tab_dndlnm_sub
                 ) = self.pf['halo_mf_cache']
-            elif len(self.pf['halo_mf_cache']) == 14:
+            elif len(self.pf['halo_mf_cache']) == 13:
                 (
                     self.tab_z,
                     self.tab_t,
@@ -462,7 +461,6 @@ class HaloMassFunction(object):
                     self.tab_mgtm,
                     self.tab_ngtm,
                     self._tab_MAR,
-                    self.tab_Mmin_floor,
                     self.tab_bias,
                     self._tab_dndlnm_sub,
                     self.tab_k_lin,
@@ -471,7 +469,7 @@ class HaloMassFunction(object):
                     self.tab_sigma
                 ) = self.pf['halo_mf_cache']
             else:
-                raise NotImplementedError('help')
+                raise NotImplementedError('halo_mf_cache should have 4, 9, or 13 elements...')
             
             return
 
@@ -618,7 +616,7 @@ class HaloMassFunction(object):
         if not hasattr(self, '_pars_transfer_'):
             _transfer_pars = {
                 'k_per_logint': self.pf['halo_transfer_k_per_logint'],
-                'kmax': np.log(self.pf['halo_transfer_kmax'])
+                'kmax': self.pf['halo_transfer_kmax']
             }
 
             p = camb.CAMBparams()
@@ -877,7 +875,7 @@ class HaloMassFunction(object):
 
     def prep_for_cache(self, include_ps=0):
         keys = ['tab_z', 'tab_t', 'tab_M', 'tab_dndm', 'tab_mgtm', 'tab_ngtm',
-            'tab_MAR', 'tab_Mmin_floor', 'tab_bias', 'tab_dndlnm_sub']
+            'tab_MAR', 'tab_bias', 'tab_dndlnm_sub']
         
         if include_ps:
             keys.extend(['tab_k_lin', 'tab_ps_lin', 'tab_growth', 'tab_sigma'])
@@ -1572,9 +1570,12 @@ class HaloMassFunction(object):
     @property
     def tab_Mmin_floor(self):
         if not hasattr(self, '_tab_Mmin_floor'):
-            if self.pf['cosmological_Mmin'] is None:
+            if self.pf['cosmological_Mmin'] in [None, False, 0]:
                 self._tab_Mmin_floor = np.zeros_like(self.tab_z)
                 return self._tab_Mmin_floor
+            else:
+                assert self.pf['cosmological_Mmin'] == 'tegmark', \
+                    "Only know cosmological_Mmin = 'tegmark' or OFF (None, False, 0)!"
 
             if not self._is_loaded:
                 if self.pf['halo_mf_load']:
@@ -1833,8 +1834,10 @@ class HaloMassFunction(object):
         try:
             import hmf
             hmf_v = hmf.__version__
+            camb_v = camb.__version__
         except AttributeError:
             hmf_v = 'unknown'
+            camb_v = 'unknown'
 
         if destination is None:
             destination = '.'
@@ -1874,7 +1877,6 @@ class HaloMassFunction(object):
             if save_MAR:
                 f.create_dataset('tab_MAR', data=self.tab_MAR)
 
-            f.create_dataset('tab_Mmin_floor', data=self.tab_Mmin_floor)
             f.create_dataset('tab_growth', data=self.tab_growth)
             f.create_dataset('tab_sigma', data=self.tab_sigma)
             f.create_dataset('tab_dlnsdlnm', data=self.tab_dlnsdlnm)
@@ -1882,6 +1884,7 @@ class HaloMassFunction(object):
             f.create_dataset('tab_ps_lin', data=self.tab_ps_lin)
 
             f.create_dataset('hmf-version', data=hmf_v)
+            f.create_dataset('camb-version', data=camb_v)
 
             # Save cosmology
             grp = f.create_group('cosmology')
@@ -1913,7 +1916,6 @@ class HaloMassFunction(object):
                 if save_MAR:
                     pickle.dump(self.tab_MAR, f)
 
-                pickle.dump(self.tab_Mmin_floor, f)
                 pickle.dump(self.tab_ps_lin, f)
                 pickle.dump(self.tab_sigma, f)
                 pickle.dump(self.tab_dlnsdlnm, f)

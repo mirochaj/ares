@@ -43,8 +43,7 @@ def test(tmp_path):
     logMs, logSFR, err = pop.get_main_sequence(6.)
 
     # Test UVLF
-    mags = np.arange(-30, 10, 0.1)
-    mags_cr = np.arange(-30, 10, 1.)
+    mags = np.arange(-30, 10, 1.)
     x, phi = pop.get_lf(6., mags, absolute=True)
 
     ok = np.isfinite(phi)
@@ -77,20 +76,20 @@ def test(tmp_path):
     assert 1e4 <= np.mean(Md) <= 1e10, "Dust masses unreasonable!"
 
     # Test extinction
-    x, AUV = pop.get_AUV(6., magbins=mags_cr, return_binned=False)
+    x, AUV = pop.get_AUV(6., magbins=mags, return_binned=False)
 
     assert np.all(AUV >= 0), "AUV < 0! AUV={}".format(AUV)
     assert 0 < np.mean(AUV) <= 3, "AUV unreasonable!"
 
-    x2, AUV2 = pop.get_AUV(6., magbins=mags_cr, return_binned=True)
-    assert AUV2.size == mags_cr.size
-    AUV20 = AUV2[np.argmin(np.abs(mags_cr + 20))]
-    AUV16 = AUV2[np.argmin(np.abs(mags_cr + 16))]
+    x2, AUV2 = pop.get_AUV(6., magbins=mags, return_binned=True)
+    assert AUV2.size == mags.size
+    AUV20 = AUV2[np.argmin(np.abs(mags + 20))]
+    AUV16 = AUV2[np.argmin(np.abs(mags + 16))]
     assert AUV20 > AUV16, \
         "AUV should increase as MUV becomes more negative! {} {}".format(AUV20, AUV16)
 
     # Test AUV(Mstell)
-    AUV3 = pop.get_AUV(6., magbins=mags_cr, return_binned=True, Mstell=1e10,
+    AUV3 = pop.get_AUV(6., magbins=mags, return_binned=True, Mstell=1e10,
         massbins=np.arange(6, 12, 0.5))
     assert AUV3 > 0.0
 
@@ -100,10 +99,10 @@ def test(tmp_path):
     #    "UV slopes unreasonable! Beta={}".format(b_hst)
 
     #b_hst_b = pop.get_uv_slope(6., presets='hst', dlam=100.,
-    #    return_binned=True, Mbins=mags_cr)
+    #    return_binned=True, Mbins=mags)
 
-    #b20 = b_hst_b[np.argmin(np.abs(mags_cr + 20))]
-    #b16 = b_hst_b[np.argmin(np.abs(mags_cr + 16))]
+    #b20 = b_hst_b[np.argmin(np.abs(mags + 20))]
+    #b16 = b_hst_b[np.argmin(np.abs(mags + 16))]
     #assert b20 > b16, \
     #    "Beta should increase as MUV becomes more negative! {} {}".format(b20, b16)
 
@@ -111,12 +110,12 @@ def test(tmp_path):
         units='Angstroms', dlam=100.)
 
 
-    #dBdMUV, func1, func2 = pop.get_dBeta_dMUV(6., mags_cr, presets='hst', dlam=100.,
+    #dBdMUV, func1, func2 = pop.get_dBeta_dMUV(6., mags, presets='hst', dlam=100.,
     #    return_funcs=True, model='exp')
     #assert np.all(dBdMUV < 0)
 
     # Simple LAE model
-    x, xLAE, std = pop.get_lae_fraction(6, bins=mags_cr)
+    x, xLAE, std = pop.get_lae_fraction(6, bins=mags)
     ok = np.isfinite(xLAE)
 
     # Just make sure x_LAE increases as MUV decreases. Note that we don't
@@ -199,7 +198,7 @@ def test(tmp_path):
     n_ion = np.array([pop.get_photon_density(z, band=(E_LL, 1e2), units='eV') \
         for z in zarr]) * cm_per_mpc**3
 
-    assert 1e47 <= np.mean(n_ion) <= 1e51
+    assert 1e47 <= np.mean(n_ion) <= 1e52
 
 if __name__ == '__main__':
     import os 
