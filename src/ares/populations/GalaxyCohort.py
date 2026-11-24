@@ -1352,7 +1352,7 @@ class GalaxyCohort(GalaxyAggregate):
 
                 ok1 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
                     self.halos.tab_M < self.get_Mmax(z1))
-                ok2 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z1),
+                ok2 = np.logical_and(self.halos.tab_M >= self.get_Mmin(z2),
                     self.halos.tab_M < self.get_Mmax(z2))
 
                 integ1 = L1 * self.halos.tab_dndlnm[iz,:] \
@@ -8403,8 +8403,6 @@ class GalaxyCohort(GalaxyAggregate):
         else:
             scales = scale
 
-        ps = np.zeros_like(scale)
-
         xs_obs_integrand = np.zeros((scale.size, zarr.size))
 
         if separate_terms:
@@ -8448,7 +8446,7 @@ class GalaxyCohort(GalaxyAggregate):
 
             xs_obs_integrand[h,:] = integrand.copy()
             if separate_terms:
-                xs_obs_integrand_by_term[h,:] = result
+                xs_obs_integrand_by_term[h,:] = integrand_by_term
                             
             pb.update(h)
         pb.finish()

@@ -203,6 +203,7 @@ class Simulation(object):
                 # In this case, x and flux are always in ascending wavelength
 
             else:
+                # This already multiplies by nu when flux_units='si'
                 _x, _flux = self.mean_intensity.get_spectrum(zf=zf, popids=i,
                     units=flux_units, xunits=wave_units)
                 
@@ -1309,7 +1310,7 @@ class Simulation(object):
     
     def get_galaxy_number_counts(self, band, magbins, pops=None,
         units='Angstroms', dlam=10, 
-        zmin=None, zmax=None, zbin=0.01, 
+        zmin=None, zmax=None, zbin=0.1, 
         selection_criteria=None, volume_density=False):
         """
         Compute the number of galaxies per square degree for each 
