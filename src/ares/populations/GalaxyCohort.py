@@ -4519,7 +4519,7 @@ class GalaxyCohort(GalaxyAggregate):
                            * focc[None,:] * fsurv[None,:] * _fsel[:,0][None,:]
                 dndlnm = np.trapezoid(dndlnm_pre, dx=self.halos.dlnm, axis=0)
     
-                num = np.trapezoid(dndlnm, x=self.halos.dlnm)
+                num = np.trapezoid(dndlnm, dx=self.halos.dlnm)
             
             if volume_density:
                 return num 
@@ -7588,9 +7588,14 @@ class GalaxyCohort(GalaxyAggregate):
 
         ##
         # avoid NaN
-        lum[ok==0] = tiny_lum
+        # Make a copy rather than changing in place, just in case
+        # cache is every used again (changing in place has downstream
+        # effect of modifying behavior of any L>0 checks)
+        _lum = lum.copy()
+        _lum[ok==0] = tiny_lum
+        #lum[ok==0] = tiny_lum
         
-        mu = np.log(lum)
+        mu = np.log(_lum)
         sigma = self.pf['pop_scatter_sfh']
         
         if sigma > 0:
@@ -7608,15 +7613,15 @@ class GalaxyCohort(GalaxyAggregate):
                 # but it wasn't working so I'm just putting in a loop for now.    
                 lum_eff = np.zeros_like(self.halos.tab_M)
                 for i, MM in enumerate(self.halos.tab_M):
-                    Lxpdf = fsel * lum * lognormal(
-                            np.log(lum),
-                            np.log(lum[i]), 
+                    Lxpdf = fsel * _lum * lognormal(
+                            np.log(_lum),
+                            np.log(_lum[i]), 
                             sigma, return_dndx=0
                         )
-                    lum_eff[i] = np.trapezoid(Lxpdf, x=np.log(lum))
+                    lum_eff[i] = np.trapezoid(Lxpdf, x=np.log(_lum))
 
         else:
-            lum_eff = fsel * lum
+            lum_eff = fsel * _lum
 
         ##
         # Done
@@ -8388,7 +8393,13 @@ class GalaxyCohort(GalaxyAggregate):
         zhi = min(zg[1], min(self.zform, self.pf['first_light_redshift']))
 
         zarr = self.halos.tab_z
-        zok  = np.logical_and(zarr >= zlo, zarr <= zhi)
+        below = zarr[zarr <= zlo]
+        above = zarr[zarr >= zhi]
+        zlo_ext = below.max() if below.size else zarr.min()
+        zhi_ext = above.min() if above.size else zarr.max()
+
+        # Keep a buffer so integrate_with_subgrid_interp can do its thing
+        zok  = np.logical_and(zarr >= zlo_ext, zarr <= zhi_ext)
 
         if wave_obs is None:
             name = 'gg'

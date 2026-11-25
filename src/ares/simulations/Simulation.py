@@ -761,10 +761,10 @@ class Simulation(object):
             if masking_criteria is None:
                 if common_mask:
                     fmask = np.zeros((len(pops), 
-                        len(self.halos.tab_z), len(self.halos.tab_M), 2))
+                        zarr.size, self.halos.tab_M.size, 2))
                 else:
                     fmask = np.zeros((len(waves), len(pops),
-                        len(self.halos.tab_z), len(self.halos.tab_M), 2))
+                        zarr.size, self.halos.tab_M.size, 2))
 
             else:
                 fmask = self.get_masks(masking_criteria, pops)
@@ -773,7 +773,24 @@ class Simulation(object):
             raise NotImplementedError('This was causing problems')
             fsel_allz = selection_criteria
         else:
-            fsel_allz = self.get_galaxy_subsample(selection_criteria=selection_criteria, 
+
+            ##
+            # If we add zbins to selection_criteria,
+            # it can provide a big speed-up.
+            below = zarr[zarr <= np.min(zbins)]
+            above = zarr[zarr >= np.max(zbins)]
+            zlo_ext = below.max() if below.size else zarr.min()
+            zhi_ext = above.min() if above.size else zarr.max()
+            
+            
+            _sel = {} if selection_criteria is None else dict(selection_criteria)
+            if 'z' in _sel:
+                raise ValueError("Already provided `z` in selection_criteria!")
+            
+            _sel['z'] = (zlo_ext, np.nextafter(zhi_ext, np.inf))
+
+            fsel_allz = self.get_galaxy_subsample(
+                selection_criteria=_sel, 
                 pops=pops)
         
         # Get full z-dependent number density
@@ -815,6 +832,11 @@ class Simulation(object):
             # Apply this redshift bin onto existing selection function
             # (which will be z-dep through mag cut and any overarching z cut
             # but won't know about this particular z bin).
+            below = zarr[zarr <= zbin[0]]
+            above = zarr[zarr >= zbin[1]]
+            zlo_ext = below.max() if below.size else zarr.min()
+            zhi_ext = above.min() if above.size else zarr.max()
+
             fsel = []
             for popid, pop in enumerate(self.pops):
                 tmp = np.zeros_like(fsel_allz[popid])
@@ -823,9 +845,13 @@ class Simulation(object):
                     continue
 
                 for iz, z in enumerate(zarr):
-                    if z < zbin[0]:
+
+                    # Skip over redshifts not in the z bin of interest.
+                    # But, we keep a buffer zone in order to let 
+                    # integrate_with_subgrid_interp do its thing later.
+                    if z < zlo_ext:
                         continue
-                    if z >= zbin[1]:
+                    if z > zhi_ext:
                         continue
                     
                     tmp[iz] = fsel_allz[popid,iz,:,:]
@@ -1035,7 +1061,12 @@ class Simulation(object):
             zlo = max(zlo, self.pf['final_redshift'])
             zhi = min(zhi, self.pf['initial_redshift'])
 
-            galaxy_prop = {'z': (zlo, zhi)}
+            below = zarr[zarr <= zlo]
+            above = zarr[zarr >= zhi]
+            zlo_ext = below.max() if below.size else zarr.min()
+            zhi_ext = above.min() if above.size else zarr.max()
+
+            galaxy_prop = {'z': (zlo_ext, np.nextafter(zhi_ext, np.inf))}
             if selection_criteria is not None:
                 galaxy_prop.update(selection_criteria)
             
@@ -1206,13 +1237,15 @@ class Simulation(object):
                 # Total number of galaxies in this particular redshift bin,
                 # summed over source populations.
                 n_in_zbin = integrate_with_subgrid_interp(zarr, 
-                        num[:,:].sum(axis=0), zlo, zhi)
+                    n_vs_zall * d**2 * dchi_dz, zlo, zhi)
+                        #num[:,:].sum(axis=0), zlo, zhi)
                 
                 # The n_in_zbin factor here will completely cancel with
                 # ps3d (below) in the shot limit.
                 # The (c/H) factor will get cancelled by dchi_dz_dsq,
                 # which will leave only a factor of d**2.
-                W_g = 1. / n_in_zbin / ((c / cm_per_mpc) / Hofz)
+                #W_g = 1. / n_in_zbin / ((c / cm_per_mpc) / Hofz)
+                W_g = d**2 / n_in_zbin
 
                 #print('hi', n_tot, W_g, dchi_dz, zlo, zhi)
                 check_Wg = integrate_with_subgrid_interp(zarr, 
@@ -1264,9 +1297,11 @@ class Simulation(object):
                     # Total number of galaxies in this particular redshift bin,
                     # summed over source populations.
                     n_in_zbin = integrate_with_subgrid_interp(zarr, 
-                            num[:,j,:].sum(axis=0), zlo, zhi)
+                        n_vs_zall * d**2 * dchi_dz, zlo, zhi)
+                            #num[:,j,:].sum(axis=0), zlo, zhi)
                     
-                    W_g = 1. / n_in_zbin / ((c / cm_per_mpc) / Hofz)
+                    #W_g = 1. / n_in_zbin / ((c / cm_per_mpc) / Hofz)
+                    W_g = d**2 / n_in_zbin
                     W_I = freqs[j] / (4. * np.pi) / (1 + zarr)**2
 
                     # The None slicing here is to match the first axis of
@@ -1283,8 +1318,12 @@ class Simulation(object):
                         # is essentially always since the z gridding 
                         # is not even (usually in fixed time or log[1+z])
 
-                        limb = np.ma.array(limber_integ[k], mask=n_vs_zall==0,
-                            fill_value=0)
+                        #limb = np.ma.array(limber_integ[k], mask=n_vs_zall==0,
+                        #    fill_value=0)
+                        # Zero where there are no galaxies (e.g., outside a
+                        # population's zdead/zform). Plain array, not masked:
+                        # masked elements become NaN in the sub-grid interp.
+                        limb = np.where(n_vs_zall > 0, limber_integ[k], 0.)
                         ps_2d[k,j,i] = integrate_with_subgrid_interp(zarr, 
                             limb, zlo, zhi)
                         
@@ -1293,13 +1332,12 @@ class Simulation(object):
                         for p1 in range(len(self.pops)):
                             for p2 in range(len(self.pops)):
                                 limber_integ_bypop = dchi_dz_dsq \
-                                        * W_g * W_I \
-                                        * ps3d[p1,p2,k,j,i,:] \
-                                        / n_vs_zall
+                                        * W_g * W_I
                                 
-                                limb = np.ma.array(limber_integ_bypop, 
-                                    mask=n_vs_zall==0, fill_value=0)
-                                
+                                #limb = np.ma.array(limber_integ_bypop, 
+                                #    mask=n_vs_zall==0, fill_value=0)
+                                limb = np.where(n_vs_zall > 0,
+                                    limber_integ_bypop, 0.)
                                 ps_2d_by_pop[p1,p2,k,j,i] = \
                                     integrate_with_subgrid_interp(zarr,
                                         limb, zlo, zhi)                        
